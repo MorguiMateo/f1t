@@ -4,6 +4,8 @@ App fitness personal: rutinas por día, calendario de actividad tipo GitHub y
 seguimiento de peso. Web primero, pensada desde el día uno para envolverse en
 Capacitor y tener un widget nativo en la pantalla de inicio del iPhone.
 
+Plan, fases y decisiones tomadas: **[PLAN.md](PLAN.md)**.
+
 ## Stack
 
 - **Vite + React 19 + TypeScript** — build estático, para que `npx cap add ios`
