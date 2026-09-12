@@ -3,6 +3,7 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router";
 import App from "./App";
+import { SessionProvider } from "./features/auth/SessionProvider";
 import "./index.css";
 
 const queryClient = new QueryClient({
@@ -20,9 +21,12 @@ const queryClient = new QueryClient({
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
-        <App />
-      </BrowserRouter>
+      {/* Afuera del router: la sesión no depende de la ruta. */}
+      <SessionProvider>
+        <BrowserRouter>
+          <App />
+        </BrowserRouter>
+      </SessionProvider>
     </QueryClientProvider>
   </StrictMode>,
 );
