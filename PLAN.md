@@ -177,18 +177,24 @@ Vite + React 19 + TS, Tailwind v4 con tema claro/oscuro, PWA, 4 rutas con nav
 inferior, `src/lib/heatmap.ts` con 16 tests, `src/lib/device.ts`. Build y tests
 en verde.
 
-### Fase 1 — Supabase y auth
+### Fase 1 — Supabase y auth ✅ (commit `7134721`)
 
-Todo lo demás necesita persistencia y un `user_id`.
+Las 8 tablas de §3 con RLS y una policy por tabla, login con Google, guard de
+rutas, cliente tipado desde el schema real. La CLI de Supabase entró como
+devDependency, con los scripts `db:*` en `package.json`.
 
-- Proyecto en Supabase; completar `.env.example` → `.env.local`
-- Migraciones con el schema de §3 y las policies de RLS
-- `src/lib/supabase.ts` — cliente único
-- `src/features/auth/` — login con Google, `useSession()`, guard de rutas
-- TanStack Query provider en `main.tsx`
-- Perfil deja de ser el cascarón que dice "próxima fase"
+Dos cosas se decidieron acá porque §3 tenía una ambigüedad —decía "sin
+excepciones" pero no listaba `user_id` en las tablas hijas:
 
-### Fase 2 — Catálogo de ejercicios
+- **`user_id` va en todas las tablas, también las hijas.** Así la policy es
+  `user_id = auth.uid()` directo, sin subconsulta por fila. La consistencia
+  entre padre e hija la garantiza una **FK compuesta** `(routine_id, user_id)`
+  contra `routines(id, user_id)`: colgar un día de la rutina de otro usuario
+  es un error de integridad, no un agujero de permisos.
+- **Las policies usan `(select auth.uid())`**, no `auth.uid()` a secas. Entre
+  paréntesis Postgres lo evalúa una vez por consulta y no una vez por fila.
+
+### Fase 2 — Catálogo de ejercicios ✅
 
 - `scripts/fetch-exercises.mjs` — baja el JSON, filtra por la lista blanca,
   convierte a WebP 480px q72 en `public/exercises/<id>/0.webp`, escribe
@@ -198,9 +204,34 @@ Todo lo demás necesita persistencia y un `user_id`.
 - Buscador por nombre, filtros por músculo y equipamiento
 - Ficha: las 2 fotos + mapa muscular + instrucciones
 
-Los nombres del dataset están en inglés. Se traducen los ~17 músculos y las
-categorías (poco y cerrado); los nombres de ejercicios quedan en inglés al
-principio y se traducen en la lista blanca si molesta.
+Números reales, mejores que la estimación de §2: **165 ejercicios**, 330
+imágenes, **14,6 KB promedio** por imagen y **5,4 MB** en total contra los
+6,8 MB previstos. Los 17 músculos quedan cubiertos como primarios.
+
+Tres decisiones que no estaban en el plan original:
+
+- **El catálogo se navega desde el bundle, no desde Postgres.** La tabla
+  `exercises` existe porque `routine_exercises` tiene una FK contra ella, pero
+  buscar un ejercicio lee `catalog.json`. Mismo motivo que las imágenes: en el
+  gimnasio no hay señal, y 165 registros filtrados en memoria no justifican un
+  round-trip ni un estado de carga.
+- **Las rutas del catálogo van con `lazy()`.** `catalog.json` (209 KB) y
+  react-body-highlighter (176 KB) solo hacen falta en dos pantallas; en el
+  chunk inicial casi duplicaban el peso de abrir la app. El chunk inicial
+  quedó en 474 KB (138 KB gzip) y el catálogo en 37 KB gzip aparte. El
+  service worker precachea los dos, así que offline no cambia.
+- **El catálogo no es una quinta pestaña.** Vive en `/ejercicios` y se entra
+  desde Rutinas, que es donde hace falta elegir ejercicios. La nav se queda
+  en cuatro.
+
+Los nombres del dataset están en inglés. Se traducen los 17 músculos y las
+categorías (poco y cerrado); los nombres de ejercicios quedan en inglés. Para
+que eso no rompa la búsqueda, el índice incluye las etiquetas traducidas:
+escribir "pecho" encuentra el press de banca aunque se llame "Bench Press".
+
+El mapeo a react-body-highlighter se verificó contra los tipos del paquete y
+no contra la tabla de §2, que tenía dos huecos: `lower back` → `lower-back` y
+`abductors` → `abductors`, los dos 1:1.
 
 ### Fase 3 — Rutinas
 
