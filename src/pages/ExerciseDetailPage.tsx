@@ -1,6 +1,8 @@
-import { Link, useParams } from "react-router";
+import { useState } from "react";
+import { Link, useNavigate, useParams } from "react-router";
 import { EmptyState } from "../components/EmptyState";
 import { PageHeader } from "../components/PageHeader";
+import { ImageLightbox } from "../features/exercises/ImageLightbox";
 import { MuscleMap } from "../features/exercises/MuscleMap";
 import { getExercise } from "../features/exercises/catalog";
 import {
@@ -13,6 +15,13 @@ import {
   muscleLabel,
 } from "../lib/muscles";
 
+/** Las dos fotos del dataset son el inicio y el fin del movimiento. */
+function imageAlt(name: string, index: number): string {
+  return index === 0
+    ? `${name}: posición inicial`
+    : `${name}: posición final`;
+}
+
 function Fact({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-lg bg-surface-2 px-3 py-2">
@@ -24,12 +33,14 @@ function Fact({ label, value }: { label: string; value: string }) {
 
 export function ExerciseDetailPage() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const exercise = id ? getExercise(id) : undefined;
+  const [zoomed, setZoomed] = useState<number | null>(null);
 
   if (!exercise) {
     return (
       <>
-        <PageHeader title="Ejercicio" />
+        <PageHeader title="Ejercicio" onBack={() => navigate(-1)} />
         <EmptyState
           title="No encontramos ese ejercicio"
           description="Puede que el enlace esté viejo o que el ejercicio ya no esté en el catálogo."
@@ -48,28 +59,40 @@ export function ExerciseDetailPage() {
       <PageHeader
         title={exercise.name}
         subtitle={exercise.primaryMuscles.map(muscleLabel).join(" · ")}
+        onBack={() => navigate(-1)}
       />
 
       {/* Las dos fotos son inicio y fin del movimiento, así que van juntas
-          y en orden: una sola no dice nada. */}
+          y en orden: una sola no dice nada. Se pueden ampliar al tocarlas. */}
       <div className="grid grid-cols-2 gap-2">
         {exercise.images.map((src, i) => (
-          <img
+          <button
             key={src}
-            src={src}
-            alt={
-              i === 0
-                ? `${exercise.name}: posición inicial`
-                : `${exercise.name}: posición final`
-            }
-            width={480}
-            height={320}
-            loading={i === 0 ? "eager" : "lazy"}
-            decoding="async"
-            className="aspect-3/2 w-full rounded-xl bg-surface-2 object-cover"
-          />
+            type="button"
+            onClick={() => setZoomed(i)}
+            aria-label={`Ampliar ${imageAlt(exercise.name, i)}`}
+            className="cursor-zoom-in overflow-hidden rounded-xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+          >
+            <img
+              src={src}
+              alt={imageAlt(exercise.name, i)}
+              width={480}
+              height={320}
+              loading={i === 0 ? "eager" : "lazy"}
+              decoding="async"
+              className="aspect-3/2 w-full bg-surface-2 object-cover"
+            />
+          </button>
         ))}
       </div>
+
+      {zoomed !== null ? (
+        <ImageLightbox
+          src={exercise.images[zoomed]}
+          alt={imageAlt(exercise.name, zoomed)}
+          onClose={() => setZoomed(null)}
+        />
+      ) : null}
 
       <dl className="mt-3 grid grid-cols-2 gap-2">
         <Fact label="Equipamiento" value={labelOr(EQUIPMENT_ES, exercise.equipment)} />
