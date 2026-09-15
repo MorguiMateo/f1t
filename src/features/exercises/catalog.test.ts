@@ -45,6 +45,18 @@ describe("el catálogo generado", () => {
     }
   });
 
+  it("le da a cada ejercicio nombre en inglés y alias de búsqueda", () => {
+    const broken = EXERCISES.filter(
+      (e) => !e.nameEn || !Array.isArray(e.aliases) || e.aliases.length === 0,
+    );
+    expect(broken).toEqual([]);
+  });
+
+  it("no repite el nombre visible entre dos ejercicios", () => {
+    const names = EXERCISES.map((e) => e.name);
+    expect(new Set(names).size).toBe(names.length);
+  });
+
   it("no ofrece equipamiento que no exista en el catálogo", () => {
     const declared = availableEquipment(EXERCISES);
     expect(declared).not.toContain(null);
@@ -57,18 +69,40 @@ describe("filterExercises", () => {
     expect(filterExercises(EXERCISES, {})).toHaveLength(EXERCISES.length);
   });
 
-  it("busca por nombre en inglés", () => {
-    const names = search("bench press").map((e) => e.name);
-    expect(names).toContain("Barbell Bench Press - Medium Grip");
+  it("busca por nombre en inglés aunque el nombre visible esté en español", () => {
+    // El nombre en pantalla es "Press de banca"; el inglés vive en el índice.
+    const ids = search("bench press").map((e) => e.id);
+    expect(ids).toContain("Barbell_Bench_Press_-_Medium_Grip");
+  });
+
+  it("busca por el nombre en español", () => {
+    const ids = search("press banca").map((e) => e.id);
+    expect(ids).toContain("Barbell_Bench_Press_-_Medium_Grip");
+  });
+
+  it("encuentra por un alias en español que no está en el nombre", () => {
+    // "pecho plano" no aparece en "Press de banca": lo resuelve el alias.
+    const ids = search("pecho plano").map((e) => e.id);
+    expect(ids).toContain("Barbell_Bench_Press_-_Medium_Grip");
+  });
+
+  it("encuentra el peso muerto por su alias regional", () => {
+    const ids = search("peso muerto").map((e) => e.id);
+    expect(ids).toContain("Barbell_Deadlift");
   });
 
   it("busca por músculo en español, aunque el nombre esté en inglés", () => {
     // Es la razón de existir del índice: nadie va a escribir "chest".
+    // No exige exclusividad: "jalón al pecho" es el nombre real de varios
+    // jalones dorsales, así que la palabra "pecho" también los alcanza. Lo que
+    // importa es que el trabajo de pecho aparece y domina; el chip de músculo
+    // es la herramienta exacta cuando hace falta filtrar sin ruido.
     const hits = search("pecho");
-    expect(hits.length).toBeGreaterThan(5);
-    expect(hits.every((e) =>
+    const chest = hits.filter((e) =>
       [...e.primaryMuscles, ...e.secondaryMuscles].includes("chest"),
-    )).toBe(true);
+    );
+    expect(chest.length).toBeGreaterThan(5);
+    expect(chest.length).toBeGreaterThan(hits.length - chest.length);
   });
 
   it("pide que estén todos los términos, en cualquier orden", () => {
@@ -101,7 +135,9 @@ describe("filterExercises", () => {
     );
     expect(hits.length).toBeGreaterThan(3);
     expect(hits.every((e) => e.equipment === "barbell")).toBe(true);
-    expect(hits.every((e) => normalize(e.name).includes("squat"))).toBe(true);
+    // El nombre visible es español ("Sentadilla…"); el término inglés matchea
+    // por nameEn o por los alias, así que se valida contra el índice.
+    expect(hits.every((e) => index.get(e.id)?.includes("squat"))).toBe(true);
   });
 
   it("devuelve vacío y no explota cuando no hay coincidencias", () => {
@@ -116,7 +152,8 @@ describe("filterExercises", () => {
 describe("getExercise", () => {
   it("resuelve por id", () => {
     const squat: Exercise | undefined = getExercise("Barbell_Squat");
-    expect(squat?.name).toBe("Barbell Squat");
+    expect(squat?.name).toBe("Sentadilla con barra");
+    expect(squat?.nameEn).toBe("Barbell Squat");
   });
 
   it("devuelve undefined si el id no existe", () => {

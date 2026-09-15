@@ -64,6 +64,18 @@ async function loadWhitelist() {
   return [...new Set(Object.values(grouped).flat())];
 }
 
+/**
+ * Nombres en español + inglés acortado + alias de búsqueda, escritos a mano.
+ * El dataset trae los nombres crudos en inglés ("Barbell Bench Press - Medium
+ * Grip"); este archivo los acorta, los traduce y aporta las variantes en
+ * español para que la búsqueda funcione en los dos idiomas (PLAN.md Fase 2).
+ */
+async function loadNames() {
+  return JSON.parse(
+    await readFile(resolve(ROOT, "scripts/exercise-es.json"), "utf8"),
+  );
+}
+
 /** Corre `task` sobre cada item con un pool de tamaño fijo. */
 async function pool(items, size, task) {
   const queue = [...items];
@@ -136,6 +148,7 @@ on conflict (id) do update set
 
 const dataset = await loadDataset();
 const whitelist = await loadWhitelist();
+const names = await loadNames();
 const byId = new Map(dataset.map((e) => [e.id, e]));
 
 // Si el dataset renombra un id, se entera acá y no con una imagen rota en
@@ -154,14 +167,40 @@ if (withoutImages.length) {
   process.exit(1);
 }
 
+// Los nombres se escriben a mano: si falta uno, el ejercicio saldría con el
+// nombre crudo del inglés y sin alias en español. Se corta antes que dejar
+// pasar un catálogo a medio traducir.
+const withoutName = whitelist.filter((id) => !names[id]);
+if (withoutName.length) {
+  console.error(`\nEstos ids no tienen entrada en scripts/exercise-es.json:`);
+  for (const id of withoutName) console.error(`  ${id}`);
+  process.exit(1);
+}
+
+// Y al revés: una entrada que ya no corresponde a ningún id curado es basura
+// que conviene borrar de la mano (típicamente al sacar un ejercicio del catálogo).
+const whitelistSet = new Set(whitelist);
+const extraNames = Object.keys(names).filter((id) => !whitelistSet.has(id));
+if (extraNames.length) {
+  console.error(`\nEstas entradas de scripts/exercise-es.json sobran (no están en la lista blanca):`);
+  for (const id of extraNames) console.error(`  ${id}`);
+  process.exit(1);
+}
+
 console.log(`Lista blanca: ${whitelist.length} de ${dataset.length} ejercicios.`);
 
 const catalog = whitelist
   .map((id) => {
     const e = byId.get(id);
+    const tr = names[id];
+    // El nombre crudo del dataset entra a los alias para que la búsqueda en
+    // inglés no regrese aunque el override no lo repita.
+    const aliases = [...new Set([...tr.aliases, e.name])];
     return {
       id: e.id,
-      name: e.name,
+      name: tr.es, // Display por defecto: español.
+      nameEn: tr.en, // Lo consumirá el selector de idioma futuro (PLAN.md).
+      aliases,
       category: e.category,
       equipment: e.equipment ?? null,
       level: e.level,

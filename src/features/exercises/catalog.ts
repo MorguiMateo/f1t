@@ -17,7 +17,12 @@ import raw from "./catalog.json";
 
 export type Exercise = {
   id: string;
+  /** Nombre visible por defecto, en español. */
   name: string;
+  /** Nombre en inglés acortado. Lo consumirá el selector de idioma (PLAN.md). */
+  nameEn: string;
+  /** Variantes buscables (ES/EN) + el nombre crudo del dataset. No se muestra. */
+  aliases: string[];
   category: string;
   equipment: string | null;
   level: string;
@@ -55,10 +60,12 @@ export type CatalogFilters = {
 };
 
 /**
- * Los nombres del dataset están en inglés (PLAN.md §4), así que buscar solo
- * por nombre dejaría afuera a cualquiera que escriba en español. El índice
- * de búsqueda incluye las etiquetas traducidas de músculos y equipamiento:
- * escribir "pecho" encuentra el press de banca aunque se llame "Bench Press".
+ * La búsqueda tiene que funcionar en los dos idiomas: el nombre visible está
+ * en español, pero mucha gente escribe en inglés ("bench press") y al revés
+ * ("press banca", "pecho plano"). Por eso el índice junta, además del nombre
+ * español, el nombre en inglés y los alias curados a mano (que ya incluyen el
+ * nombre crudo del dataset), más las etiquetas de músculos y equipamiento en
+ * los dos idiomas.
  */
 export function buildSearchIndex(
   exercise: Exercise,
@@ -68,6 +75,8 @@ export function buildSearchIndex(
   return normalize(
     [
       exercise.name,
+      exercise.nameEn,
+      ...exercise.aliases,
       ...exercise.primaryMuscles.map(muscleLabel),
       ...exercise.secondaryMuscles.map(muscleLabel),
       ...exercise.primaryMuscles,

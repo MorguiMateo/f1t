@@ -224,10 +224,28 @@ Tres decisiones que no estaban en el plan original:
   desde Rutinas, que es donde hace falta elegir ejercicios. La nav se queda
   en cuatro.
 
-Los nombres del dataset están en inglés. Se traducen los 17 músculos y las
-categorías (poco y cerrado); los nombres de ejercicios quedan en inglés. Para
-que eso no rompa la búsqueda, el índice incluye las etiquetas traducidas:
-escribir "pecho" encuentra el press de banca aunque se llame "Bench Press".
+Los nombres del dataset están en inglés y son largos ("Barbell Bench Press -
+Medium Grip"). Se acortan y se muestran **en español por defecto** ("Press de
+banca"), con una fuente editable a mano —`scripts/exercise-es.json`, mismo
+patrón que `curated-ids.json`— que por cada ejercicio da el nombre en español
+(`es`), el nombre en inglés acortado (`en`) y una lista de alias buscables. El
+script valida cobertura total (todo id curado tiene entrada, y no sobran) y
+escribe en `catalog.json` los campos `name` (español), `nameEn` (inglés) y
+`aliases`.
+
+La búsqueda es **bilingüe**: el índice junta `name`, `nameEn` y los alias (que
+incluyen automáticamente el nombre crudo del dataset), más las etiquetas de
+músculos y equipamiento en los dos idiomas. Así "press banca", "pecho plano" y
+"bench press" encuentran los tres el mismo ejercicio. Costo de performance
+despreciable: el índice se arma una sola vez al cargar el chunk y filtrar son
+`includes` sobre 165 items; los alias solo suman unos KB gzip a un chunk que ya
+es `lazy()` y precacheado.
+
+**Paso futuro — selector de idioma (ES/EN) para los nombres.** El catálogo ya
+trae `nameEn` justamente para esto: falta un toggle de idioma y un helper
+`displayName(exercise, locale)` que elija entre `name` y `nameEn`. Si en algún
+momento la tabla `exercises` de Postgres tuviera que mostrar nombres, se le
+agrega una columna `name_en`. Ninguna pantalla depende hoy de esa decisión.
 
 El mapeo a react-body-highlighter se verificó contra los tipos del paquete y
 no contra la tabla de §2, que tenía dos huecos: `lower back` → `lower-back` y
