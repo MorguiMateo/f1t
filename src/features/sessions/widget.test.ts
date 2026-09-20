@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { buildWidgetPayload, WIDGET_EXERCISE_LIMIT, WIDGET_WEEKS } from "./widget";
 
-const NOW = new Date(2026, 8, 20); // domingo 20 de septiembre de 2026
+const NOW = new Date(2026, 8, 20); // Sunday 20 September 2026
 
 describe("buildWidgetPayload", () => {
   it("respeta el contrato de buildLevels: enteros 0–4, largo weeks × 7", () => {

@@ -1,27 +1,27 @@
 /**
- * El `WidgetPayload` que lee el widget de iOS.
+ * The `WidgetPayload` the iOS widget reads.
  *
- * Todavía no hay widget: en web, `device.syncWidget()` solo deja el payload
- * en localStorage. Se arma igual, y completo, desde la Fase 4 —y no recién
- * en la Fase 6— por dos motivos: obliga a que `buildLevels()` tenga un
- * consumidor real desde el primer día, y cuando llegue Capacitor el lado web
- * ya está hecho. Ver PLAN.md §5.3.
+ * There is no widget yet: on the web, `device.syncWidget()` only drops the
+ * payload into localStorage. It is built anyway, and built complete, from
+ * Phase 4 — rather than waiting until Phase 6 — for two reasons: it forces
+ * `buildLevels()` to have a real consumer from day one, and by the time
+ * Capacitor lands the web side is already done. See PLAN.md §5.3.
  *
- * Es una función pura a propósito: los nombres de los ejercicios los resuelve
- * quien la llama —el catálogo vive en un chunk `lazy()`— y así esto se puede
- * testear sin cargar 209 KB de JSON.
+ * It is a pure function on purpose: exercise names are resolved by the
+ * caller — the catalog lives in a `lazy()` chunk — so this can be tested
+ * without loading 209 KB of JSON.
  */
 
 import type { WidgetPayload } from "../../lib/device";
 import { buildLevels, currentStreak, type HeatmapSession } from "../../lib/heatmap";
 
 /**
- * 26 semanas: medio año, que es lo que entra en un widget mediano de iOS sin
- * que los cuadraditos queden por debajo del área táctil mínima.
+ * 26 weeks: half a year, which is what fits in a medium iOS widget without
+ * pushing the squares below the minimum touch target.
  */
 export const WIDGET_WEEKS = 26;
 
-/** Cuántos ejercicios entran en el widget grande sin recortarse. */
+/** How many exercises fit in the large widget without being clipped. */
 export const WIDGET_EXERCISE_LIMIT = 6;
 
 export function buildWidgetPayload(input: {
@@ -35,8 +35,8 @@ export function buildWidgetPayload(input: {
     levels: buildLevels(input.days, { weeks: WIDGET_WEEKS, endDate: now }),
     todayLabel: input.todayLabel,
     todayExercises: input.todayExercises.slice(0, WIDGET_EXERCISE_LIMIT).map(
-      // Copia explícita: el payload se serializa a JSON y no tiene por qué
-      // arrastrar lo que sea que traigan los objetos de quien llama.
+      // An explicit copy: the payload is serialised to JSON and has no
+      // business dragging along whatever else the caller's objects carry.
       ({ name, detail }) => ({ name, detail }),
     ),
     streak: currentStreak(input.days, now),

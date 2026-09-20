@@ -1,23 +1,23 @@
 -- ============================================================================
--- F1t — `sessions.set_count` lo mantiene la base (Fase 4)
+-- F1t — `sessions.set_count` is maintained by the database (Phase 4)
 --
--- `set_count` es una de las dos columnas del invariante de PLAN.md §5.2: es
--- lo que lee `HeatmapSession` para decidir la intensidad del cuadradito. Su
--- valor real es "cuántas filas de session_sets tiene esta sesión", así que
--- dejarlo en manos del cliente significa dos requests por cada serie que se
--- marca en el gimnasio —y una intensidad que miente cuando el segundo falla.
+-- `set_count` is one of the two columns in the PLAN.md §5.2 invariant: it is
+-- what `HeatmapSession` reads to decide a square's intensity. Its true value
+-- is "how many session_sets rows this session has", so leaving it to the
+-- client means two requests for every set ticked at the gym — and an
+-- intensity that lies whenever the second one fails.
 --
--- Acá lo recalcula un trigger: una sola escritura por toque, y el número no
--- puede quedar desincronizado ni aunque alguien escriba desde otro lado.
+-- Here a trigger recomputes it: one write per tap, and the number cannot
+-- drift out of sync even if somebody writes from somewhere else.
 -- ============================================================================
 
--- `security invoker` a propósito: la función corre como el usuario que marcó
--- la serie, así que el update contra `sessions` pasa por la misma policy que
--- cualquier otra escritura suya. Con `security definer` se saltearía RLS sin
--- que haga falta.
+-- `security invoker` on purpose: the function runs as the user who ticked the
+-- set, so the update against `sessions` goes through the same policy as any
+-- other write of theirs. `security definer` would bypass RLS for no reason.
 --
--- `search_path = ''` obliga a calificar cada nombre con su schema, que es lo
--- que impide que alguien anteponga un schema propio y sirva otra tabla.
+-- `search_path = ''` forces every name to be schema-qualified, which is what
+-- stops anyone from prepending their own schema and serving a different
+-- table.
 create or replace function public.sync_session_set_count()
 returns trigger
 language plpgsql
@@ -35,20 +35,20 @@ begin
          )
    where id = target;
 
-  -- Trigger AFTER: el valor de retorno se descarta.
+  -- AFTER trigger: the return value is discarded.
   return null;
 end;
 $$;
 
--- Solo insert y delete: marcar y desmarcar una serie. Editar reps o peso no
--- cambia cuántas series son, y una serie nunca se muda de sesión —si algún
--- día se mudara, habría que actualizar las dos sesiones, no una.
+-- Insert and delete only: ticking and unticking a set. Editing reps or weight
+-- doesn't change how many sets there are, and a set never moves between
+-- sessions — if one day it did, both sessions would need updating, not one.
 drop trigger if exists session_sets_count_sync on public.session_sets;
 create trigger session_sets_count_sync
   after insert or delete on public.session_sets
   for each row execute function public.sync_session_set_count();
 
--- Las sesiones que ya existan quedan con el número correcto.
+-- Any sessions that already exist end up with the right number.
 update public.sessions s
    set set_count = (
          select count(*) from public.session_sets ss where ss.session_id = s.id

@@ -1,6 +1,6 @@
 /**
- * El contexto de sesión, separado del provider para que este archivo no
- * exporte componentes y hooks a la vez (ver react/only-export-components).
+ * The session context, kept apart from the provider so this file doesn't
+ * export components and hooks at once (see react/only-export-components).
  */
 
 import type { Session } from "@supabase/supabase-js";
@@ -8,7 +8,7 @@ import { createContext, useContext } from "react";
 
 export type SessionState = {
   session: Session | null;
-  /** true hasta que se resolvió si hay sesión guardada o no. */
+  /** true until it is settled whether there is a stored session or not. */
   isLoading: boolean;
 };
 
@@ -22,7 +22,7 @@ export function useSession(): SessionState {
   return state;
 }
 
-/** El usuario autenticado, o null. Atajo para el caso más común. */
+/** The authenticated user, or null. A shortcut for the common case. */
 export function useUser() {
   return useSession().session?.user ?? null;
 }

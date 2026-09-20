@@ -1,19 +1,19 @@
-import { EmptyState } from "../components/EmptyState";
-import { PageHeader } from "../components/PageHeader";
-import { ErrorNote, LoadingNote } from "../components/Status";
-import { Heatmap } from "../features/sessions/Heatmap";
+import { EmptyState } from "../components/empty-state";
+import { PageHeader } from "../components/page-header";
+import { ErrorNote, LoadingNote } from "../components/status";
+import { Heatmap } from "../features/sessions/heatmap";
 import { useSessionDays } from "../features/sessions/queries";
 import { WIDGET_WEEKS } from "../features/sessions/widget";
 import { currentStreak } from "../lib/heatmap";
 
 /**
- * El calendario de actividad y lo poco que se puede decir con él.
+ * The activity calendar and the little that can be said with it.
  *
- * Las mismas 26 semanas que el widget mediano de iOS: no es casualidad, es
- * la constante `WIDGET_WEEKS` compartida. Si acá se ve medio año, en la
- * pantalla de inicio del teléfono también, y las dos pintan el mismo array.
+ * The same 26 weeks as the medium iOS widget: not a coincidence, it is the
+ * shared `WIDGET_WEEKS` constant. If half a year shows here, half a year
+ * shows on the phone's home screen too, and both paint the same array.
  *
- * El peso y su gráfico llegan en la Fase 5.
+ * Weight and its chart arrive in Phase 5.
  */
 
 function Stat({ value, label }: { value: string; label: string }) {

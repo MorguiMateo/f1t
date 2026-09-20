@@ -1,9 +1,9 @@
 import { useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
-import { EmptyState } from "../components/EmptyState";
-import { PageHeader } from "../components/PageHeader";
-import { ErrorNote } from "../components/Status";
-import { ExerciseCard } from "../features/exercises/ExerciseCard";
+import { EmptyState } from "../components/empty-state";
+import { PageHeader } from "../components/page-header";
+import { ErrorNote } from "../components/status";
+import { ExerciseCard } from "../features/exercises/exercise-card";
 import { useAddExercise } from "../features/routines/queries";
 import {
   EXERCISES,
@@ -16,13 +16,13 @@ import { EQUIPMENT_ES, MUSCLES, muscleLabel } from "../lib/muscles";
 
 const equipmentLabel = (e: string | null) => (e ? EQUIPMENT_ES[e] ?? e : "");
 
-/** Se arma una vez: 165 strings normalizados no valen recalcular por tecla. */
+/** Built once: 165 normalised strings aren't worth recomputing per keystroke. */
 const SEARCH_INDEX = new Map(
   EXERCISES.map((e) => [e.id, buildSearchIndex(e, muscleLabel, equipmentLabel)]),
 );
 
-// En el orden del cuerpo y no alfabético: buscar "hombros" al lado de
-// "pecho" es más rápido que recordar la letra con la que empieza.
+// In body order and not alphabetical: finding "hombros" next to "pecho" is
+// faster than remembering which letter it starts with.
 const MUSCLE_ORDER = MUSCLES.filter((m) =>
   availableMuscles(EXERCISES).includes(m),
 );
@@ -55,13 +55,13 @@ function Chip({
 }
 
 /**
- * El catálogo, en dos modos.
+ * The catalog, in two modes.
  *
- * Con `?dia=…&rutina=…` la misma pantalla sirve para **elegir** un ejercicio
- * y agregarlo a ese día. No hay un segundo buscador en la pantalla del día:
- * serían dos buscadores para mantener, con dos conjuntos de filtros que se
- * van pareciendo cada vez menos. El modo vive en la URL y no en un estado de
- * navegación para que volver atrás con el gesto del teléfono funcione.
+ * With `?dia=…&rutina=…` the same screen serves to **pick** an exercise and
+ * add it to that day. There is no second search box on the day screen: that
+ * would be two searches to maintain, with two sets of filters that resemble
+ * each other less and less. The mode lives in the URL and not in navigation
+ * state so the phone's back gesture works.
  */
 export function ExercisesPage() {
   const [params] = useSearchParams();
@@ -87,8 +87,8 @@ export function ExercisesPage() {
     addExercise.mutate(
       { dayId, exerciseId },
       {
-        // `replace` para que volver desde el día lleve a la rutina y no de
-        // nuevo al catálogo con el ejercicio ya agregado.
+        // `replace` so going back from the day lands on the routine and not
+        // on the catalog again with the exercise already added.
         onSuccess: () =>
           navigate(`/rutinas/${routineId}/dias/${dayId}`, { replace: true }),
       },
@@ -125,8 +125,8 @@ export function ExercisesPage() {
         />
       </label>
 
-      {/* Los filtros scrollean en horizontal: en un teléfono no entran 17
-          músculos en una grilla sin comerse la pantalla. */}
+      {/* The filters scroll horizontally: on a phone, 17 muscles don't fit
+          in a grid without eating the screen. */}
       <div className="-mx-4 mt-3 flex gap-2 overflow-x-auto px-4 pb-1">
         {MUSCLE_ORDER.map((m) => (
           <Chip

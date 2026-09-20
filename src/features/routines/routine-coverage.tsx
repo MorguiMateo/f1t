@@ -1,14 +1,14 @@
 import { muscleLabel } from "../../lib/muscles";
-import { MuscleMap } from "../exercises/MuscleMap";
+import { MuscleMap } from "../exercises/muscle-map";
 import { muscleCoverage } from "./coverage";
 
 /**
- * El mapa muscular agregado: lo que la rutina cubre y lo que deja afuera.
+ * The aggregate muscle map: what the routine covers and what it leaves out.
  *
- * Reusa el `MuscleMap` de la ficha de ejercicio sin tocarlo, porque la
- * pregunta es la misma con otro alcance: en un ejercicio, "qué trabaja
- * esto"; en una rutina, "qué trabaja todo esto junto". Los primarios de
- * cualquier ejercicio son primarios del conjunto.
+ * It reuses the exercise page's `MuscleMap` untouched, because the question
+ * is the same at a different scope: for an exercise, "what does this work";
+ * for a routine, "what does all of this work together". Any exercise's
+ * primaries are primaries of the whole.
  */
 export function RoutineCoverage({
   exerciseIds,
@@ -19,8 +19,8 @@ export function RoutineCoverage({
 }) {
   const coverage = muscleCoverage(exerciseIds);
 
-  // Sin ejercicios el muñeco estaría gris entero y la lista de faltantes
-  // sería la lista completa: ruido, no información.
+  // With no exercises the figure would be entirely grey and the missing list
+  // would be the complete list: noise, not information.
   if (!coverage.exerciseCount) return null;
 
   const labels = (muscles: readonly string[]) =>

@@ -88,8 +88,8 @@ describe("planExercise", () => {
       logged: [set(BENCH, 4)],
       previous: [],
     });
-    // Cinco filas: la quinta es la marcada, y las cuatro anteriores quedan
-    // visibles y vacías en lugar de desaparecer.
+    // Five rows: the fifth is the ticked one, and the four before it stay
+    // visible and empty instead of disappearing.
     expect(plan.sets).toHaveLength(5);
     expect(plan.sets[4].done).not.toBeNull();
     expect(plan.doneCount).toBe(1);

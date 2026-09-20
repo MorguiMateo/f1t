@@ -11,14 +11,14 @@ export function ExerciseCard({
   disabled,
 }: {
   exercise: Exercise;
-  /** Si viene, la tarjeta elige el ejercicio en vez de abrir su ficha. */
+  /** If provided, the card picks the exercise instead of opening its page. */
   onSelect?: () => void;
   disabled?: boolean;
 }) {
   const content = (
     <>
-      {/* width/height explícitos: 480×320 es 3:2 y así no hay salto de
-          layout mientras la imagen carga. */}
+      {/* Explicit width/height: 480×320 is 3:2, so there is no layout shift
+          while the image loads. */}
       <img
         src={exercise.images[0]}
         alt=""
@@ -42,9 +42,9 @@ export function ExerciseCard({
 
   return (
     <li>
-      {/* Mismo contenido, dos semánticas: navegar es un link y elegir es un
-          botón. Un link que en realidad hace un INSERT rompe el clic del
-          medio, el "abrir en pestaña nueva" y el lector de pantalla. */}
+      {/* Same content, two semantics: navigating is a link and picking is a
+          button. A link that actually performs an INSERT breaks middle-click,
+          "open in new tab" and the screen reader. */}
       {onSelect ? (
         <button
           type="button"

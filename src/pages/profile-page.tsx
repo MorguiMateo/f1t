@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { PageHeader } from "../components/PageHeader";
+import { PageHeader } from "../components/page-header";
 import { useUser } from "../features/auth/session";
 import { supabase } from "../lib/supabase";
 
@@ -7,7 +7,7 @@ export function ProfilePage() {
   const user = useUser();
   const [isSigningOut, setIsSigningOut] = useState(false);
 
-  // El guard garantiza que hay usuario; esto es solo para TypeScript.
+  // The guard guarantees there is a user; this is only for TypeScript.
   if (!user) return null;
 
   const name = user.user_metadata.full_name ?? user.user_metadata.name ?? null;
@@ -16,8 +16,8 @@ export function ProfilePage() {
 
   async function signOut() {
     setIsSigningOut(true);
-    // No hace falta limpiar estado: onAuthStateChange emite y el guard
-    // vuelve a mostrar el login solo.
+    // No state to clear: onAuthStateChange fires and the guard shows the
+    // sign-in screen again on its own.
     await supabase.auth.signOut();
   }
 

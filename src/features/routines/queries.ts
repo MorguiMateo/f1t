@@ -1,14 +1,14 @@
 /**
- * Los hooks de React Query sobre `api.ts`.
+ * The React Query hooks on top of `api.ts`.
  *
- * Una decisión que vale para todas las mutaciones de este archivo: al
- * terminar se invalida **todo** el árbol `["routines"]` y no la clave puntual
- * que se tocó. Renombrar una rutina cambia la lista, el detalle y —si está
- * activa— la pestaña Hoy; agregar un ejercicio cambia el detalle y el
- * contador de la lista. Afinar qué invalidar sería inventar una tabla de
- * dependencias para ahorrar un request de pocos KB sobre datos de un solo
- * usuario. Se invalida todo y no hay forma de que quede algo viejo en
- * pantalla.
+ * One decision that holds for every mutation in this file: on success it
+ * invalidates the **whole** `["routines"]` tree and not the specific key it
+ * touched. Renaming a routine changes the list, the detail and — if it's
+ * active — the Today tab; adding an exercise changes the detail and the
+ * list's counter. Narrowing what to invalidate would mean inventing a
+ * dependency table to save one request of a few KB over a single user's
+ * data. Everything gets invalidated and there is no way for something stale
+ * to stay on screen.
  */
 
 import {
@@ -50,9 +50,9 @@ export function useRoutines() {
 }
 
 /**
- * El detalle de una rutina. `routineId` puede venir undefined porque sale de
- * `useParams()`, que no garantiza nada; sin id la query queda deshabilitada
- * en lugar de pedir `/routines?id=eq.undefined`.
+ * A routine's detail. `routineId` can come in undefined because it comes
+ * from `useParams()`, which guarantees nothing; with no id the query is
+ * disabled instead of requesting `/routines?id=eq.undefined`.
  */
 export function useRoutineDetail(routineId: string | undefined) {
   return useQuery({
@@ -69,7 +69,7 @@ export function useActiveRoutine() {
   });
 }
 
-/** El envoltorio que aplica la invalidación descrita arriba. */
+/** The wrapper that applies the invalidation described above. */
 function useRoutineMutation<TArgs, TResult>(
   mutationFn: (args: TArgs) => Promise<TResult>,
 ): UseMutationResult<TResult, Error, TArgs> {

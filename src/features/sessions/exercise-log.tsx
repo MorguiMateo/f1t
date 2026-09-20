@@ -1,29 +1,29 @@
 import { useRef } from "react";
-import { ExerciseLine } from "../routines/ExerciseLine";
+import { ExerciseLine } from "../routines/exercise-line";
 import type { ExercisePlan, PlannedSet } from "./plan";
 import { suggestFor } from "./plan";
 import { useLogSet, useUnlogSet } from "./queries";
 
 /**
- * Un ejercicio mientras se entrena: sus series, una fila cada una.
+ * One exercise while you train: its sets, one row each.
  *
- * El gesto que tiene que costar un solo toque es marcar la serie hecha con
- * lo que ya está sugerido —el peso de la vez pasada y las reps del
- * objetivo—, porque es el que se repite quince veces por sesión con el
- * teléfono apoyado en el banco. Cambiar un número es el caso raro, y por eso
- * es el que lleva dos toques.
+ * The gesture that has to cost a single tap is ticking a set done with
+ * whatever is already suggested — last time's weight and the target's reps —
+ * because that is the one repeated fifteen times a session with the phone
+ * propped on the bench. Changing a number is the rare case, which is why it
+ * is the one that takes two taps.
  *
- * Los inputs no son controlados, igual que en el editor de rutinas: el valor
- * vive en el DOM y se lee al marcar o al salir del campo. Controlarlos
- * obligaría a re-sincronizar con cada invalidación de React Query, que es de
- * donde salen los campos que se borran solos mientras se escribe.
+ * The inputs are uncontrolled, same as in the routine editor: the value lives
+ * in the DOM and is read when you tick or when you leave the field.
+ * Controlling them would mean re-syncing on every React Query invalidation,
+ * which is where fields that clear themselves as you type come from.
  */
 
-// `session_sets.weight_kg` es numeric(6,2).
+// `session_sets.weight_kg` is numeric(6,2).
 const MAX_WEIGHT = 9999.99;
 const MAX_REPS = 999;
 
-/** Acepta coma o punto: el teclado numérico de iOS en español da coma. */
+/** Accepts comma or dot: the Spanish iOS numeric keyboard gives a comma. */
 function parseNumber(raw: string): number | null {
   const text = raw.trim().replace(",", ".");
   if (!text) return null;
@@ -40,8 +40,8 @@ function parseReps(raw: string): number | null {
 function parseWeight(raw: string): number | null {
   const value = parseNumber(raw);
   if (value === null) return null;
-  // Dos decimales: más no entran en la columna y el redondeo de Postgres
-  // devolvería un número distinto del que se ve en pantalla.
+  // Two decimals: any more won't fit the column, and Postgres rounding would
+  // hand back a different number than the one on screen.
   return Math.min(MAX_WEIGHT, Math.max(0, Math.round(value * 100) / 100));
 }
 
@@ -91,7 +91,7 @@ function SetRow({
     save();
   }
 
-  /** Editar una serie ya marcada la vuelve a guardar; si no, no hay qué. */
+  /** Editing an already-ticked set saves it again; otherwise there's nothing to save. */
   function saveIfDone() {
     if (isDone) save();
   }
@@ -110,9 +110,9 @@ function SetRow({
           inputMode="numeric"
           min={0}
           max={MAX_REPS}
-          // `key` sobre el valor guardado: cuando la mutación vuelve con otro
-          // número —o cuando se desmarca— el input se remonta con el valor
-          // nuevo en vez de quedarse con lo que había tecleado antes.
+          // `key` keyed on the stored value: when the mutation comes back with
+          // a different number — or when the set is unticked — the input
+          // remounts with the new value instead of keeping what was typed.
           key={`reps-${set.done?.reps ?? "none"}`}
           defaultValue={suggested.reps ?? ""}
           placeholder="reps"
@@ -140,8 +140,8 @@ function SetRow({
         />
       </label>
 
-      {/* El único control grande de la fila: es el que se toca en cada serie
-          y con las manos ocupadas. */}
+      {/* The only large control in the row: it is the one tapped on every set,
+          with your hands full. */}
       <button
         type="button"
         onClick={toggle}

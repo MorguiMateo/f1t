@@ -1,12 +1,12 @@
 import { useEffect } from "react";
 
 /**
- * Visor a pantalla completa para ampliar una imagen del ejercicio.
+ * Full-screen viewer for enlarging an exercise image.
  *
- * Sin dependencias: las fotos del catálogo son WebP de 480px, así que un
- * overlay con la misma imagen alcanza para verla en grande. Se cierra tocando
- * en cualquier lado o con Escape —lo más intuitivo en un teléfono— y bloquea
- * el scroll del fondo mientras está abierto.
+ * No dependencies: the catalog photos are 480px WebP, so an overlay with the
+ * same image is enough to see it big. It closes on a tap anywhere or on
+ * Escape — the most intuitive thing on a phone — and locks background
+ * scrolling while it is open.
  */
 export function ImageLightbox({
   src,
@@ -22,7 +22,7 @@ export function ImageLightbox({
       if (e.key === "Escape") onClose();
     };
     window.addEventListener("keydown", onKey);
-    // Que el fondo no scrollee detrás del visor.
+    // Keep the background from scrolling behind the viewer.
     const previous = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     return () => {
@@ -48,7 +48,7 @@ export function ImageLightbox({
       >
         ✕
       </button>
-      {/* object-contain para no recortar: acá interesa ver la foto entera. */}
+      {/* object-contain so nothing is cropped: here the point is the whole photo. */}
       <img
         src={src}
         alt={alt}

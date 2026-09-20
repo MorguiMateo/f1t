@@ -1,6 +1,6 @@
 /**
- * Iconos de la navegación, en línea. Son cuatro: no justifican una
- * dependencia de librería ni el peso que traería.
+ * The navigation icons, inline. There are four of them: they justify neither
+ * a library dependency nor the weight it would bring.
  */
 
 type IconProps = { className?: string };

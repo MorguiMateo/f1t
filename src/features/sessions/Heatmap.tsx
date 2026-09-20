@@ -8,19 +8,17 @@ import {
 } from "../../lib/heatmap";
 
 /**
- * El calendario de actividad. El primer consumidor real del contrato de la
- * Fase 0: dibuja exactamente el array que más adelante va a renderizar el
- * `Heatmap` de SwiftUI.
+ * The activity calendar. The first real consumer of the Phase 0 contract: it
+ * draws exactly the array the SwiftUI `Heatmap` will later render.
  *
- * **La intensidad se codifica con opacidad, no con tono** (PLAN.md §5.4). No
- * es una preferencia estética: en iOS 26 los modos Clear y Tint aplanan el
- * color del widget a monocromo, así que una escala de tonos se vuelve un
- * bloque uniforme. Una escala de opacidad sobrevive a los dos modos, y de
- * paso funciona igual en tema claro y oscuro porque el acento ya cambia con
- * el tema.
+ * **Intensity is encoded with opacity, not hue** (PLAN.md §5.4). This is not
+ * an aesthetic preference: on iOS 26 the Clear and Tint modes flatten widget
+ * colour to monochrome, so a scale of hues collapses into one uniform block.
+ * An opacity scale survives both modes, and as a bonus works identically in
+ * light and dark themes because the accent already follows the theme.
  */
 
-/** Un valor por nivel 1–4. El 0 no usa acento: es el fondo del día vacío. */
+/** One value per level 1–4. Level 0 uses no accent: it is the empty-day background. */
 const OPACITY = [0, 0.26, 0.48, 0.72, 1];
 
 const DAY_FORMATTER = new Intl.DateTimeFormat("es", {
@@ -31,7 +29,7 @@ const DAY_FORMATTER = new Intl.DateTimeFormat("es", {
 
 const MONTH_FORMATTER = new Intl.DateTimeFormat("es", { month: "short" });
 
-/** Solo tres de los siete: con los siete no entra el texto al lado de la grilla. */
+/** Only three of the seven: all seven and the text won't fit beside the grid. */
 const ROW_LABELS = ["Lun", "", "Mié", "", "Vie", "", ""];
 
 function cellTitle(date: string, sets: number): string {
@@ -54,7 +52,7 @@ export function Heatmap({
     [sessions, weeks, endDate],
   );
 
-  // La etiqueta del mes va sobre la primera columna que cae en ese mes.
+  // The month label sits above the first column that falls in that month.
   const months = useMemo(() => {
     const labels: { column: number; label: string }[] = [];
     let last = "";
@@ -75,8 +73,8 @@ export function Heatmap({
   return (
     <div>
       <div className="flex gap-1.5">
-        {/* La columna de días se alinea con la grilla porque comparten alto
-            de fila: 7 filas de 1fr en las dos. */}
+        {/* The weekday column lines up with the grid because they share row
+            heights: seven rows of 1fr on both sides. */}
         <div className="flex shrink-0 flex-col justify-between pt-[1.125rem] text-[0.5rem] leading-none text-muted">
           {ROW_LABELS.map((label, index) => (
             <span key={index} className="flex h-[1em] items-center">
@@ -98,9 +96,9 @@ export function Heatmap({
             ))}
           </div>
 
-          {/* Un solo elemento accesible: 182 celdas anunciadas una por una no
-              son información, son ruido. El detalle de cada día queda en el
-              `title`, que es lo que se ve al mantener apretado. */}
+          {/* A single accessible element: 182 cells announced one by one are
+              not information, they are noise. Each day's detail stays in the
+              `title`, which is what shows on a long press. */}
           <div
             className="grid grid-flow-col gap-[2px]"
             style={{ ...columns, gridTemplateRows: "repeat(7, minmax(0, 1fr))" }}

@@ -1,13 +1,13 @@
 /**
- * Cómo se escribe el objetivo de un ejercicio.
+ * How an exercise's target is written out.
  *
- * Vive en su propio módulo y no al lado del componente que lo dibuja porque
- * lo usan dos consumidores: la línea de la pantalla y el `WidgetPayload` que
- * lee el widget de iOS. Dos formateos del mismo dato se separan en cuanto
- * uno de los dos cambie.
+ * It lives in its own module and not next to the component that draws it
+ * because two consumers use it: the on-screen line and the `WidgetPayload`
+ * the iOS widget reads. Two formatters for the same value drift apart the
+ * moment one of them changes.
  */
 
-/** "3 × 8-12", o lo que se sepa. Guiones no: un objetivo vacío es válido. */
+/** "3 × 8-12", or whatever is known. No em dashes: an empty target is valid. */
 export function targetLabel(
   sets: number | null,
   reps: string | null,

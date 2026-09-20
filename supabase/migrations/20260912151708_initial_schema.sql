@@ -1,24 +1,25 @@
 -- ============================================================================
--- F1t — schema inicial (PLAN.md §3)
+-- F1t — initial schema (PLAN.md §3)
 --
--- Dos reglas que atraviesan todo el archivo:
+-- Two rules that run through the whole file:
 --
---   1. RLS en TODA tabla con datos de usuario. La anon key es pública por
---      diseño: lo único que separa tus datos de los de otro es la policy.
---   2. Cada tabla de usuario lleva su propio `user_id`, incluso las hijas.
---      Así la policy es `user_id = auth.uid()` directo, sin subconsultas por
---      fila. La consistencia entre padre e hija la garantiza una FK compuesta,
---      no la confianza en el cliente.
+--   1. RLS on EVERY table holding user data. The anon key is public by
+--      design: the only thing separating your data from anyone else's is the
+--      policy.
+--   2. Every user table carries its own `user_id`, child tables included.
+--      That way the policy is a direct `user_id = auth.uid()`, with no
+--      per-row subqueries. Parent/child consistency is guaranteed by a
+--      composite FK, not by trusting the client.
 --
--- Se usa `(select auth.uid())` y no `auth.uid()` a secas: entre paréntesis
--- Postgres lo evalúa una vez por consulta (initplan) en lugar de una vez por
--- fila. Sobre miles de filas la diferencia es grande.
+-- `(select auth.uid())` is used and not bare `auth.uid()`: in parentheses
+-- Postgres evaluates it once per query (an initplan) instead of once per row.
+-- Over thousands of rows the difference is large.
 -- ============================================================================
 
 -- ---------------------------------------------------------------------------
--- exercises — catálogo global, sin user_id, solo lectura.
--- Se llena con el seed que genera scripts/fetch-exercises.mjs (Fase 2).
--- El id es el slug de free-exercise-db ("Barbell_Full_Squat").
+-- exercises — global catalog, no user_id, read-only.
+-- Populated by the seed scripts/fetch-exercises.mjs generates (Phase 2).
+-- The id is free-exercise-db's slug ("Barbell_Full_Squat").
 -- ---------------------------------------------------------------------------
 create table if not exists public.exercises (
   id                 text primary key,
@@ -33,7 +34,7 @@ create table if not exists public.exercises (
   instructions       text[]      not null default '{}',
   images             text[]      not null default '{}',
 
-  -- Vocabularios cerrados, verificados contra el dataset (PLAN.md §2).
+  -- Closed vocabularies, verified against the dataset (PLAN.md §2).
   constraint exercises_category_check check (category in (
     'strength', 'stretching', 'plyometrics', 'strongman',
     'powerlifting', 'cardio', 'olympic weightlifting'
@@ -62,18 +63,18 @@ create table if not exists public.routines (
   is_active   boolean not null default false,
   created_at  timestamptz not null default now(),
 
-  -- La necesita la FK compuesta de routine_days.
+  -- routine_days' composite FK needs this.
   constraint routines_id_user_key unique (id, user_id)
 );
 
 create index if not exists routines_user_idx on public.routines (user_id);
 
--- Una sola rutina activa por usuario. Parcial: los false no compiten.
+-- One active routine per user. Partial: the false rows don't compete.
 create unique index if not exists routines_one_active_idx
   on public.routines (user_id) where is_active;
 
 -- ---------------------------------------------------------------------------
--- routine_days — un día sin fila = descanso. weekday 0 = domingo.
+-- routine_days — a day with no row = rest. weekday 0 = Sunday.
 -- ---------------------------------------------------------------------------
 create table if not exists public.routine_days (
   id          uuid primary key default gen_random_uuid(),
@@ -115,34 +116,34 @@ create index if not exists routine_exercises_day_idx
   on public.routine_exercises (routine_day_id, position);
 
 -- ---------------------------------------------------------------------------
--- sessions — un entrenamiento por día.
+-- sessions — one workout per day.
 --
--- ⚠ INVARIANTE (PLAN.md §5.2): `performed_on` y `set_count` son exactamente
---   lo que consume HeatmapSession en src/lib/heatmap.ts. No renombrar sin
---   cambiar el heatmap y, más adelante, el widget de SwiftUI.
+-- ⚠ INVARIANT (PLAN.md §5.2): `performed_on` and `set_count` are exactly what
+--   HeatmapSession consumes in src/lib/heatmap.ts. Do not rename without
+--   changing the heatmap and, later on, the SwiftUI widget.
 -- ---------------------------------------------------------------------------
 create table if not exists public.sessions (
   id               uuid primary key default gen_random_uuid(),
   user_id          uuid not null default auth.uid() references auth.users on delete cascade,
   performed_on     date not null default current_date,
-  -- Se borra la rutina pero el historial queda: set null, no cascade.
+  -- The routine gets deleted but the history stays: set null, not cascade.
   routine_day_id   uuid references public.routine_days on delete set null,
   set_count        integer not null default 0,
   notes            text,
   created_at       timestamptz not null default now(),
 
   constraint sessions_set_count_check check (set_count >= 0),
-  -- Lo que el heatmap asume: una fila por día.
+  -- What the heatmap assumes: one row per day.
   constraint sessions_one_per_day unique (user_id, performed_on),
   constraint sessions_id_user_key unique (id, user_id)
 );
 
--- El heatmap pide un rango de fechas de un usuario: este índice es ese query.
+-- The heatmap asks for a user's date range: this index is that query.
 create index if not exists sessions_user_date_idx
   on public.sessions (user_id, performed_on desc);
 
 -- ---------------------------------------------------------------------------
--- session_sets — el detalle serie por serie.
+-- session_sets — the set-by-set detail.
 -- ---------------------------------------------------------------------------
 create table if not exists public.session_sets (
   id           uuid primary key default gen_random_uuid(),
@@ -163,13 +164,13 @@ create table if not exists public.session_sets (
 create index if not exists session_sets_session_idx
   on public.session_sets (session_id);
 
--- Para el futuro gráfico de progresión por ejercicio.
+-- For the future per-exercise progression chart.
 create index if not exists session_sets_exercise_idx
   on public.session_sets (user_id, exercise_id);
 
 -- ---------------------------------------------------------------------------
--- body_profile — una fila por usuario.
--- `sex` es el que pide Mifflin-St Jeor para estimar TDEE (Fase 5).
+-- body_profile — one row per user.
+-- `sex` is what Mifflin-St Jeor needs to estimate TDEE (Phase 5).
 -- ---------------------------------------------------------------------------
 create table if not exists public.body_profile (
   user_id          uuid primary key default auth.uid() references auth.users on delete cascade,
@@ -187,7 +188,7 @@ create table if not exists public.body_profile (
 );
 
 -- ---------------------------------------------------------------------------
--- weight_entries — una medición por día como máximo.
+-- weight_entries — at most one measurement per day.
 -- ---------------------------------------------------------------------------
 create table if not exists public.weight_entries (
   id           uuid primary key default gen_random_uuid(),
@@ -215,15 +216,16 @@ alter table public.session_sets       enable row level security;
 alter table public.body_profile       enable row level security;
 alter table public.weight_entries     enable row level security;
 
--- El catálogo es global: todos leen, nadie escribe desde el cliente.
--- Sin esta policy la tabla devuelve cero filas y parece que falló el seed.
+-- The catalog is global: everyone reads, nobody writes from the client.
+-- Without this policy the table returns zero rows and the seed looks broken.
 drop policy if exists exercises_read on public.exercises;
 create policy exercises_read on public.exercises
   for select to authenticated using (true);
 
--- El resto: cada uno ve y toca solo lo suyo.
--- `using` filtra lo que se lee/modifica; `with check` valida lo que se escribe.
--- Hacen falta las dos: sin `with check` se podrían insertar filas ajenas.
+-- The rest: everyone sees and touches only their own.
+-- `using` filters what is read/modified; `with check` validates what is
+-- written. Both are needed: without `with check`, rows belonging to someone
+-- else could be inserted.
 drop policy if exists routines_own on public.routines;
 create policy routines_own on public.routines
   for all to authenticated

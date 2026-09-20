@@ -4,12 +4,12 @@ import { targetLabel } from "./target";
 import type { ReactNode } from "react";
 
 /**
- * Un ejercicio dentro de un día: foto, nombre y objetivo.
+ * One exercise inside a day: photo, name and target.
  *
- * Importa el catálogo del bundle, así que solo se usa desde chunks `lazy()`
- * —las pantallas de rutina y el bloque de Hoy—. El `children` es la columna
- * de acciones de la derecha, que cambia según quién lo dibuje: en Hoy no hay
- * ninguna, en el editor hay tres.
+ * It imports the catalog from the bundle, so it is only used from `lazy()`
+ * chunks — the routine screens and the Today block. `children` is the column
+ * of actions on the right, which changes depending on who draws it: none in
+ * Today, three in the editor.
  */
 
 export function ExerciseLine({
@@ -28,8 +28,8 @@ export function ExerciseLine({
 
   return (
     <div className="flex items-center gap-3">
-      {/* El nombre y la foto llevan a la ficha del catálogo: en el gimnasio,
-          "¿cómo era este?" es la pregunta más frecuente. */}
+      {/* The name and the photo link to the catalog entry: at the gym,
+          "how did this one go again?" is the most frequent question. */}
       <Link
         to={`/ejercicios/${exerciseId}`}
         className="flex min-w-0 flex-1 items-center gap-3"
@@ -48,8 +48,9 @@ export function ExerciseLine({
           <div className="aspect-3/2 w-20 shrink-0 rounded-lg bg-surface-2" />
         )}
         <div className="min-w-0 flex-1">
-          {/* Si el id salió de la lista curada, la rutina sigue viva: la fila
-              está en la base y lo único que falta es el nombre lindo. */}
+          {/* If the id dropped out of the curated list, the routine is still
+              alive: the row is in the database and the only thing missing is
+              the pretty name. */}
           <p className="truncate font-medium leading-tight">
             {exercise?.name ?? exerciseId.replaceAll("_", " ")}
           </p>

@@ -1,17 +1,17 @@
 /**
- * Todo el acceso a `sessions` y `session_sets`.
+ * Every read and write against `sessions` and `session_sets`.
  *
- * Mismo reparto que en `routines/`: acá no entra React, los hooks viven en
- * `queries.ts`. Y dos cosas que resuelve el schema y por eso no aparecen
- * escritas acá:
+ * Same split as `routines/`: no React in here, the hooks live in
+ * `queries.ts`. And two things the schema handles, which is why they aren't
+ * spelled out below:
  *
- * - **`user_id` no se manda nunca.** Default `auth.uid()` y `with check` en
- *   la policy.
- * - **`set_count` no se calcula en el cliente.** Lo recalcula un trigger en
- *   cada insert y delete de `session_sets` (migración
- *   `20260920104500_session_set_count.sql`). Es la columna que lee el
- *   heatmap: si la mantuviera el cliente, marcar una serie serían dos
- *   requests y la intensidad mentiría cada vez que el segundo falle.
+ * - **`user_id` is never sent.** It defaults to `auth.uid()` and the policy's
+ *   `with check` rejects anything else.
+ * - **`set_count` is not computed on the client.** A trigger recomputes it on
+ *   every insert and delete of `session_sets` (migration
+ *   `20260920104500_session_set_count.sql`). It is the column the heatmap
+ *   reads: if the client owned it, ticking a set would be two requests and
+ *   the intensity would lie every time the second one failed.
  */
 
 import type { Tables } from "../../lib/database.types";
@@ -22,10 +22,10 @@ import { supabase } from "../../lib/supabase";
 export type Session = Tables<"sessions">;
 export type SessionSet = Tables<"session_sets">;
 
-/** Una sesión con su detalle serie por serie. */
+/** A session with its set-by-set detail. */
 export type SessionDetail = Session & { sets: SessionSet[] };
 
-/** Lo mínimo que el heatmap necesita de cada día. Ver PLAN.md §5.2. */
+/** The bare minimum the heatmap needs per day. See PLAN.md §5.2. */
 export type SessionDay = Pick<Session, "performed_on" | "set_count">;
 
 const DETAIL_SELECT = "*, session_sets(*)";
@@ -38,21 +38,21 @@ function toDetail(row: DetailRow): SessionDetail {
 }
 
 // ---------------------------------------------------------------------------
-// Lecturas
+// Reads
 // ---------------------------------------------------------------------------
 
 /**
- * Los días entrenados desde una fecha, sin el detalle.
+ * The days trained since a given date, without the detail.
  *
- * El heatmap de 26 semanas son 182 filas como mucho —una por día entrenado—
- * y de cada una alcanzan dos columnas. Traer el detalle sería traer cientos
- * de series para dibujar cuadraditos de 10 píxeles.
+ * A 26-week heatmap is at most 182 rows — one per day trained — and two
+ * columns of each are enough. Fetching the detail would mean fetching
+ * hundreds of sets to draw 10-pixel squares.
  *
- * `set_count > 0` deja afuera las sesiones vacías: abrir la pantalla de
- * entrenar y marcar una serie que después se desmarca deja una fila con cero
- * series, y eso no es un día entrenado. Sin el filtro, el cuadradito saldría
- * en nivel 0 pero la racha y el contador de días lo sumarían igual, que es
- * la clase de desacuerdo que hace desconfiar de todo el resto.
+ * `set_count > 0` leaves out empty sessions: opening the workout screen and
+ * ticking a set you then untick leaves a row with zero sets, and that is not
+ * a day trained. Without the filter the square would render at level 0 while
+ * the streak and the day counter still counted it — exactly the kind of
+ * disagreement that makes you distrust everything else on the screen.
  */
 export async function fetchSessionDays(since: string): Promise<SessionDay[]> {
   return (
@@ -68,8 +68,8 @@ export async function fetchSessionDays(since: string): Promise<SessionDay[]> {
 }
 
 /**
- * La sesión de un día con todas sus series.
- * `maybeSingle`: no haber entrenado todavía es el estado normal, no un error.
+ * One day's session with all of its sets.
+ * `maybeSingle`: not having trained yet is the normal state, not an error.
  */
 export async function fetchSessionForDate(
   performedOn: string,
@@ -85,15 +85,15 @@ export async function fetchSessionForDate(
 }
 
 /**
- * La última vez que se entrenó **este mismo día de rutina**, para poder
- * mostrar con cuánto peso se hizo cada serie.
+ * The last time **this same routine day** was trained, so each set can show
+ * the weight it was done with.
  *
- * Se busca por `routine_day_id` y no por ejercicio: "la vez pasada que hice
- * Empuje" es la comparación que se hace en el gimnasio, y sale en una sola
- * query en lugar de una por ejercicio. Si el día se borró y se volvió a
- * crear, el historial viejo cuelga de otro id y acá no aparece: es el precio
- * de no salir a buscar por ejercicio suelto, y el peso se vuelve a escribir
- * una vez.
+ * It looks up by `routine_day_id` and not by exercise: "last time I did Push"
+ * is the comparison you make at the gym, and it comes back in a single query
+ * instead of one per exercise. If the day was deleted and recreated, the old
+ * history hangs off a different id and won't show up here: that is the price
+ * of not going hunting exercise by exercise, and the weight gets typed in
+ * once.
  */
 export async function fetchPreviousSession(input: {
   routineDayId: string;
@@ -113,17 +113,17 @@ export async function fetchPreviousSession(input: {
 }
 
 // ---------------------------------------------------------------------------
-// Escrituras
+// Writes
 // ---------------------------------------------------------------------------
 
 /**
- * La sesión de hoy, creándola si hace falta.
+ * Today's session, creating it if it doesn't exist yet.
  *
- * `sessions_one_per_day` es un unique sobre `(user_id, performed_on)`, así
- * que dos toques rápidos antes de que llegue la primera respuesta hacen que
- * el segundo insert reviente con 23505. Eso no es un error que mostrarle a
- * nadie: significa que la sesión ya existe, que es exactamente lo que se
- * quería. Se vuelve a leer y listo.
+ * `sessions_one_per_day` is a unique constraint on `(user_id, performed_on)`,
+ * so two quick taps before the first response lands make the second insert
+ * blow up with 23505. That is not an error to show anyone: it means the
+ * session already exists, which is exactly what we wanted. Read it back and
+ * move on.
  */
 export async function ensureSession(input: {
   performedOn: string;
@@ -161,12 +161,12 @@ export async function ensureSession(input: {
 }
 
 /**
- * Marca una serie como hecha.
+ * Ticks a set as done.
  *
- * Es un upsert y no un insert por el mismo motivo que arriba: la unique es
- * `(session_id, exercise_id, set_index)` y re-marcar la misma serie tiene
- * que pisar el valor anterior, no fallar. Así, corregir el peso de una serie
- * ya marcada es volver a llamar acá.
+ * It is an upsert and not an insert for the same reason as above: the unique
+ * constraint is `(session_id, exercise_id, set_index)`, and re-ticking the
+ * same set has to overwrite the previous value, not fail. So correcting the
+ * weight on an already-ticked set is just calling this again.
  */
 export async function logSet(input: {
   sessionId: string;
@@ -193,20 +193,20 @@ export async function logSet(input: {
   );
 }
 
-/** Desmarcar una serie es borrar la fila: el trigger baja el `set_count`. */
+/** Unticking a set deletes the row: the trigger brings `set_count` down. */
 export async function unlogSet(id: string): Promise<void> {
   unwrap(await supabase.from("session_sets").delete().eq("id", id));
 }
 
 /**
- * Borra el entrenamiento entero. Las series se van en cascada por la FK
- * compuesta `(session_id, user_id)`.
+ * Deletes the whole workout. The sets go with it, cascaded by the composite
+ * FK `(session_id, user_id)`.
  */
 export async function deleteSession(id: string): Promise<void> {
   unwrap(await supabase.from("sessions").delete().eq("id", id));
 }
 
-/** La fecha de hoy tal como la guarda `performed_on`: local, no UTC. */
+/** Today's date the way `performed_on` stores it: local, not UTC. */
 export function today(): string {
   return toDateKey(new Date());
 }

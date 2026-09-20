@@ -1,23 +1,23 @@
 /**
- * El contrato con el widget de iOS.
+ * The contract with the iOS widget.
  *
- * `buildLevels` devuelve un array plano de enteros 0–4, un valor por día,
- * del más viejo al más nuevo, con longitud exacta `weeks * 7` y alineado a
- * semanas completas. El componente <Heatmap> de la web y el `Heatmap` de
- * SwiftUI renderizan exactamente este mismo array: la web lo dibuja, y más
- * adelante Capacitor lo serializa al App Group para que lo lea el widget.
+ * `buildLevels` returns a flat array of integers 0–4, one value per day,
+ * oldest to newest, with length exactly `weeks * 7` and aligned to whole
+ * weeks. The web's <Heatmap> component and SwiftUI's `Heatmap` render this
+ * very same array: the web draws it, and later on Capacitor serialises it to
+ * the App Group for the widget to read.
  *
- * Si esta forma cambia, cambia en los dos lados. Por eso vive acá sola,
- * sin dependencias, y con tests.
+ * If this shape changes, it changes on both sides. That is why it lives here
+ * on its own, with no dependencies, and with tests.
  */
 
 export const HEATMAP_MAX_LEVEL = 4;
 
-/** Lo mínimo que necesita una sesión para entrar al heatmap. */
+/** The bare minimum a session needs to enter the heatmap. */
 export type HeatmapSession = {
-  /** Fecha local en formato YYYY-MM-DD (columna `performed_on`). */
+  /** Local date in YYYY-MM-DD format (the `performed_on` column). */
   performed_on: string;
-  /** Volumen del día. Si no viene, la sesión cuenta como nivel 1. */
+  /** The day's volume. If absent, the session counts as level 1. */
   set_count?: number;
 };
 
@@ -27,20 +27,20 @@ export type HeatmapCell = {
   level: number;
   sets: number;
   trained: boolean;
-  /** Las últimas celdas de la semana en curso todavía no ocurrieron. */
+  /** The last cells of the current week haven't happened yet. */
   isFuture: boolean;
 };
 
 export type HeatmapOptions = {
-  /** Cantidad de columnas. 26 ≈ medio año, que es lo que entra en un widget mediano. */
+  /** Column count. 26 ≈ half a year, which is what fits a medium widget. */
   weeks?: number;
-  /** Día final del rango. Por defecto hoy. */
+  /** Final day of the range. Defaults to today. */
   endDate?: Date;
-  /** 0 = domingo, 1 = lunes. Por defecto lunes. */
+  /** 0 = Sunday, 1 = Monday. Defaults to Monday. */
   weekStartsOn?: 0 | 1;
   /**
-   * Cortes de volumen (en series) para los niveles 2, 3 y 4.
-   * Cualquier día entrenado por debajo del primer corte es nivel 1.
+   * Volume cutoffs (in sets) for levels 2, 3 and 4.
+   * Any day trained below the first cutoff is level 1.
    */
   thresholds?: [number, number, number];
 };
@@ -53,7 +53,7 @@ const DEFAULTS = {
 
 const DAY_MS = 86_400_000;
 
-/** YYYY-MM-DD en hora local. No usar toISOString: corre la fecha por UTC. */
+/** YYYY-MM-DD in local time. Don't use toISOString: it shifts the date by UTC. */
 export function toDateKey(date: Date): string {
   const y = date.getFullYear();
   const m = String(date.getMonth() + 1).padStart(2, "0");
@@ -61,7 +61,7 @@ export function toDateKey(date: Date): string {
   return `${y}-${m}-${d}`;
 }
 
-/** Parsea YYYY-MM-DD a medianoche local. `new Date(str)` lo haría en UTC. */
+/** Parses YYYY-MM-DD to local midnight. `new Date(str)` would do it in UTC. */
 export function fromDateKey(key: string): Date {
   const [y, m, d] = key.split("-").map(Number);
   return new Date(y, m - 1, d);
@@ -75,7 +75,7 @@ function addDays(date: Date, days: number): Date {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate() + days);
 }
 
-/** Último día de la semana que contiene a `date`. */
+/** Last day of the week containing `date`. */
 function endOfWeek(date: Date, weekStartsOn: 0 | 1): Date {
   const offset = (date.getDay() - weekStartsOn + 7) % 7;
   return addDays(date, 6 - offset);
@@ -90,26 +90,27 @@ function levelFor(sets: number, thresholds: [number, number, number]): number {
 }
 
 /**
- * El primer día de la grilla, en YYYY-MM-DD.
+ * The first day of the grid, as YYYY-MM-DD.
  *
- * Existe para que la query sepa qué pedirle a Postgres sin recalcular por su
- * cuenta dónde empieza el rango: el alineado a semanas vive en este archivo
- * y en ningún otro. Pedir de más sería traer filas que no se dibujan; pedir
- * de menos, cuadraditos vacíos que sí se entrenaron.
+ * It exists so the query knows what to ask Postgres for without recomputing
+ * where the range begins on its own: week alignment lives in this file and
+ * nowhere else. Asking for too much means fetching rows that never get
+ * drawn; asking for too little means empty squares on days that were
+ * actually trained.
  */
 export function heatmapStart(options: HeatmapOptions = {}): string {
   const weeks = options.weeks ?? DEFAULTS.weeks;
   const weekStartsOn = options.weekStartsOn ?? DEFAULTS.weekStartsOn;
   const today = startOfDay(options.endDate ?? new Date());
-  // La grilla termina al cierre de la semana en curso, para que la última
-  // columna quede completa igual que en GitHub.
+  // The grid ends at the close of the current week, so the last column comes
+  // out complete just like GitHub's.
   const last = endOfWeek(today, weekStartsOn);
   return toDateKey(addDays(last, -(weeks * 7 - 1)));
 }
 
 /**
- * La grilla completa, con fecha por celda. La usa la web para poder linkear
- * cada cuadradito al día que representa.
+ * The full grid, with a date per cell. The web uses it so each little square
+ * can link to the day it represents.
  */
 export function buildHeatmap(
   sessions: readonly HeatmapSession[],
@@ -119,7 +120,7 @@ export function buildHeatmap(
   const thresholds = options.thresholds ?? DEFAULTS.thresholds;
   const today = startOfDay(options.endDate ?? new Date());
 
-  // Se acumula por fecha: puede haber más de una sesión el mismo día.
+  // Accumulated by date: there can be more than one session on the same day.
   const volumeByDate = new Map<string, number>();
   for (const session of sessions) {
     const previous = volumeByDate.get(session.performed_on) ?? 0;
@@ -146,8 +147,8 @@ export function buildHeatmap(
 }
 
 /**
- * La forma que consume el widget: solo los niveles, sin fechas.
- * Longitud garantizada = weeks * 7.
+ * The shape the widget consumes: levels only, no dates.
+ * Length guaranteed to be weeks * 7.
  */
 export function buildLevels(
   sessions: readonly HeatmapSession[],
@@ -157,9 +158,9 @@ export function buildLevels(
 }
 
 /**
- * Racha actual de días entrenados, contando hacia atrás desde hoy.
- * Hoy sin entrenar no corta la racha —el día todavía no terminó—, pero
- * tampoco suma.
+ * Current streak of days trained, counting back from today.
+ * Today without a workout doesn't break the streak — the day isn't over —
+ * but it doesn't add to it either.
  */
 export function currentStreak(
   sessions: readonly HeatmapSession[],
@@ -179,7 +180,7 @@ export function currentStreak(
   return streak;
 }
 
-/** Días entrenados dentro del rango que devuelve `buildHeatmap`. */
+/** Days trained within the range `buildHeatmap` returns. */
 export function trainedDays(cells: readonly HeatmapCell[]): number {
   return cells.reduce((total, cell) => total + (cell.trained ? 1 : 0), 0);
 }

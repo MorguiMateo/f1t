@@ -1,8 +1,8 @@
 /**
- * Los dos estados que toda pantalla con datos remotos tiene que saber
- * mostrar. Están juntos para que se vean iguales en todas: el estado de
- * carga y el de error son justo los que se improvisan distinto en cada
- * pantalla cuando no hay una pieza compartida.
+ * The two states every screen with remote data has to know how to show.
+ * They sit together so they look the same everywhere: loading and error are
+ * precisely the ones each screen improvises differently when there is no
+ * shared piece.
  */
 
 export function LoadingNote({ label = "Cargando…" }: { label?: string }) {
@@ -21,8 +21,8 @@ export function ErrorNote({ error }: { error: unknown }) {
       className="rounded-xl border border-line bg-surface p-4 text-sm"
     >
       <p className="font-semibold text-warn">No se pudo cargar</p>
-      {/* El mensaje crudo de PostgREST no es bonito, pero es la diferencia
-          entre "algo falló" y saber que faltó correr una migración. */}
+      {/* PostgREST's raw message isn't pretty, but it is the difference
+          between "something failed" and knowing a migration wasn't run. */}
       <p className="mt-1 text-muted">{message}</p>
     </div>
   );

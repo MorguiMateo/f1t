@@ -1,4 +1,4 @@
-/** La G de Google, en línea. Un `<img>` a un CDN rompería el login offline. */
+/** Google's G, inline. An `<img>` to a CDN would break offline sign-in. */
 export function GoogleMark({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 18 18" className={className} aria-hidden="true">

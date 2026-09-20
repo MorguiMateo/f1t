@@ -1,12 +1,12 @@
 import type { ButtonHTMLAttributes } from "react";
 
 /**
- * El botón de la app.
+ * The app's button.
  *
- * Aparece cuando la Fase 3 llenó las pantallas de acciones: hasta ahora había
- * dos botones en toda la app y repetir la cadena de clases alcanzaba. Con
- * quince, la cadena repetida es el lugar donde las pantallas se empiezan a
- * ver distintas entre sí sin que nadie lo haya decidido.
+ * It showed up when Phase 3 filled the screens with actions: until then
+ * there were two buttons in the whole app and repeating the class string was
+ * enough. At fifteen, the repeated string is where screens start looking
+ * different from each other without anyone having decided so.
  */
 
 type Variant = "primary" | "quiet" | "danger";
@@ -14,9 +14,9 @@ type Variant = "primary" | "quiet" | "danger";
 const VARIANTS: Record<Variant, string> = {
   primary: "border-accent bg-accent text-accent-ink hover:opacity-90",
   quiet: "border-line bg-surface text-ink hover:bg-surface-2",
-  // No hay token de "peligro": el acento ya es rojo y usarlo acá haría que
-  // borrar se vea igual de invitante que la acción principal. `warn` es el
-  // único color del tema que dice "pará un segundo".
+  // There is no "danger" token: the accent is already red, and using it here
+  // would make deleting look as inviting as the primary action. `warn` is the
+  // only colour in the theme that says "hold on a second".
   danger: "border-line bg-surface text-warn hover:bg-surface-2",
 };
 
@@ -39,7 +39,7 @@ export function Button({
 }: ButtonProps) {
   return (
     <button
-      // Sin type explícito, un botón dentro de un <form> envía el formulario.
+      // Without an explicit type, a button inside a <form> submits it.
       type={type}
       className={[
         "border font-medium transition-colors disabled:opacity-50",

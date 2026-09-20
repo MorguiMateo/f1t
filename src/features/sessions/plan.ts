@@ -1,21 +1,22 @@
 /**
- * Cuántas filas de serie mostrar y qué escribir en cada una.
+ * How many set rows to show and what to put in each one.
  *
- * Es la parte del registro que no depende ni de React ni de la red: dado el
- * objetivo del día, lo que ya se marcó hoy y lo que se hizo la vez pasada,
- * arma la grilla que se dibuja. Vive aparte para poder testearla sin montar
- * una pantalla, que es donde estas cuentas se rompen sin que nadie se entere.
+ * This is the part of logging that depends on neither React nor the network:
+ * given the day's target, what has already been ticked today and what was
+ * done last time, it builds the grid that gets drawn. It lives apart so it
+ * can be tested without mounting a screen, which is where this arithmetic
+ * breaks without anyone noticing.
  */
 
 import type { RoutineExercise } from "../routines/api";
 import type { SessionSet } from "./api";
 
 export type PlannedSet = {
-  /** `session_sets.set_index`, base 0. */
+  /** `session_sets.set_index`, zero-based. */
   setIndex: number;
-  /** La fila ya marcada hoy, si existe. */
+  /** The row already ticked today, if there is one. */
   done: SessionSet | null;
-  /** La misma serie la vez pasada, para saber con cuánto se hizo. */
+  /** The same set last time, so you know what it was done with. */
   previous: SessionSet | null;
 };
 
@@ -38,13 +39,13 @@ function bySetIndex(sets: readonly SessionSet[], exerciseId: string) {
 }
 
 /**
- * Cuántas filas dibujar para un ejercicio.
+ * How many rows to draw for one exercise.
  *
- * El objetivo manda, pero nunca hacia abajo: si se marcaron más series de
- * las planeadas, se muestran todas. Y si están todas marcadas se agrega una
- * fila vacía más, porque "una más" es una decisión que se toma en el
- * momento y no cuando se armó la rutina; sin esa fila habría que ir a editar
- * el día para poder registrarla.
+ * The target rules, but never downwards: if more sets were ticked than
+ * planned, all of them show. And if they are all ticked one more empty row
+ * appears, because "one more" is decided in the moment and not back when the
+ * routine was written; without that row you would have to go edit the day
+ * just to record it.
  */
 function rowCount(
   targetSets: number | null,
@@ -59,9 +60,9 @@ function rowCount(
 
 export function planExercise(input: {
   item: Pick<RoutineExercise, "id" | "exercise_id" | "target_sets" | "target_reps">;
-  /** Las series de hoy, de cualquier ejercicio: se filtran acá. */
+  /** Today's sets, for any exercise: they get filtered here. */
   logged: readonly SessionSet[];
-  /** Las series de la vez pasada, igual. */
+  /** Last time's sets, same deal. */
   previous: readonly SessionSet[];
 }): ExercisePlan {
   const { item } = input;
@@ -103,11 +104,12 @@ export function planWorkout(input: {
 }
 
 /**
- * El primer número de un objetivo de reps. "8-12" → 8, "al fallo" → null.
+ * The first number in a rep target. "8-12" becomes 8, "to failure" becomes
+ * null.
  *
- * El primero y no el último: es el número al que uno se compromete, y
- * corregirlo hacia arriba después de hacer doce es un toque; descubrir que
- * quedó anotado doce cuando se hicieron ocho, en cambio, no se nota.
+ * The first and not the last: it is the number you commit to, and correcting
+ * it upwards after doing twelve is one tap; finding out twelve got recorded
+ * when you did eight, on the other hand, goes unnoticed.
  */
 export function parseTargetReps(targetReps: string | null): number | null {
   if (!targetReps) return null;
@@ -115,7 +117,7 @@ export function parseTargetReps(targetReps: string | null): number | null {
   return match ? Number(match[0]) : null;
 }
 
-/** Con qué valores arranca una fila que todavía no se marcó. */
+/** The values a row that hasn't been ticked yet starts out with. */
 export function suggestFor(
   set: PlannedSet,
   targetReps: string | null,
@@ -128,9 +130,9 @@ export function suggestFor(
 
 export type WorkoutTotals = {
   doneSets: number;
-  /** Las series que el día pide. Las filas de más no cuentan como pendientes. */
+  /** The sets the day asks for. Extra rows don't count as outstanding. */
   plannedSets: number;
-  /** Σ reps × kg de lo marcado. Las series sin peso no suman. */
+  /** Σ reps × kg of what was ticked. Sets without a weight add nothing. */
   volumeKg: number;
 };
 
@@ -154,7 +156,7 @@ export function workoutTotals(
   return { doneSets, plannedSets, volumeKg };
 }
 
-/** "Empuje · 8 de 12 series". Lo que va arriba de todo mientras se entrena. */
+/** "8 de 12 series". What goes at the very top while you train. */
 export function progressLabel(totals: WorkoutTotals): string {
   if (!totals.plannedSets) return "Sin series todavía";
   return `${totals.doneSets} de ${totals.plannedSets} series`;

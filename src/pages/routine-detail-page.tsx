@@ -1,12 +1,12 @@
 import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
-import { Button } from "../components/Button";
-import { ConfirmButton } from "../components/ConfirmButton";
-import { EmptyState } from "../components/EmptyState";
-import { PageHeader } from "../components/PageHeader";
-import { ErrorNote, LoadingNote } from "../components/Status";
-import { TextInput } from "../components/TextInput";
-import { RoutineCoverage } from "../features/routines/RoutineCoverage";
+import { Button } from "../components/button";
+import { ConfirmButton } from "../components/confirm-button";
+import { EmptyState } from "../components/empty-state";
+import { PageHeader } from "../components/page-header";
+import { ErrorNote, LoadingNote } from "../components/status";
+import { TextInput } from "../components/text-input";
+import { RoutineCoverage } from "../features/routines/routine-coverage";
 import { exerciseIdsOf } from "../features/routines/coverage";
 import {
   useActivateRoutine,
@@ -23,11 +23,11 @@ import {
 } from "../features/routines/weekdays";
 
 /**
- * Nombres típicos de un día de rutina.
+ * Typical names for a routine day.
  *
- * Están para que crear un día sea un toque y no una decisión: el campo es
- * texto libre igual, pero la mayoría de las rutinas reales se llaman como
- * alguno de estos seis.
+ * They exist so creating a day is one tap and not a decision: the field is
+ * free text all the same, but most real routines are named after one of
+ * these six.
  */
 const LABEL_SUGGESTIONS = [
   "Empuje",
@@ -135,8 +135,8 @@ export function RoutineDetailPage() {
         }
       />
 
-      {/* La semana entera y no solo los días con entrenamiento: el descanso
-          es parte de la rutina y se decide igual que lo demás. */}
+      {/* The whole week and not only the training days: rest is part of the
+          routine and gets decided like everything else. */}
       <ul className="flex flex-col gap-2">
         {WEEK_ORDER.map((weekday) => {
           const day = dayForWeekday(routine.days, weekday);
@@ -251,7 +251,7 @@ export function RoutineDetailPage() {
         <h2 className="font-semibold">Ajustes</h2>
         <label className="mt-3 block">
           <span className="text-sm text-muted">Nombre</span>
-          {/* Sin controlar, como en el editor del día: se guarda al salir. */}
+          {/* Uncontrolled, like the day editor: it saves on blur. */}
           <TextInput
             key={routine.name}
             defaultValue={routine.name}

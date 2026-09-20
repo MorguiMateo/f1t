@@ -4,7 +4,7 @@ type PageHeaderProps = {
   title: string;
   subtitle?: string;
   action?: ReactNode;
-  /** Si viene, se dibuja una flecha para volver arriba del título. */
+  /** If provided, a back arrow is drawn above the title. */
   onBack?: () => void;
 };
 

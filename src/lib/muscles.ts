@@ -1,18 +1,18 @@
 /**
- * Traducción del vocabulario del dataset.
+ * Translation of the dataset's vocabulary.
  *
- * free-exercise-db está en inglés y react-body-highlighter usa sus propios
- * nombres, que no coinciden. Acá viven las dos tablas: la que se muestra al
- * usuario (español) y la que alimenta el mapa corporal.
+ * free-exercise-db is in English and react-body-highlighter uses its own
+ * names, which don't match. Both tables live here: the one shown to the user
+ * (Spanish) and the one feeding the body map.
  *
- * Los vocabularios son cerrados y verificados contra el dataset y contra
- * `react-body-highlighter/dist/component/metadata.d.ts`, así que están
- * tipados: agregar un músculo que el dataset no tiene no compila.
+ * The vocabularies are closed and verified against the dataset and against
+ * `react-body-highlighter/dist/component/metadata.d.ts`, so they are typed:
+ * adding a muscle the dataset doesn't have won't compile.
  */
 
 import type { Muscle } from "react-body-highlighter";
 
-/** Los 17 músculos de free-exercise-db, tal como vienen en el JSON. */
+/** free-exercise-db's 17 muscles, exactly as they come in the JSON. */
 export const MUSCLES = [
   "abdominals",
   "abductors",
@@ -56,13 +56,14 @@ export const MUSCLE_ES: Record<DatasetMuscle, string> = {
 };
 
 /**
- * Mapeo al vocabulario del mapa corporal. Los casos que no son 1:1:
+ * Mapping to the body map's vocabulary. The cases that aren't 1:1:
  *
- * - `shoulders` se abre en deltoides anterior y posterior, porque el modelo
- *   los dibuja separados y el dataset no distingue.
- * - `lats` y `middle back` caen los dos en `upper-back`: el SVG no tiene una
- *   región para dorsales aparte. Se pierde precisión, no corrección.
- * - `traps` es `trapezius` y no `upper-back`, que sería lo intuitivo.
+ * - `shoulders` splits into front and back deltoids, because the model draws
+ *   them separately and the dataset doesn't distinguish.
+ * - `lats` and `middle back` both land on `upper-back`: the SVG has no
+ *   separate region for lats. Precision is lost, correctness isn't.
+ * - `traps` is `trapezius` and not `upper-back`, which would be the
+ *   intuitive guess.
  */
 export const MUSCLE_TO_BODY_PART: Record<DatasetMuscle, Muscle[]> = {
   abdominals: ["abs"],
@@ -84,7 +85,7 @@ export const MUSCLE_TO_BODY_PART: Record<DatasetMuscle, Muscle[]> = {
   triceps: ["triceps"],
 };
 
-/** Convierte una lista del dataset a regiones del modelo, sin repetir. */
+/** Converts a dataset list to model regions, without duplicates. */
 export function toBodyParts(muscles: readonly string[]): Muscle[] {
   const parts = new Set<Muscle>();
   for (const m of muscles) {
@@ -100,7 +101,7 @@ export function muscleLabel(muscle: string): string {
 }
 
 // ---------------------------------------------------------------------------
-// Los otros vocabularios cerrados del dataset.
+// The dataset's other closed vocabularies.
 // ---------------------------------------------------------------------------
 
 export const EQUIPMENT_ES: Record<string, string> = {
@@ -145,7 +146,7 @@ export const MECHANIC_ES: Record<string, string> = {
   isolation: "Aislamiento",
 };
 
-/** Para los campos que pueden venir null en el dataset. */
+/** For the fields that can come back null from the dataset. */
 export function labelOr(
   table: Record<string, string>,
   value: string | null | undefined,

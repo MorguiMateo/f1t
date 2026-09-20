@@ -1,6 +1,6 @@
 import type { InputHTMLAttributes } from "react";
 
-/** El input de texto de la app, con las clases del tema en un solo lugar. */
+/** The app's text input, with the theme classes in one place. */
 export function TextInput({
   className = "",
   ...props

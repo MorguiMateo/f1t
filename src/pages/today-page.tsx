@@ -1,8 +1,8 @@
 import { Suspense, lazy } from "react";
 import { Link } from "react-router";
-import { EmptyState } from "../components/EmptyState";
-import { PageHeader } from "../components/PageHeader";
-import { ErrorNote, LoadingNote } from "../components/Status";
+import { EmptyState } from "../components/empty-state";
+import { PageHeader } from "../components/page-header";
+import { ErrorNote, LoadingNote } from "../components/status";
 import { useActiveRoutine } from "../features/routines/queries";
 import {
   dayForWeekday,
@@ -13,24 +13,24 @@ import {
 import { useSessionForDate } from "../features/sessions/queries";
 
 /**
- * El bloque con los ejercicios se carga aparte porque necesita el catálogo
- * —foto y nombre de cada ejercicio— y esta es la ruta índice: importarlo de
- * forma estática metería `catalog.json` en el chunk inicial de toda la app,
- * que es justo lo que se evitó en la Fase 2. El header se pinta enseguida y
- * la lista aparece mientras todavía se está esperando a Supabase.
+ * The block with the exercises loads separately because it needs the catalog
+ * — each exercise's photo and name — and this is the index route: importing
+ * it statically would drag `catalog.json` into the whole app's initial
+ * chunk, which is exactly what Phase 2 avoided. The header paints right away
+ * and the list shows up while Supabase is still being waited on.
  */
 const TodayWorkout = lazy(() =>
-  import("../features/routines/TodayWorkout").then((m) => ({
+  import("../features/routines/today-workout").then((m) => ({
     default: m.TodayWorkout,
   })),
 );
 
 /**
- * Lo mismo, y por el mismo motivo: arma los nombres del `WidgetPayload` con
- * el catálogo. No dibuja nada, así que su `Suspense` no muestra nada.
+ * Same thing, for the same reason: it builds the `WidgetPayload` names from
+ * the catalog. It draws nothing, so its `Suspense` shows nothing.
  */
 const WidgetSync = lazy(() =>
-  import("../features/sessions/WidgetSync").then((m) => ({
+  import("../features/sessions/widget-sync").then((m) => ({
     default: m.WidgetSync,
   })),
 );
@@ -62,9 +62,10 @@ export function TodayPage() {
       {isPending ? <LoadingNote /> : null}
       {error ? <ErrorNote error={error} /> : null}
 
-      {/* Sin rutina activa hay dos casos distintos: no hay ninguna rutina, o
-          hay rutinas pero ninguna marcada como activa. El texto es el mismo
-          pero el camino a seguir no, y los dos terminan en /rutinas. */}
+      {/* With no active routine there are two distinct cases: there is no
+          routine at all, or there are routines but none marked active. The
+          copy is the same but the path forward isn't, and both end in
+          /rutinas. */}
       {!isPending && !error && !routine ? (
         <EmptyState
           title="Todavía no hay rutina activa"
@@ -98,8 +99,8 @@ export function TodayPage() {
         </Suspense>
       ) : null}
 
-      {/* Un día sin fila en routine_days es descanso: es el modelo de datos
-          hablando, no un estado de error. */}
+      {/* A day with no row in routine_days is a rest day: that is the data
+          model talking, not an error state. */}
       {routine && routine.days.length && !day ? (
         <div className="rounded-xl border border-line bg-surface p-5 text-center">
           <p className="text-lg font-semibold">Hoy toca descansar</p>
@@ -114,9 +115,9 @@ export function TodayPage() {
           >
             Ver la rutina
           </Link>
-          {/* Correr la semana un día es lo más común que le pasa a una
-              rutina, así que adelantar el próximo día tiene que ser un
-              toque y no una edición. */}
+          {/* Slipping the week by a day is the most common thing that
+              happens to a routine, so pulling the next day forward has to be
+              one tap and not an edit. */}
           {next ? (
             <Link
               to={`/entrenar?dia=${next.day.id}`}
@@ -139,8 +140,9 @@ export function TodayPage() {
         </Link>
       ) : null}
 
-      {/* También sin rutina activa: el heatmap y la racha son del usuario,
-          no de la rutina, y el widget los muestra igual. */}
+      {/* Also with no active routine: the heatmap and the streak belong to
+          the user, not to the routine, and the widget shows them either
+          way. */}
       {!isPending && !error ? (
         <Suspense fallback={null}>
           <WidgetSync day={day} />

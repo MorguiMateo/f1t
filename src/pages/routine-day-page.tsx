@@ -1,11 +1,11 @@
 import { Link, useNavigate, useParams } from "react-router";
-import { ConfirmButton } from "../components/ConfirmButton";
-import { EmptyState } from "../components/EmptyState";
-import { PageHeader } from "../components/PageHeader";
-import { ErrorNote, LoadingNote } from "../components/Status";
-import { TextInput } from "../components/TextInput";
-import { RoutineCoverage } from "../features/routines/RoutineCoverage";
-import { RoutineExerciseItem } from "../features/routines/RoutineExerciseItem";
+import { ConfirmButton } from "../components/confirm-button";
+import { EmptyState } from "../components/empty-state";
+import { PageHeader } from "../components/page-header";
+import { ErrorNote, LoadingNote } from "../components/status";
+import { TextInput } from "../components/text-input";
+import { RoutineCoverage } from "../features/routines/routine-coverage";
+import { RoutineExerciseItem } from "../features/routines/routine-exercise-item";
 import {
   useDeleteDay,
   useRenameDay,
@@ -14,11 +14,11 @@ import {
 import { weekdayLabel } from "../features/routines/weekdays";
 
 /**
- * El editor de un día: qué ejercicios, en qué orden y con qué objetivo.
+ * A day's editor: which exercises, in what order and with what target.
  *
- * Lee la rutina entera y busca el día adentro en vez de pedir el día solo.
- * Es la misma query que ya está en caché por venir del detalle de la rutina,
- * así que entrar acá no dispara ningún request y volver tampoco.
+ * It reads the whole routine and finds the day inside it rather than asking
+ * for the day alone. It is the same query already in cache from the routine
+ * detail, so coming in here fires no request and neither does going back.
  */
 export function RoutineDayPage() {
   const { routineId, dayId } = useParams();
@@ -93,8 +93,8 @@ export function RoutineDayPage() {
         />
       )}
 
-      {/* El catálogo entero en modo "elegir", con su buscador y sus filtros.
-          Duplicarlo acá en chiquito sería mantener dos buscadores. */}
+      {/* The whole catalog in "pick" mode, with its search and its filters.
+          Duplicating a small one here would mean maintaining two searches. */}
       <Link
         to={`/ejercicios?dia=${day.id}&rutina=${routine.id}`}
         className="mt-3 block rounded-xl border border-accent bg-accent px-5 py-3 text-center text-sm font-medium text-accent-ink transition-opacity hover:opacity-90"

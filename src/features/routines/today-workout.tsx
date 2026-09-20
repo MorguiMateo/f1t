@@ -1,15 +1,15 @@
 import { Link } from "react-router";
 import type { RoutineDay } from "./api";
-import { ExerciseLine } from "./ExerciseLine";
+import { ExerciseLine } from "./exercise-line";
 
 /**
- * El entrenamiento de hoy.
+ * Today's workout.
  *
- * Vive en su propio módulo porque importa el catálogo —para la foto y el
- * nombre— y la pestaña Hoy es la ruta índice: si esto se importara de forma
- * estática, `catalog.json` viajaría en el chunk inicial de toda la app. La
- * pestaña se pinta igual y este bloque llega un instante después, que es
- * tiempo que de todos modos se está esperando la respuesta de Supabase.
+ * It lives in its own module because it imports the catalog — for the photo
+ * and the name — and the Today tab is the index route: if this were imported
+ * statically, `catalog.json` would travel in the whole app's initial chunk.
+ * The tab paints all the same and this block arrives an instant later, which
+ * is time already spent waiting on Supabase's response anyway.
  */
 export function TodayWorkout({
   day,

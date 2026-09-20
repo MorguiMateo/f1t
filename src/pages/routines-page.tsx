@@ -1,10 +1,10 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router";
-import { Button } from "../components/Button";
-import { EmptyState } from "../components/EmptyState";
-import { PageHeader } from "../components/PageHeader";
-import { ErrorNote, LoadingNote } from "../components/Status";
-import { TextInput } from "../components/TextInput";
+import { Button } from "../components/button";
+import { EmptyState } from "../components/empty-state";
+import { PageHeader } from "../components/page-header";
+import { ErrorNote, LoadingNote } from "../components/status";
+import { TextInput } from "../components/text-input";
 import type { RoutineSummary } from "../features/routines/api";
 import { useActivateRoutine, useCreateRoutine, useRoutines } from "../features/routines/queries";
 
@@ -37,8 +37,8 @@ function RoutineItem({ routine }: { routine: RoutineSummary }) {
         </span>
       </Link>
 
-      {/* Solo la activa alimenta la pestaña Hoy, así que el resto necesita
-          una forma de pasar a serlo sin entrar al detalle. */}
+      {/* Only the active one feeds the Today tab, so the rest need a way to
+          become it without going into the detail screen. */}
       {routine.is_active ? null : (
         <div className="border-t border-line px-4 py-2.5">
           <Button
@@ -68,16 +68,16 @@ export function RoutinesPage() {
     createRoutine.mutate(
       {
         name: trimmed,
-        // La primera rutina nace activa: si no, la pestaña Hoy seguiría
-        // vacía después de armar todo y nadie entendería por qué.
+        // The first routine is born active: otherwise the Today tab would
+        // still be empty after building everything and nobody would know why.
         isActive: (routines?.length ?? 0) === 0,
       },
       {
         onSuccess: (routine) => {
           setName("");
           setIsNaming(false);
-          // Al detalle directo: recién creada no tiene días y lo único que
-          // se puede hacer con ella es agregárselos.
+          // Straight to the detail: freshly created it has no days, and the
+          // only thing you can do with it is add them.
           navigate(`/rutinas/${routine.id}`);
         },
       },
@@ -149,8 +149,8 @@ export function RoutinesPage() {
         </ul>
       ) : null}
 
-      {/* Sin el número de ejercicios a propósito: importar el catálogo acá
-          traería sus 209 KB al chunk inicial para mostrar un entero. */}
+      {/* No exercise count on purpose: importing the catalog here would drag
+          its 209 KB into the initial chunk just to show one integer. */}
       <Link
         to="/ejercicios"
         className="mt-4 flex items-center justify-between gap-3 rounded-xl border border-line bg-surface p-5 transition-colors hover:bg-surface-2"

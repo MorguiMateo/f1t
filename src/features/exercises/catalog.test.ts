@@ -70,7 +70,7 @@ describe("filterExercises", () => {
   });
 
   it("busca por nombre en inglés aunque el nombre visible esté en español", () => {
-    // El nombre en pantalla es "Press de banca"; el inglés vive en el índice.
+    // The on-screen name is "Press de banca"; the English lives in the index.
     const ids = search("bench press").map((e) => e.id);
     expect(ids).toContain("Barbell_Bench_Press_-_Medium_Grip");
   });
@@ -81,7 +81,7 @@ describe("filterExercises", () => {
   });
 
   it("encuentra por un alias en español que no está en el nombre", () => {
-    // "pecho plano" no aparece en "Press de banca": lo resuelve el alias.
+    // "pecho plano" doesn't appear in "Press de banca": the alias resolves it.
     const ids = search("pecho plano").map((e) => e.id);
     expect(ids).toContain("Barbell_Bench_Press_-_Medium_Grip");
   });
@@ -92,11 +92,11 @@ describe("filterExercises", () => {
   });
 
   it("busca por músculo en español, aunque el nombre esté en inglés", () => {
-    // Es la razón de existir del índice: nadie va a escribir "chest".
-    // No exige exclusividad: "jalón al pecho" es el nombre real de varios
-    // jalones dorsales, así que la palabra "pecho" también los alcanza. Lo que
-    // importa es que el trabajo de pecho aparece y domina; el chip de músculo
-    // es la herramienta exacta cuando hace falta filtrar sin ruido.
+    // This is the index's reason for existing: nobody is going to type
+    // "chest". It doesn't demand exclusivity: "jalón al pecho" is the real
+    // name of several lat pulldowns, so the word "pecho" reaches them too.
+    // What matters is that chest work shows up and dominates; the muscle chip
+    // is the exact tool when filtering without noise is needed.
     const hits = search("pecho");
     const chest = hits.filter((e) =>
       [...e.primaryMuscles, ...e.secondaryMuscles].includes("chest"),
@@ -117,7 +117,7 @@ describe("filterExercises", () => {
     const onlySecondary = hits.filter(
       (e) => !e.primaryMuscles.includes("triceps"),
     );
-    // El press de banca trabaja tríceps sin ser su músculo primario.
+    // The bench press works triceps without them being its primary muscle.
     expect(onlySecondary.length).toBeGreaterThan(0);
   });
 
@@ -135,8 +135,8 @@ describe("filterExercises", () => {
     );
     expect(hits.length).toBeGreaterThan(3);
     expect(hits.every((e) => e.equipment === "barbell")).toBe(true);
-    // El nombre visible es español ("Sentadilla…"); el término inglés matchea
-    // por nameEn o por los alias, así que se valida contra el índice.
+    // The display name is Spanish ("Sentadilla…"); the English term matches
+    // via nameEn or the aliases, so it is validated against the index.
     expect(hits.every((e) => index.get(e.id)?.includes("squat"))).toBe(true);
   });
 

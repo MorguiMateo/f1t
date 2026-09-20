@@ -1,24 +1,23 @@
 import type { FocusEvent } from "react";
-import { Button } from "../../components/Button";
+import { Button } from "../../components/button";
 import type { RoutineExercise } from "./api";
-import { ExerciseLine } from "./ExerciseLine";
+import { ExerciseLine } from "./exercise-line";
 import { useRemoveExercise, useSwapExercises, useUpdateExercise } from "./queries";
 
 /**
- * Una fila editable del día: objetivo, orden y borrado.
+ * An editable row within a day: target, order and removal.
  *
- * Los dos campos se guardan al salir del input, sin botón de guardar. En un
- * teléfono, poner "12" y tocar otra cosa es el gesto natural; un botón de
- * guardar por fila multiplica los toques y deja el estado a medio confirmar
- * cuando el usuario se olvida.
+ * Both fields save on blur, with no save button. On a phone, typing "12" and
+ * tapping something else is the natural gesture; a save button per row
+ * multiplies the taps and leaves state half-confirmed when the user forgets.
  *
- * Los inputs no son controlados: el valor vive en el DOM y solo se manda lo
- * que cambió. Controlarlos obligaría a re-sincronizar con lo que devuelve la
- * invalidación de React Query, y ahí es donde aparecen los inputs que se
- * borran solos mientras escribís.
+ * The inputs are uncontrolled: the value lives in the DOM and only what
+ * changed gets sent. Controlling them would force a re-sync against whatever
+ * React Query's invalidation returns, and that is where fields that clear
+ * themselves as you type come from.
  */
 
-/** El check de la base es 1..50; se ajusta acá para no rebotar el update. */
+/** The database check is 1..50; clamped here so the update isn't bounced. */
 const MAX_SETS = 50;
 
 export function RoutineExerciseItem({
@@ -43,7 +42,8 @@ export function RoutineExerciseItem({
     if (raw !== "") {
       const parsed = Math.round(Number(raw));
       if (!Number.isFinite(parsed)) {
-        // Texto que no es número: se descarta y el input vuelve a lo guardado.
+        // Text that isn't a number: discarded, and the input reverts to what
+        // was stored.
         event.target.value = item.target_sets?.toString() ?? "";
         return;
       }
@@ -56,8 +56,8 @@ export function RoutineExerciseItem({
   }
 
   function saveReps(event: FocusEvent<HTMLInputElement>) {
-    // Texto libre a propósito: "8-12", "al fallo" y "30 s" son objetivos
-    // legítimos y ninguno entra en un número.
+    // Free text on purpose: "8-12", "al fallo" and "30 s" are all legitimate
+    // targets and none of them fits in a number.
     const value = event.target.value.trim() || null;
     if (value === item.target_reps) return;
     update.mutate({ id: item.id, patch: { target_reps: value } });

@@ -1,22 +1,23 @@
 /**
- * Construye el catálogo de ejercicios desde free-exercise-db.
+ * Builds the exercise catalog from free-exercise-db.
  *
- * Generador de una sola corrida, igual que gen-icons.mjs. Baja el dataset,
- * lo recorta a la lista blanca de scripts/curated-ids.json, convierte las
- * fotos a WebP y escribe tres cosas:
+ * A one-shot generator, same as gen-icons.mjs. It downloads the dataset,
+ * trims it down to the whitelist in scripts/curated-ids.json, converts the
+ * photos to WebP and writes three things:
  *
- *   public/exercises/<id>/{0,1}.webp      assets que entran al precache
- *   src/features/exercises/catalog.json   lo que consume la app
- *   supabase/seed/exercises.sql           upsert idempotente de la tabla
+ *   public/exercises/<id>/{0,1}.webp      assets that enter the precache
+ *   src/features/exercises/catalog.json   what the app consumes
+ *   supabase/seed/exercises.sql           idempotent upsert for the table
  *
- * No es una API en vivo por decisión (PLAN.md §2): el press de banca no
- * cambia, y como assets propios el catálogo funciona sin señal en el gym y
- * viaja dentro del bundle de iOS cuando entre Capacitor.
+ * It is not a live API by decision (PLAN.md §2): the bench press doesn't
+ * change, and as first-party assets the catalog works without reception at
+ * the gym and travels inside the iOS bundle once Capacitor lands.
  *
- * Es idempotente y se puede cortar a la mitad: las imágenes que ya existen
- * no se vuelven a bajar. Para forzar todo de nuevo, borrar public/exercises.
+ * It is idempotent and can be interrupted halfway: images that already exist
+ * are not downloaded again. To force everything anew, delete
+ * public/exercises.
  *
- * Uso: node scripts/fetch-exercises.mjs
+ * Usage: node scripts/fetch-exercises.mjs
  */
 import { existsSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
@@ -30,16 +31,16 @@ const OUT_IMAGES = resolve(ROOT, "public/exercises");
 const OUT_CATALOG = resolve(ROOT, "src/features/exercises/catalog.json");
 const OUT_SEED = resolve(ROOT, "supabase/seed/exercises.sql");
 
-// El JSON crudo pesa ~1 MB. Se cachea bajo node_modules —que ya está
-// ignorado— para que volver a correr el script no lo baje de nuevo.
+// The raw JSON is ~1 MB. It is cached under node_modules — already ignored —
+// so re-running the script doesn't download it again.
 const CACHE = resolve(ROOT, "node_modules/.cache/f1t/exercises.json");
 
-// Medido con sharp sobre una foto real: 850px JPG 69,7 KB → 480px WebP q72
-// 16,8 KB. A 165 ejercicios × 2 son ~5,5 MB, precacheables enteros.
+// Measured with sharp on a real photo: 850px JPG 69.7 KB → 480px WebP q72
+// 16.8 KB. At 165 exercises × 2 that is ~5.5 MB, precacheable in full.
 const WIDTH = 480;
 const QUALITY = 72;
 
-/** Cuántas descargas en paralelo. Suficiente sin martillar a GitHub. */
+/** How many downloads in parallel. Enough without hammering GitHub. */
 const CONCURRENCY = 8;
 
 async function loadDataset() {
@@ -56,7 +57,7 @@ async function loadDataset() {
   return JSON.parse(text);
 }
 
-/** La lista blanca viene agrupada por músculo solo para poder editarla. */
+/** The whitelist is grouped by muscle purely so it stays editable. */
 async function loadWhitelist() {
   const grouped = JSON.parse(
     await readFile(resolve(ROOT, "scripts/curated-ids.json"), "utf8"),
@@ -65,10 +66,10 @@ async function loadWhitelist() {
 }
 
 /**
- * Nombres en español + inglés acortado + alias de búsqueda, escritos a mano.
- * El dataset trae los nombres crudos en inglés ("Barbell Bench Press - Medium
- * Grip"); este archivo los acorta, los traduce y aporta las variantes en
- * español para que la búsqueda funcione en los dos idiomas (PLAN.md Fase 2).
+ * Spanish names + shortened English + search aliases, written by hand.
+ * The dataset ships raw English names ("Barbell Bench Press - Medium Grip");
+ * this file shortens them, translates them and supplies the Spanish variants
+ * so search works in both languages (PLAN.md Phase 2).
  */
 async function loadNames() {
   return JSON.parse(
@@ -76,7 +77,7 @@ async function loadNames() {
   );
 }
 
-/** Corre `task` sobre cada item con un pool de tamaño fijo. */
+/** Runs `task` over every item with a fixed-size pool. */
 async function pool(items, size, task) {
   const queue = [...items];
   const workers = Array.from({ length: size }, async () => {
@@ -102,10 +103,10 @@ async function convertImage(exerciseId, index, sourcePath) {
   return { skipped: false, bytes: info.size };
 }
 
-/** Escapa un string para SQL. Los nombres traen apóstrofos. */
+/** Escapes a string for SQL. The names contain apostrophes. */
 const q = (value) => `'${String(value).replaceAll("'", "''")}'`;
 
-/** text[] con el constructor array[], que no necesita escapar llaves. */
+/** text[] via the array[] constructor, which needs no brace escaping. */
 const arr = (values) =>
   values.length ? `array[${values.map(q).join(", ")}]` : "array[]::text[]";
 
@@ -119,11 +120,11 @@ function buildSeed(catalog) {
       `${arr(e.instructions)}, ${arr(e.images)})`,
   );
 
-  return `-- Generado por scripts/fetch-exercises.mjs — no editar a mano.
--- ${catalog.length} ejercicios curados de free-exercise-db (Unlicense).
+  return `-- Generated by scripts/fetch-exercises.mjs — do not edit by hand.
+-- ${catalog.length} exercises curated from free-exercise-db (Unlicense).
 --
--- Idempotente: se puede volver a correr después de cambiar la lista blanca.
--- Aplicar con:  npm run db:seed
+-- Idempotent: safe to re-run after changing the whitelist.
+-- Apply with:  npm run db:seed
 
 insert into public.exercises (
   id, name, category, equipment, level, force, mechanic,
@@ -151,8 +152,8 @@ const whitelist = await loadWhitelist();
 const names = await loadNames();
 const byId = new Map(dataset.map((e) => [e.id, e]));
 
-// Si el dataset renombra un id, se entera acá y no con una imagen rota en
-// producción tres semanas después.
+// If the dataset renames an id, you find out here and not from a broken
+// image in production three weeks later.
 const missing = whitelist.filter((id) => !byId.has(id));
 if (missing.length) {
   console.error(`\nEstos ids de la lista blanca no están en el dataset:`);
@@ -167,9 +168,9 @@ if (withoutImages.length) {
   process.exit(1);
 }
 
-// Los nombres se escriben a mano: si falta uno, el ejercicio saldría con el
-// nombre crudo del inglés y sin alias en español. Se corta antes que dejar
-// pasar un catálogo a medio traducir.
+// The names are written by hand: if one is missing, the exercise would ship
+// with the raw English name and no Spanish aliases. Better to bail out than
+// to let a half-translated catalog through.
 const withoutName = whitelist.filter((id) => !names[id]);
 if (withoutName.length) {
   console.error(`\nEstos ids no tienen entrada en scripts/exercise-es.json:`);
@@ -177,8 +178,8 @@ if (withoutName.length) {
   process.exit(1);
 }
 
-// Y al revés: una entrada que ya no corresponde a ningún id curado es basura
-// que conviene borrar de la mano (típicamente al sacar un ejercicio del catálogo).
+// And the other way round: an entry that no longer matches a curated id is
+// cruft worth deleting by hand (typically after dropping an exercise).
 const whitelistSet = new Set(whitelist);
 const extraNames = Object.keys(names).filter((id) => !whitelistSet.has(id));
 if (extraNames.length) {
@@ -193,13 +194,13 @@ const catalog = whitelist
   .map((id) => {
     const e = byId.get(id);
     const tr = names[id];
-    // El nombre crudo del dataset entra a los alias para que la búsqueda en
-    // inglés no regrese aunque el override no lo repita.
+    // The dataset's raw name joins the aliases so English search keeps
+    // working even when the override doesn't repeat it.
     const aliases = [...new Set([...tr.aliases, e.name])];
     return {
       id: e.id,
-      name: tr.es, // Display por defecto: español.
-      nameEn: tr.en, // Lo consumirá el selector de idioma futuro (PLAN.md).
+      name: tr.es, // Default display: Spanish.
+      nameEn: tr.en, // The future language switcher will consume it (PLAN.md).
       aliases,
       category: e.category,
       equipment: e.equipment ?? null,
@@ -209,7 +210,7 @@ const catalog = whitelist
       primaryMuscles: e.primaryMuscles ?? [],
       secondaryMuscles: e.secondaryMuscles ?? [],
       instructions: e.instructions ?? [],
-      // Rutas servibles tal cual, para que <img src> no necesite helper.
+      // Paths servable as-is, so <img src> needs no helper.
       images: [0, 1].map((i) => `/exercises/${e.id}/${i}.webp`),
     };
   })

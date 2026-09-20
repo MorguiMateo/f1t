@@ -1,11 +1,12 @@
 /**
- * Los días de la semana.
+ * The days of the week.
  *
- * `routine_days.weekday` usa 0 = domingo, igual que `Date#getDay()`: así
- * "qué toca hoy" es una comparación directa, sin conversiones que se
- * desfasan en algún borde. Pero la semana se **muestra** empezando el lunes,
- * que es como se piensa una rutina —y como ya arranca la semana el heatmap,
- * con `weekStartsOn: 1`—. Esas dos cosas conviven acá y en ningún otro lado.
+ * `routine_days.weekday` uses 0 = Sunday, same as `Date#getDay()`: that way
+ * "what's on today" is a direct comparison, with no conversions to drift out
+ * of sync at some edge. But the week is **displayed** starting on Monday,
+ * which is how you think about a routine — and how the heatmap's week
+ * already starts, with `weekStartsOn: 1`. Those two live together here and
+ * nowhere else.
  */
 
 export const WEEKDAY_ES = [
@@ -28,7 +29,7 @@ export const WEEKDAY_SHORT_ES = [
   "Sáb",
 ] as const;
 
-/** El orden en que se dibuja la semana: de lunes a domingo. */
+/** The order the week is drawn in: Monday through Sunday. */
 export const WEEK_ORDER = [1, 2, 3, 4, 5, 6, 0] as const;
 
 export function weekdayLabel(weekday: number): string {
@@ -39,14 +40,14 @@ export function shortWeekdayLabel(weekday: number): string {
   return WEEKDAY_SHORT_ES[weekday] ?? "";
 }
 
-/** 0 = domingo, en hora local. */
+/** 0 = Sunday, in local time. */
 export function todayWeekday(now: Date = new Date()): number {
   return now.getDay();
 }
 
 type HasWeekday = { weekday: number };
 
-/** El día de rutina que cae en ese weekday, o null si es descanso. */
+/** The routine day falling on that weekday, or null if it's a rest day. */
 export function dayForWeekday<T extends HasWeekday>(
   days: readonly T[],
   weekday: number,
@@ -55,10 +56,11 @@ export function dayForWeekday<T extends HasWeekday>(
 }
 
 /**
- * El próximo día con entrenamiento mirando hacia adelante.
+ * The next training day, looking forward.
  *
- * Empieza en mañana y da la vuelta completa, así que si el único día de la
- * rutina es hoy devuelve hoy con `inDays: 7` —la semana que viene— y no null.
+ * It starts at tomorrow and goes all the way around, so if the routine's
+ * only day is today it returns today with `inDays: 7` — next week — rather
+ * than null.
  */
 export function nextTrainingDay<T extends HasWeekday>(
   days: readonly T[],
@@ -71,7 +73,7 @@ export function nextTrainingDay<T extends HasWeekday>(
   return null;
 }
 
-/** Cómo se dice "en tantos días" sin escribir una fecha: "mañana", "el jueves". */
+/** How to say "in N days" without writing a date: "mañana", "el jueves". */
 export function whenLabel(inDays: number, weekday: number): string {
   if (inDays === 1) return "mañana";
   if (inDays === 7) return `el ${weekdayLabel(weekday).toLowerCase()} que viene`;

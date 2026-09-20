@@ -1,11 +1,11 @@
 /**
- * Los dos ayudantes que convierten la respuesta de PostgREST en algo que
- * React Query entienda.
+ * The two helpers that turn a PostgREST response into something React Query
+ * understands.
  *
- * El cliente de Supabase devuelve `{ data, error }` y **nunca lanza**. React
- * Query distingue error de dato por la excepción, así que sin estas dos
- * funciones un fallo de permisos llega a la pantalla como un "no hay nada"
- * silencioso, que es la peor forma de fallar: parece que la app funciona.
+ * The Supabase client returns `{ data, error }` and **never throws**. React
+ * Query tells data from error by the exception, so without these two a
+ * permissions failure reaches the screen as a silent "there's nothing here",
+ * which is the worst way to fail: the app looks like it works.
  */
 
 import type { PostgrestError } from "@supabase/supabase-js";
@@ -19,9 +19,9 @@ export function unwrap<T>(result: {
 }
 
 /**
- * Lo mismo, para las escrituras que devuelven la fila que acabaron de
- * escribir. Un null ahí no es "no hay nada", es un insert que la policy dejó
- * pasar pero cuyo `returning` no volvió: mejor enterarse acá.
+ * The same, for writes that return the row they just wrote. A null there
+ * isn't "there's nothing", it is an insert the policy let through whose
+ * `returning` never came back: better to find out here.
  */
 export function unwrapRow<T>(result: {
   data: T | null;
@@ -32,7 +32,7 @@ export function unwrapRow<T>(result: {
   return data;
 }
 
-/** Violación de unique. Es el código de Postgres, no de PostgREST. */
+/** Unique violation. This is Postgres' code, not PostgREST's. */
 export const UNIQUE_VIOLATION = "23505";
 
 export function isUniqueViolation(error: PostgrestError | null): boolean {

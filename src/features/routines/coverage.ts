@@ -1,25 +1,25 @@
 /**
- * Qué músculos cubre una rutina —o un día— y cuáles se está dejando afuera.
+ * Which muscles a routine — or a day — covers, and which it leaves out.
  *
- * Es la única pieza de la Fase 3 que dice algo que el usuario no escribió:
- * mirando una lista de ejercicios no se ve que falta espalda, pero mirando
- * el muñeco sí.
+ * It is the only piece of Phase 3 that says something the user didn't type:
+ * looking at a list of exercises you can't see that back work is missing,
+ * but looking at the figure you can.
  *
- * Lee el catálogo del bundle, así que este módulo arrastra `catalog.json`:
- * solo puede importarse desde pantallas que ya estén en un chunk `lazy()`.
+ * It reads the catalog from the bundle, so this module drags `catalog.json`
+ * along: it can only be imported from screens already in a `lazy()` chunk.
  */
 
 import { getExercise } from "../exercises/catalog";
 import { MUSCLES, type DatasetMuscle } from "../../lib/muscles";
 
 /**
- * Los grupos que una rutina equilibrada debería tocar. 
+ * The groups a balanced routine ought to hit.
  *
- * El "falta" se calcula solo sobre estos y no sobre los 17 del dataset.
- * Cuello, abductores, aductores y antebrazos casi nunca se entrenan directo
- * —el dataset tiene dos ejercicios de cuello en total—, así que aparecerían
- * como deuda en absolutamente todas las rutinas y el aviso dejaría de
- * significar algo. Sí se muestran como cubiertos cuando aparecen.
+ * The "missing" list is computed over these only and not over the dataset's
+ * 17. Neck, abductors, adductors and forearms are almost never trained
+ * directly — the dataset has two neck exercises in total — so they would
+ * show up as debt in absolutely every routine and the warning would stop
+ * meaning anything. They do show as covered when they appear.
  */
 export const KEY_MUSCLES = [
   "abdominals",
@@ -38,20 +38,20 @@ export const KEY_MUSCLES = [
 ] as const satisfies readonly DatasetMuscle[];
 
 export type Coverage = {
-    /** Trabajados como primarios por al menos un ejercicio. */
+  /** Worked as primary by at least one exercise. */
   primary: DatasetMuscle[];
-  /** Solo como secundarios: se tocan, pero nadie los entrena de frente. */
+  /** Secondary only: they get hit, but nobody trains them head on. */
   secondary: DatasetMuscle[];
-  /** Grupos grandes que no aparecen ni como primarios ni como secundarios. */
+  /** Major groups appearing as neither primary nor secondary. */
   missing: DatasetMuscle[];
-  /** Ejercicios que sí se encontraron en el catálogo. */
+  /** Exercises that were actually found in the catalog. */
   exerciseCount: number;
 };
 
 /**
- * Los tres conjuntos son disjuntos: un músculo primario no vuelve a contarse
- * como secundario. Es la misma regla que usa `MuscleMap` para no sumar
- * frecuencias y pasarse de rango.
+ * The three sets are disjoint: a primary muscle is not counted again as
+ * secondary. It is the same rule `MuscleMap` uses to avoid summing
+ * frequencies and overflowing its range.
  */
 
 export function muscleCoverage(exerciseIds: readonly string[]): Coverage {
@@ -61,16 +61,16 @@ export function muscleCoverage(exerciseIds: readonly string[]): Coverage {
 
   for (const id of exerciseIds) {
     const exercise = getExercise(id);
-    // Un id que ya no está en el catálogo curado no rompe la pantalla: la
-    // fila sigue en la base y acá simplemente no aporta músculos.
+    // An id no longer in the curated catalog doesn't break the screen: the
+    // row is still in the database and here it simply contributes no muscles.
     if (!exercise) continue;
     exerciseCount++;
     for (const muscle of exercise.primaryMuscles) primary.add(muscle);
     for (const muscle of exercise.secondaryMuscles) secondary.add(muscle);
   }
 
-  // En el orden anatómico de MUSCLES y no en el de aparición: así dos
-  // rutinas parecidas se leen igual.
+  // In MUSCLES' anatomical order and not in order of appearance: that way
+  // two similar routines read the same.
   const inOrder = (set: Set<string>) => MUSCLES.filter((m) => set.has(m));
 
   return {
@@ -81,7 +81,7 @@ export function muscleCoverage(exerciseIds: readonly string[]): Coverage {
   };
 }
 
-/** Todos los ejercicios de una rutina, en un solo array plano. */
+/** Every exercise in a routine, in one flat array. */
   export function exerciseIdsOf(
     days: readonly { exercises: readonly { exercise_id: string }[] }[],
   ): string[] {

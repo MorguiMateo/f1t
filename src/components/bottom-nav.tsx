@@ -4,7 +4,7 @@ import {
   ProgressIcon,
   RoutinesIcon,
   TodayIcon,
-} from "./NavIcons";
+} from "./nav-icons";
 
 const TABS = [
   { to: "/", label: "Hoy", Icon: TodayIcon, end: true },

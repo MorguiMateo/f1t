@@ -2,16 +2,16 @@ import Model, { type IExerciseData } from "react-body-highlighter";
 import { toBodyParts } from "../../lib/muscles";
 
 /**
- * El mapa corporal de un ejercicio.
+ * An exercise's body map.
  *
- * Las dos fotos del dataset muestran el movimiento, no la anatomía, así que
- * "qué músculos entrena" necesita su propio dibujo. Se muestran las dos
- * vistas porque el dataset tiene músculos que solo existen en una: el pecho
- * no se ve de atrás y los glúteos no se ven de frente.
+ * The dataset's two photos show the movement, not the anatomy, so "which
+ * muscles does this train" needs its own drawing. Both views are shown
+ * because the dataset has muscles that only exist in one: the chest isn't
+ * visible from behind and the glutes aren't visible from the front.
  *
- * Primarios y secundarios se distinguen por intensidad y no por color
- * distinto: es la misma idea que en el heatmap, un solo tono manda menos
- * carga visual y sigue leyéndose si el sistema aplana los colores.
+ * Primary and secondary are told apart by intensity and not by a different
+ * colour: same idea as the heatmap — a single hue carries less visual load
+ * and still reads if the system flattens colours.
  */
 export function MuscleMap({
   primary,
@@ -23,8 +23,8 @@ export function MuscleMap({
   const primaryParts = toBodyParts(primary);
   const primarySet = new Set(primaryParts);
 
-  // Un músculo que es primario y secundario a la vez se cuenta una sola vez,
-  // como primario: si no, las frecuencias se suman y se va de rango.
+  // A muscle that is both primary and secondary counts once, as primary:
+  // otherwise the frequencies add up and overflow the range.
   const secondaryParts = toBodyParts(secondary).filter(
     (part) => !primarySet.has(part),
   );
@@ -41,7 +41,7 @@ export function MuscleMap({
           key={type}
           type={type}
           data={data}
-          // Colores por CSS var: el mapa sigue al tema sin re-renderizar.
+          // Colours via CSS vars: the map follows the theme without a re-render.
           bodyColor="var(--surface-2)"
           highlightedColors={["var(--muted)", "var(--accent)"]}
           style={{ width: "50%", maxWidth: "9rem" }}

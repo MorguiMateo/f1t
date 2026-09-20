@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { supabase } from "../../lib/supabase";
-import { GoogleMark } from "./GoogleMark";
+import { GoogleMark } from "./google-mark";
 
 export function SignInScreen() {
   const [isRedirecting, setIsRedirecting] = useState(false);
@@ -12,13 +12,13 @@ export function SignInScreen() {
 
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
-      // Vuelve a la raíz de donde salió: sirve igual en localhost, en Vercel
-      // y más adelante bajo el esquema de Capacitor. Tiene que estar en el
-      // allowlist de Authentication → URL Configuration.
+      // Returns to the origin it left from: works the same on localhost, on
+      // Vercel and later under Capacitor's scheme. It has to be on the
+      // allowlist under Authentication → URL Configuration.
       options: { redirectTo: window.location.origin },
     });
 
-    // Si salió bien el navegador ya se está yendo a Google y esto no corre.
+    // On success the browser is already leaving for Google and this never runs.
     if (error) {
       setError(error.message);
       setIsRedirecting(false);

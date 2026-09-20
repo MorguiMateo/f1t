@@ -1,13 +1,13 @@
 import { Link, useNavigate, useSearchParams } from "react-router";
-import { Button } from "../components/Button";
-import { ConfirmButton } from "../components/ConfirmButton";
-import { EmptyState } from "../components/EmptyState";
-import { PageHeader } from "../components/PageHeader";
-import { ErrorNote, LoadingNote } from "../components/Status";
+import { Button } from "../components/button";
+import { ConfirmButton } from "../components/confirm-button";
+import { EmptyState } from "../components/empty-state";
+import { PageHeader } from "../components/page-header";
+import { ErrorNote, LoadingNote } from "../components/status";
 import { useActiveRoutine } from "../features/routines/queries";
 import { dayForWeekday, todayWeekday } from "../features/routines/weekdays";
 import { today } from "../features/sessions/api";
-import { ExerciseLog } from "../features/sessions/ExerciseLog";
+import { ExerciseLog } from "../features/sessions/exercise-log";
 import { planWorkout, progressLabel, workoutTotals } from "../features/sessions/plan";
 import {
   useDeleteSession,
@@ -16,17 +16,17 @@ import {
 } from "../features/sessions/queries";
 
 /**
- * Registrar el entrenamiento de hoy.
+ * Logging today's workout.
  *
- * Es una pantalla con URL propia y no un bloque dentro de Hoy por dos
- * motivos: Hoy es la ruta índice y meter acá el catálogo —hace falta para la
- * foto y el nombre de cada ejercicio— la volvería pesada, y porque entrenar
- * y ver qué toca son dos momentos distintos. El gesto de volver del teléfono
- * sale del entrenamiento sin perder nada: todo está guardado serie a serie.
+ * It is a screen with its own URL and not a block inside Today for two
+ * reasons: Today is the index route and putting the catalog here — needed for
+ * each exercise's photo and name — would weigh it down, and because training
+ * and checking what's on are two different moments. The phone's back gesture
+ * leaves the workout without losing anything: everything is saved set by set.
  *
- * `?dia=` permite entrenar un día que no es el de hoy, que es lo que pasa
- * cuando se corre la semana: el martes toca Pierna pero se hizo el miércoles.
- * Sin el parámetro, es el día que la rutina activa marca para hoy.
+ * `?dia=` allows training a day that isn't today's, which is what happens
+ * when the week slips: Tuesday is Legs but it got done on Wednesday. Without
+ * the parameter, it is the day the active routine marks for today.
  */
 export function WorkoutPage() {
   const navigate = useNavigate();
@@ -48,11 +48,11 @@ export function WorkoutPage() {
   const deleteSession = useDeleteSession();
 
   const session = sessionQuery.data ?? null;
-  // `isLoading` y no `isPending` para la vez pasada: sin día la query está
-  // deshabilitada, y una query deshabilitada se queda en `pending` para
-  // siempre. Esperarla igual es lo correcto: las filas tienen que aparecer
-  // ya con el peso sugerido, porque un input que se completa solo un
-  // segundo después pisa lo que se estaba tecleando.
+  // `isLoading` and not `isPending` for the previous session: with no day the
+  // query is disabled, and a disabled query stays `pending` forever. Waiting
+  // for it is the right call anyway: the rows have to appear with the
+  // suggested weight already in them, because an input that fills itself in a
+  // second later overwrites whatever was being typed.
   const isPending =
     routineQuery.isPending || sessionQuery.isPending || previousQuery.isLoading;
   const error = routineQuery.error ?? sessionQuery.error;
@@ -60,9 +60,6 @@ export function WorkoutPage() {
   const plans = planWorkout({
     items: day?.exercises ?? [],
     logged: session?.sets ?? [],
-    // Mientras la consulta de la vez pasada viaja, las sugerencias salen del
-    // objetivo. Llega y los campos vacíos se completan solos; los que ya se
-    // tocaron no, porque el input remonta por `key` y esa no cambió.
     previous: previousQuery.data?.sets ?? [],
   });
 
@@ -125,7 +122,7 @@ export function WorkoutPage() {
             <ExerciseLog
               key={plan.id}
               plan={plan}
-              // Sin sesión todavía, la crea la primera serie que se marque.
+              // With no session yet, the first set ticked creates it.
               sessionId={session?.id ?? null}
               performedOn={performedOn}
               routineDayId={day.id}
@@ -147,8 +144,8 @@ export function WorkoutPage() {
         />
       )}
 
-      {/* No hay botón de "guardar": cada serie ya está en la base cuando se
-          marcó. Terminar es simplemente volver. */}
+      {/* There is no "save" button: each set is already in the database the
+          moment it was ticked. Finishing is simply going back. */}
       <Button
         variant="primary"
         className="mt-4 w-full"

@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
-import { EmptyState } from "../components/EmptyState";
-import { PageHeader } from "../components/PageHeader";
-import { ImageLightbox } from "../features/exercises/ImageLightbox";
-import { MuscleMap } from "../features/exercises/MuscleMap";
+import { EmptyState } from "../components/empty-state";
+import { PageHeader } from "../components/page-header";
+import { ImageLightbox } from "../features/exercises/image-lightbox";
+import { MuscleMap } from "../features/exercises/muscle-map";
 import { getExercise } from "../features/exercises/catalog";
 import {
   CATEGORY_ES,
@@ -15,7 +15,7 @@ import {
   muscleLabel,
 } from "../lib/muscles";
 
-/** Las dos fotos del dataset son el inicio y el fin del movimiento. */
+/** The dataset's two photos are the start and the end of the movement. */
 function imageAlt(name: string, index: number): string {
   return index === 0
     ? `${name}: posición inicial`
@@ -62,8 +62,8 @@ export function ExerciseDetailPage() {
         onBack={() => navigate(-1)}
       />
 
-      {/* Las dos fotos son inicio y fin del movimiento, así que van juntas
-          y en orden: una sola no dice nada. Se pueden ampliar al tocarlas. */}
+      {/* The two photos are the start and end of the movement, so they go
+          together and in order: one alone says nothing. Tapping enlarges them. */}
       <div className="grid grid-cols-2 gap-2">
         {exercise.images.map((src, i) => (
           <button
@@ -124,7 +124,7 @@ export function ExerciseDetailPage() {
         </div>
       </section>
 
-      {/* Dos de los 165 ejercicios del dataset no traen instrucciones. */}
+      {/* Two of the dataset's 165 exercises come with no instructions. */}
       {exercise.instructions.length ? (
         <section className="mt-4 rounded-xl border border-line bg-surface p-4">
           <h2 className="font-semibold">Cómo se hace</h2>

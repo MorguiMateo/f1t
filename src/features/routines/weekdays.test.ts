@@ -17,7 +17,7 @@ const days = [
 describe("el vocabulario de la semana", () => {
   it("usa 0 = domingo, igual que Date#getDay()", () => {
     expect(weekdayLabel(0)).toBe("Domingo");
-    // 2026-09-17 fue un jueves.
+    // 2026-09-17 was a Thursday.
     expect(todayWeekday(new Date(2026, 8, 17))).toBe(4);
   });
 

@@ -1,21 +1,21 @@
 /**
- * Todo el acceso a las tablas `routine_*`.
+ * Every read and write against the `routine_*` tables.
  *
- * Acá no entra React: son funciones async sueltas y los hooks viven en
- * `queries.ts`. Así, el día que una rutina tenga que resolverse fuera de un
- * componente —armar el `WidgetPayload` de la Fase 6, por ejemplo— se llama a
- * la función y ya está.
+ * No React in here: these are plain async functions and the hooks live in
+ * `queries.ts`. That way, the day a routine has to be resolved outside a
+ * component — building the Phase 6 `WidgetPayload`, say — you just call the
+ * function and you're done.
  *
- * Tres cosas las resuelve el schema y por eso no aparecen en este archivo:
+ * Three things the schema handles, which is why they don't show up here:
  *
- * - **`user_id` no se manda nunca.** Todas esas columnas tienen
- *   `default auth.uid()` y la policy `with check` rechaza lo ajeno. Mandarlo
- *   desde el cliente sería redundante y además una mentira sobre quién decide
- *   la identidad.
- * - **El borrado en cascada.** Borrar una rutina se lleva sus días, y borrar
- *   un día se lleva sus ejercicios.
- * - **La consistencia padre/hijo.** La FK compuesta `(routine_id, user_id)`
- *   hace que colgar un día de la rutina de otro sea un error de integridad.
+ * - **`user_id` is never sent.** All of those columns default to
+ *   `auth.uid()` and the policy's `with check` rejects anything that isn't
+ *   yours. Sending it from the client would be redundant, and a lie about
+ *   who gets to decide identity.
+ * - **Cascading deletes.** Deleting a routine takes its days with it, and
+ *   deleting a day takes its exercises.
+ * - **Parent/child consistency.** The composite FK `(routine_id, user_id)`
+ *   makes hanging a day off somebody else's routine an integrity error.
  */
 
 import type { Tables } from "../../lib/database.types";
@@ -26,17 +26,17 @@ export type Routine = Tables<"routines">;
 export type RoutineDayRow = Tables<"routine_days">;
 export type RoutineExercise = Tables<"routine_exercises">;
 
-/** Un día con sus ejercicios ya ordenados por `position`. */
+/** A day with its exercises already sorted by `position`. */
 export type RoutineDay = RoutineDayRow & { exercises: RoutineExercise[] };
 
-/** Una rutina entera: lo que necesitan tanto el editor como la pestaña Hoy. */
+/** A whole routine: what both the editor and the Today tab need. */
 export type RoutineDetail = Routine & { days: RoutineDay[] };
 
-/** La fila de la lista: la rutina más cuántos días tiene. */
+/** The list row: the routine plus how many days it has. */
 export type RoutineSummary = Routine & { dayCount: number };
 
-// Una rutina entera son unos pocos KB, así que se trae en un solo viaje con
-// los embeds anidados en lugar de tres queries encadenadas.
+// A whole routine is a few KB, so it travels in a single round trip with
+// nested embeds instead of three chained queries.
 const DETAIL_SELECT =
   "*, routine_days(*, routine_exercises(*))";
 
@@ -45,11 +45,12 @@ type DetailRow = Routine & {
 };
 
 /**
- * El orden se impone acá y no en la query.
+ * Ordering is imposed here and not in the query.
  *
- * PostgREST sabe ordenar recursos embebidos, pero son siete días y un puñado
- * de ejercicios: ordenarlos en memoria es gratis y deja el orden escrito en
- * un lugar donde se lee, en vez de repartido en modificadores de la query.
+ * PostgREST can order embedded resources, but this is seven days and a
+ * handful of exercises: sorting in memory is free and keeps the ordering
+ * written somewhere you actually read, instead of scattered across query
+ * modifiers.
  */
 function toDetail(row: DetailRow): RoutineDetail {
   const { routine_days, ...routine } = row;
@@ -65,12 +66,12 @@ function toDetail(row: DetailRow): RoutineDetail {
 }
 
 // ---------------------------------------------------------------------------
-// Lecturas
+// Reads
 // ---------------------------------------------------------------------------
 
 export async function fetchRoutines(): Promise<RoutineSummary[]> {
-  // `routine_days(count)` es un agregado de PostgREST: trae el número de días
-  // sin traer los días. La lista no los necesita para nada más.
+  // `routine_days(count)` is a PostgREST aggregate: it brings back the number
+  // of days without bringing the days. The list needs nothing else from them.
   const rows =
     unwrap(
       await supabase
@@ -99,9 +100,9 @@ export async function fetchRoutineDetail(
 }
 
 /**
- * La rutina activa, con todo adentro. Es la query de la pestaña Hoy.
- * `maybeSingle` y no `single`: no tener rutina activa es un estado normal,
- * no un error.
+ * The active routine, with everything inside it. This is the Today tab's
+ * query. `maybeSingle` rather than `single`: having no active routine is a
+ * normal state, not an error.
  */
 export async function fetchActiveRoutine(): Promise<RoutineDetail | null> {
   const row = unwrap(
@@ -115,7 +116,7 @@ export async function fetchActiveRoutine(): Promise<RoutineDetail | null> {
 }
 
 // ---------------------------------------------------------------------------
-// Rutinas
+// Routines
 // ---------------------------------------------------------------------------
 
 export async function createRoutine(input: {
@@ -148,12 +149,13 @@ export async function deleteRoutine(routineId: string): Promise<void> {
 }
 
 /**
- * Activar una rutina es apagar la anterior y prender esta, **en ese orden**.
+ * Activating a routine means switching off the previous one and switching on
+ * this one, **in that order**.
  *
- * `routines_one_active_idx` es un índice único parcial sobre `user_id` where
- * `is_active`: si se prendiera primero, habría dos activas por un instante y
- * Postgres rechazaría el update. El `eq("is_active", true)` alcanza como
- * filtro porque RLS ya limita el update a las filas propias.
+ * `routines_one_active_idx` is a partial unique index on `user_id` where
+ * `is_active`: switching this one on first would leave two active for an
+ * instant and Postgres would reject the update. `eq("is_active", true)` is
+ * filter enough because RLS already limits the update to your own rows.
  */
 export async function activateRoutine(routineId: string): Promise<void> {
   unwrap(
@@ -171,7 +173,7 @@ export async function activateRoutine(routineId: string): Promise<void> {
 }
 
 // ---------------------------------------------------------------------------
-// Días
+// Days
 // ---------------------------------------------------------------------------
 
 export async function createDay(input: {
@@ -209,13 +211,14 @@ export async function deleteDay(dayId: string): Promise<void> {
 }
 
 // ---------------------------------------------------------------------------
-// Ejercicios de un día
+// Exercises within a day
 // ---------------------------------------------------------------------------
 
 /**
- * Agrega al final. La posición se lee de la base y no del estado del cliente:
- * el ejercicio se elige desde el catálogo, que es otra pantalla, y arrastrar
- * hasta ahí la lista del día solo para contar sería peor.
+ * Appends at the end. The position is read from the database and not from
+ * client state: the exercise is picked from the catalog, which is a different
+ * screen, and dragging the day's list all the way over there just to count
+ * would be worse.
  */
 export async function addExerciseToDay(input: {
   dayId: string;
@@ -245,9 +248,9 @@ export async function addExerciseToDay(input: {
 }
 
 /**
- * Cambia series/reps/nota de un ejercicio de la rutina. El patch usa los
- * nombres de las columnas a propósito: una capa de traducción de nombres
- * para tres campos solo agrega un lugar más donde equivocarse.
+ * Changes sets/reps/notes on a routine exercise. The patch uses the column
+ * names on purpose: a name-translation layer for three fields only adds one
+ * more place to get them wrong.
  */
 export async function updateRoutineExercise(input: {
   id: string;
@@ -270,12 +273,12 @@ export async function removeRoutineExercise(id: string): Promise<void> {
 }
 
 /**
- * Reordenar es intercambiar las posiciones de dos filas vecinas.
+ * Reordering is swapping the positions of two neighbouring rows.
  *
- * No hay unique sobre `(routine_day_id, position)`, así que los dos updates
- * pueden ir en paralelo sin pasar por un valor temporal. Si uno fallara, el
- * peor caso es dos ejercicios con la misma posición: el orden queda raro, no
- * se pierde nada, y se arregla tocando otra vez la flecha.
+ * There is no unique constraint on `(routine_day_id, position)`, so both
+ * updates can go in parallel without passing through a temporary value. If
+ * one failed, the worst case is two exercises sharing a position: the order
+ * looks odd, nothing is lost, and tapping the arrow again fixes it.
  */
 export async function swapExercisePositions(input: {
   a: { id: string; position: number };

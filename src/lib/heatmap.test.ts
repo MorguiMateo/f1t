@@ -9,13 +9,13 @@ import {
   trainedDays,
 } from "./heatmap";
 
-// Miércoles. Sirve para verificar que la grilla se alinea a semanas.
+// A Wednesday. Useful for checking the grid aligns to whole weeks.
 const WEDNESDAY = new Date(2026, 8, 2); // 2026-09-02
 
 describe("claves de fecha", () => {
   it("formatea en hora local, sin correrse por UTC", () => {
-    // Con toISOString, una fecha local a la medianoche en un huso negativo
-    // devolvería el día anterior. Este es el bug clásico del heatmap.
+    // With toISOString, a local midnight date in a negative offset would
+    // come back as the previous day. This is the classic heatmap bug.
     expect(toDateKey(new Date(2026, 0, 1))).toBe("2026-01-01");
     expect(toDateKey(new Date(2026, 11, 31))).toBe("2026-12-31");
   });
@@ -101,7 +101,7 @@ describe("buildLevels", () => {
 
   it("marca como futuras las celdas posteriores a hoy", () => {
     const cells = buildHeatmap([], { weeks: 2, endDate: WEDNESDAY });
-    // Miércoles: quedan jueves, viernes, sábado y domingo por delante.
+    // Wednesday: Thursday, Friday, Saturday and Sunday are still ahead.
     expect(cells.filter((cell) => cell.isFuture)).toHaveLength(4);
   });
 });
@@ -153,9 +153,9 @@ describe("trainedDays", () => {
 
 describe("heatmapStart", () => {
   it("es exactamente la primera celda de la grilla", () => {
-    // El invariante que hace que la query pida ni más ni menos de lo que se
-    // dibuja: si estos dos se separan, el heatmap muestra días vacíos que sí
-    // se entrenaron.
+    // The invariant that makes the query ask for neither more nor less than
+    // what gets drawn: if these two drift apart, the heatmap shows empty days
+    // that were actually trained.
     for (const weeks of [4, 26, 53]) {
       const cells = buildHeatmap([], { weeks, endDate: WEDNESDAY });
       expect(heatmapStart({ weeks, endDate: WEDNESDAY })).toBe(cells[0].date);
@@ -163,9 +163,9 @@ describe("heatmapStart", () => {
   });
 
   it("cae en el primer día de la semana", () => {
-    // Semana que empieza el lunes por defecto: getDay() === 1.
+    // Week starts on Monday by default: getDay() === 1.
     expect(fromDateKey(heatmapStart({ endDate: WEDNESDAY })).getDay()).toBe(1);
-    // Y en domingo cuando se pide domingo.
+    // And on Sunday when Sunday is asked for.
     expect(
       fromDateKey(heatmapStart({ endDate: WEDNESDAY, weekStartsOn: 0 })).getDay(),
     ).toBe(0);

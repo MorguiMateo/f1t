@@ -1,10 +1,10 @@
 /**
- * Los hooks de React Query sobre `sessions/api.ts`.
+ * The React Query hooks on top of `sessions/api.ts`.
  *
- * Misma regla que en rutinas: cada mutación invalida **todo** el árbol
- * `["sessions"]`. Marcar una serie cambia el detalle de hoy, el `set_count`
- * que dibuja el heatmap y la racha; separarlos sería mantener una tabla de
- * dependencias para ahorrar unos KB de un solo usuario.
+ * Same rule as routines: every mutation invalidates the **whole**
+ * `["sessions"]` tree. Ticking a set changes today's detail, the `set_count`
+ * that draws the heatmap and the streak; splitting them apart would mean
+ * maintaining a dependency table to save a few KB for a single user.
  */
 
 import {
@@ -36,12 +36,13 @@ export const sessionKeys = {
 };
 
 /**
- * Los días entrenados que entran en el heatmap.
+ * The days trained that fit inside the heatmap.
  *
- * El rango sale de `heatmapStart()` y no de una cuenta local: es el mismo
- * archivo que decide dónde empieza la grilla, así que la query pide exacto
- * lo que se va a dibujar. Como depende de la fecha de hoy, la clave incluye
- * el `since`: pasada la medianoche la query cambia sola.
+ * The range comes from `heatmapStart()` and not from a local calculation: the
+ * same file that decides where the grid begins decides what the query asks
+ * for, so it fetches exactly what gets drawn. Since it depends on today's
+ * date, the key includes `since`: past midnight the query rolls over on its
+ * own.
  */
 export function useSessionDays(weeks: number = WIDGET_WEEKS) {
   const since = heatmapStart({ weeks });
@@ -58,7 +59,7 @@ export function useSessionForDate(date: string = today()) {
   });
 }
 
-/** La vez pasada que se hizo este día de rutina. Sin día, no hay con qué. */
+/** Last time this routine day was trained. With no day there is nothing to ask. */
 export function usePreviousSession(
   routineDayId: string | null | undefined,
   before: string = today(),
@@ -68,8 +69,8 @@ export function usePreviousSession(
     queryFn: () =>
       fetchPreviousSession({ routineDayId: routineDayId as string, before }),
     enabled: Boolean(routineDayId),
-    // El pasado no cambia mientras se entrena: no hace falta refrescarlo
-    // cada vez que se marca una serie.
+    // The past does not change while you train: no need to refetch it every
+    // time a set is ticked.
     staleTime: Infinity,
   });
 }
@@ -85,12 +86,12 @@ function useSessionMutation<TArgs, TResult>(
 }
 
 /**
- * Marcar una serie, creando la sesión del día si todavía no existe.
+ * Tick a set, creating the day's session if it doesn't exist yet.
  *
- * Las dos cosas van juntas en una sola mutación porque desde la pantalla son
- * un solo gesto: el primer toque del día tiene que registrar la serie, no
- * pedir antes un "empezar entrenamiento" que no aporta nada. `sessionId`
- * viene cuando la pantalla ya lo conoce, y entonces se ahorra el viaje.
+ * The two go together in one mutation because from the screen they are a
+ * single gesture: the first tap of the day has to record the set, not ask
+ * first for a "start workout" that accomplishes nothing. `sessionId` comes in
+ * when the screen already knows it, and then the round trip is saved.
  */
 export function useLogSet(): UseMutationResult<
   SessionSet,
