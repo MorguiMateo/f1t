@@ -1,0 +1,147 @@
+import { Link, useNavigate, useParams } from "react-router";
+import { ConfirmButton } from "../components/ConfirmButton";
+import { EmptyState } from "../components/EmptyState";
+import { PageHeader } from "../components/PageHeader";
+import { ErrorNote, LoadingNote } from "../components/Status";
+import { TextInput } from "../components/TextInput";
+import { RoutineCoverage } from "../features/routines/RoutineCoverage";
+import { RoutineExerciseItem } from "../features/routines/RoutineExerciseItem";
+import {
+  useDeleteDay,
+  useRenameDay,
+  useRoutineDetail,
+} from "../features/routines/queries";
+import { weekdayLabel } from "../features/routines/weekdays";
+
+/**
+ * El editor de un día: qué ejercicios, en qué orden y con qué objetivo.
+ *
+ * Lee la rutina entera y busca el día adentro en vez de pedir el día solo.
+ * Es la misma query que ya está en caché por venir del detalle de la rutina,
+ * así que entrar acá no dispara ningún request y volver tampoco.
+ */
+export function RoutineDayPage() {
+  const { routineId, dayId } = useParams();
+  const navigate = useNavigate();
+
+  const { data: routine, isPending, error } = useRoutineDetail(routineId);
+  const renameDay = useRenameDay();
+  const deleteDay = useDeleteDay();
+
+  const day = routine?.days.find((d) => d.id === dayId) ?? null;
+
+  if (isPending) {
+    return (
+      <>
+        <PageHeader title="Día" onBack={() => navigate(-1)} />
+        <LoadingNote />
+      </>
+    );
+  }
+
+  if (error) {
+    return (
+      <>
+        <PageHeader title="Día" onBack={() => navigate(-1)} />
+        <ErrorNote error={error} />
+      </>
+    );
+  }
+
+  if (!routine || !day) {
+    return (
+      <>
+        <PageHeader title="Día" onBack={() => navigate(-1)} />
+        <EmptyState
+          title="Ese día ya no existe"
+          description="Puede que lo hayas borrado, o que la rutina haya cambiado."
+          action={
+            <Link to="/rutinas" className="text-sm font-medium text-accent">
+              Volver a mis rutinas
+            </Link>
+          }
+        />
+      </>
+    );
+  }
+
+  const exerciseIds = day.exercises.map((e) => e.exercise_id);
+
+  return (
+    <>
+      <PageHeader
+        title={day.label}
+        subtitle={`${weekdayLabel(day.weekday)} · ${routine.name}`}
+        onBack={() => navigate(-1)}
+      />
+
+      {day.exercises.length ? (
+        <ul className="flex flex-col gap-2">
+          {day.exercises.map((item, index) => (
+            <RoutineExerciseItem
+              key={item.id}
+              item={item}
+              previous={day.exercises[index - 1]}
+              next={day.exercises[index + 1]}
+            />
+          ))}
+        </ul>
+      ) : (
+        <EmptyState
+          title="Este día está vacío"
+          description="Elegí ejercicios del catálogo: se agregan al final y después los ordenás."
+        />
+      )}
+
+      {/* El catálogo entero en modo "elegir", con su buscador y sus filtros.
+          Duplicarlo acá en chiquito sería mantener dos buscadores. */}
+      <Link
+        to={`/ejercicios?dia=${day.id}&rutina=${routine.id}`}
+        className="mt-3 block rounded-xl border border-accent bg-accent px-5 py-3 text-center text-sm font-medium text-accent-ink transition-opacity hover:opacity-90"
+      >
+        Agregar ejercicio
+      </Link>
+
+      <RoutineCoverage exerciseIds={exerciseIds} title="Qué cubre este día" />
+
+      <section className="mt-4 rounded-xl border border-line bg-surface p-4">
+        <h2 className="font-semibold">Ajustes del día</h2>
+        <label className="mt-3 block">
+          <span className="text-sm text-muted">Nombre del día</span>
+          <TextInput
+            key={day.label}
+            defaultValue={day.label}
+            maxLength={40}
+            className="mt-1 w-full"
+            onBlur={(e) => {
+              const value = e.target.value.trim();
+              if (!value || value === day.label) {
+                e.target.value = day.label;
+                return;
+              }
+              renameDay.mutate({ dayId: day.id, label: value });
+            }}
+          />
+        </label>
+
+        <div className="mt-4 flex items-center justify-between gap-3">
+          <p className="text-sm text-muted">
+            Sacar el día lo vuelve descanso y borra sus ejercicios.
+          </p>
+          <ConfirmButton
+            label="Sacar día"
+            confirmLabel="¿Seguro?"
+            disabled={deleteDay.isPending}
+            className="shrink-0"
+            onConfirm={() =>
+              deleteDay.mutate(day.id, {
+                onSuccess: () =>
+                  navigate(`/rutinas/${routine.id}`, { replace: true }),
+              })
+            }
+          />
+        </div>
+      </section>
+    </>
+  );
+}

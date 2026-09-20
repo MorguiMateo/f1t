@@ -1,7 +1,10 @@
 import { useMemo, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router";
 import { EmptyState } from "../components/EmptyState";
 import { PageHeader } from "../components/PageHeader";
+import { ErrorNote } from "../components/Status";
 import { ExerciseCard } from "../features/exercises/ExerciseCard";
+import { useAddExercise } from "../features/routines/queries";
 import {
   EXERCISES,
   availableEquipment,
@@ -51,7 +54,23 @@ function Chip({
   );
 }
 
+/**
+ * El catálogo, en dos modos.
+ *
+ * Con `?dia=…&rutina=…` la misma pantalla sirve para **elegir** un ejercicio
+ * y agregarlo a ese día. No hay un segundo buscador en la pantalla del día:
+ * serían dos buscadores para mantener, con dos conjuntos de filtros que se
+ * van pareciendo cada vez menos. El modo vive en la URL y no en un estado de
+ * navegación para que volver atrás con el gesto del teléfono funcione.
+ */
 export function ExercisesPage() {
+  const [params] = useSearchParams();
+  const navigate = useNavigate();
+  const dayId = params.get("dia");
+  const routineId = params.get("rutina");
+  const isPicking = Boolean(dayId && routineId);
+  const addExercise = useAddExercise();
+
   const [query, setQuery] = useState("");
   const [muscle, setMuscle] = useState<string | null>(null);
   const [equipment, setEquipment] = useState<string | null>(null);
@@ -63,12 +82,36 @@ export function ExercisesPage() {
 
   const hasFilters = query !== "" || muscle !== null || equipment !== null;
 
+  function pick(exerciseId: string) {
+    if (!dayId || !routineId) return;
+    addExercise.mutate(
+      { dayId, exerciseId },
+      {
+        // `replace` para que volver desde el día lleve a la rutina y no de
+        // nuevo al catálogo con el ejercicio ya agregado.
+        onSuccess: () =>
+          navigate(`/rutinas/${routineId}/dias/${dayId}`, { replace: true }),
+      },
+    );
+  }
+
   return (
     <>
       <PageHeader
-        title="Ejercicios"
-        subtitle={`${EXERCISES.length} ejercicios con foto y músculos`}
+        title={isPicking ? "Elegir ejercicio" : "Ejercicios"}
+        subtitle={
+          isPicking
+            ? "Se agrega al final del día"
+            : `${EXERCISES.length} ejercicios con foto y músculos`
+        }
+        onBack={isPicking ? () => navigate(-1) : undefined}
       />
+
+      {addExercise.error ? (
+        <div className="mb-3">
+          <ErrorNote error={addExercise.error} />
+        </div>
+      ) : null}
 
       <label className="block">
         <span className="sr-only">Buscar ejercicio</span>
@@ -130,7 +173,12 @@ export function ExercisesPage() {
       {results.length ? (
         <ul className="mt-3 flex flex-col gap-2">
           {results.map((e) => (
-            <ExerciseCard key={e.id} exercise={e} />
+            <ExerciseCard
+              key={e.id}
+              exercise={e}
+              onSelect={isPicking ? () => pick(e.id) : undefined}
+              disabled={addExercise.isPending}
+            />
           ))}
         </ul>
       ) : (

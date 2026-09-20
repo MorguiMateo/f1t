@@ -251,12 +251,70 @@ El mapeo a react-body-highlighter se verificó contra los tipos del paquete y
 no contra la tabla de §2, que tenía dos huecos: `lower back` → `lower-back` y
 `abductors` → `abductors`, los dos 1:1.
 
-### Fase 3 — Rutinas
+### Fase 3 — Rutinas ✅
 
-- CRUD de rutinas, días y ejercicios (`routine_*`)
-- Asignar días de la semana, ordenar ejercicios, series y reps objetivo
-- La pestaña **Hoy** resuelve qué toca hoy según el `weekday` actual
-- Mapa muscular agregado: qué cubre la rutina y qué está dejando afuera
+- `src/features/routines/api.ts` — todo el acceso a `routine_*`, sin React
+- `src/features/routines/queries.ts` — los hooks de React Query encima
+- CRUD de rutinas, días y ejercicios; una rutina activa; reordenar con
+  flechas; series y repeticiones objetivo
+- La pestaña **Hoy** resuelve qué toca según el `weekday` de hoy, y si es
+  descanso dice cuál es el próximo día
+- `RoutineCoverage` — el mapa muscular agregado de una rutina o de un día,
+  con lo que queda sin trabajar
+
+Decisiones que no estaban en el plan original:
+
+- **Una rutina entera viaja en una sola query.** `routines` con
+  `routine_days(*, routine_exercises(*))` anidado: son unos pocos KB y evita
+  la cascada de tres requests encadenados, que en el gimnasio es la
+  diferencia entre abrir la app y esperarla. El orden por `weekday` y por
+  `position` se impone en JS, no con modificadores de la query: son siete
+  días y un puñado de ejercicios, y así el orden se lee en un solo lugar.
+- **Las mutaciones invalidan `["routines"]` entero.** Renombrar toca la
+  lista, el detalle y la pestaña Hoy; agregar un ejercicio toca el detalle y
+  el contador de la lista. Afinar la invalidación sería mantener una tabla de
+  dependencias para ahorrar un request de pocos KB de un solo usuario.
+- **`user_id` no se manda nunca desde el cliente.** Las columnas tienen
+  `default auth.uid()` y la policy `with check` rechaza lo ajeno, así que
+  mandarlo sería redundante y además una mentira sobre quién decide la
+  identidad. Activar una rutina es apagar la anterior y prender esta **en ese
+  orden**, porque `routines_one_active_idx` es un único parcial y dos activas
+  no conviven ni por un instante.
+- **Elegir ejercicio reusa el catálogo, no un buscador nuevo.** El día linkea
+  a `/ejercicios?dia=…&rutina=…` y ahí las tarjetas agregan en vez de abrir
+  la ficha. Un segundo buscador embebido serían dos juegos de filtros que se
+  van pareciendo cada vez menos. El modo vive en la URL y no en el estado de
+  navegación, así que el gesto de volver del teléfono funciona igual.
+- **Hoy carga su lista de ejercicios con `lazy()`.** Es la ruta índice: si
+  importara el catálogo de forma estática, `catalog.json` volvería al chunk
+  inicial y se perdería lo que ganó la Fase 2. El header se pinta enseguida y
+  la lista llega mientras todavía se espera a Supabase. El chunk inicial pasó
+  de 474 KB a **495 KB (144 KB gzip)**, y el catálogo sigue aparte.
+- **El día de la rutina es una pantalla con URL propia**
+  (`/rutinas/:routineId/dias/:dayId`) y no un acordeón dentro de la rutina:
+  así volver desde el catálogo cae exactamente en el día que se estaba
+  editando.
+- **El "falta" de la cobertura se calcula sobre 13 grupos grandes**, no
+  sobre los 17 del dataset. Cuello, abductores, aductores y antebrazos casi
+  nunca se entrenan directo —el dataset tiene dos ejercicios de cuello en
+  total—, así que aparecerían como deuda en todas las rutinas y el aviso
+  dejaría de significar algo. Sí se muestran cuando están cubiertos.
+- **Series y reps se guardan al salir del input, sin botón de guardar**, y
+  los inputs no son controlados: el valor vive en el DOM y solo se manda lo
+  que cambió. Controlarlos obligaría a re-sincronizar contra lo que devuelve
+  cada invalidación, que es de donde salen los campos que se borran solos
+  mientras se escribe.
+- **Cuatro piezas compartidas nuevas** —`Button`, `TextInput`,
+  `ConfirmButton`, `Status`— porque la fase pasó de dos botones en toda la
+  app a quince, y la cadena de clases repetida es por donde las pantallas
+  empiezan a verse distintas sin que nadie lo haya decidido. El `<Suspense>`
+  de las rutas `lazy()` se movió a `AppLayout`: el shell se queda en pantalla
+  mientras baja el chunk.
+
+`routine_exercises.notes` existe en el schema y todavía no tiene UI: el plan
+pedía series y repeticiones, y tres campos por fila no entran en el ancho de
+un teléfono sin volver la lista ilegible. Es el lugar natural para "banco a
+30°" cuando haga falta.
 
 ### Fase 4 — Sesiones y heatmap vivo
 
