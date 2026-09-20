@@ -1,5 +1,6 @@
 import { Link } from "react-router";
 import { getExercise } from "../exercises/catalog";
+import { targetLabel } from "./target";
 import type { ReactNode } from "react";
 
 /**
@@ -10,14 +11,6 @@ import type { ReactNode } from "react";
  * de acciones de la derecha, que cambia según quién lo dibuje: en Hoy no hay
  * ninguna, en el editor hay tres.
  */
-
-/** "3 × 8-12", o lo que se sepa. Guiones no: un objetivo vacío es válido. */
-function targetLabel(sets: number | null, reps: string | null): string | null {
-  if (sets && reps) return `${sets} × ${reps}`;
-  if (sets) return `${sets} ${sets === 1 ? "serie" : "series"}`;
-  if (reps) return `${reps} reps`;
-  return null;
-}
 
 export function ExerciseLine({
   exerciseId,

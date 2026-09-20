@@ -90,6 +90,24 @@ function levelFor(sets: number, thresholds: [number, number, number]): number {
 }
 
 /**
+ * El primer día de la grilla, en YYYY-MM-DD.
+ *
+ * Existe para que la query sepa qué pedirle a Postgres sin recalcular por su
+ * cuenta dónde empieza el rango: el alineado a semanas vive en este archivo
+ * y en ningún otro. Pedir de más sería traer filas que no se dibujan; pedir
+ * de menos, cuadraditos vacíos que sí se entrenaron.
+ */
+export function heatmapStart(options: HeatmapOptions = {}): string {
+  const weeks = options.weeks ?? DEFAULTS.weeks;
+  const weekStartsOn = options.weekStartsOn ?? DEFAULTS.weekStartsOn;
+  const today = startOfDay(options.endDate ?? new Date());
+  // La grilla termina al cierre de la semana en curso, para que la última
+  // columna quede completa igual que en GitHub.
+  const last = endOfWeek(today, weekStartsOn);
+  return toDateKey(addDays(last, -(weeks * 7 - 1)));
+}
+
+/**
  * La grilla completa, con fecha por celda. La usa la web para poder linkear
  * cada cuadradito al día que representa.
  */
@@ -98,7 +116,6 @@ export function buildHeatmap(
   options: HeatmapOptions = {},
 ): HeatmapCell[] {
   const weeks = options.weeks ?? DEFAULTS.weeks;
-  const weekStartsOn = options.weekStartsOn ?? DEFAULTS.weekStartsOn;
   const thresholds = options.thresholds ?? DEFAULTS.thresholds;
   const today = startOfDay(options.endDate ?? new Date());
 
@@ -109,10 +126,7 @@ export function buildHeatmap(
     volumeByDate.set(session.performed_on, previous + (session.set_count ?? 1));
   }
 
-  // La grilla termina al cierre de la semana en curso, para que la última
-  // columna quede completa igual que en GitHub.
-  const last = endOfWeek(today, weekStartsOn);
-  const first = addDays(last, -(weeks * 7 - 1));
+  const first = fromDateKey(heatmapStart({ ...options, endDate: today }));
 
   const cells: HeatmapCell[] = [];
   for (let i = 0; i < weeks * 7; i++) {

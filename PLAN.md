@@ -316,13 +316,67 @@ pedía series y repeticiones, y tres campos por fila no entran en el ancho de
 un teléfono sin volver la lista ilegible. Es el lugar natural para "banco a
 30°" cuando haga falta.
 
-### Fase 4 — Sesiones y heatmap vivo
+### Fase 4 — Sesiones y heatmap vivo ✅
 
-- Registrar entrenamiento desde Hoy: marcar series, reps y peso
-- `<Heatmap>` en React alimentado por `buildLevels()` — **primer consumidor real
-  del contrato de la Fase 0**, dibujado con opacidad, no con tono (ver README)
-- Racha actual y total de días entrenados en Progreso
-- Primera llamada a `device.syncWidget()` con el `WidgetPayload` completo
+- `src/features/sessions/api.ts` y `queries.ts` — mismo reparto que rutinas:
+  las funciones async sin React abajo, los hooks de React Query encima
+- `/entrenar` — marcar serie por serie con reps y peso, con el peso de la vez
+  pasada ya sugerido
+- `<Heatmap>` alimentado por `buildHeatmap()`, **primer consumidor real del
+  contrato de la Fase 0**, con la intensidad en opacidad y no en tono
+- Racha, días entrenados y series totales en Progreso
+- `device.syncWidget()` con el `WidgetPayload` completo
+
+Decisiones que no estaban en el plan original:
+
+- **`set_count` lo mantiene la base, no el cliente.** Un trigger lo recalcula
+  en cada insert y delete de `session_sets`
+  (`20260920104500_session_set_count.sql`). Es una de las dos columnas del
+  §5.2: si la mantuviera el cliente, marcar una serie serían dos requests y
+  la intensidad del cuadradito mentiría cada vez que el segundo falle. La
+  función es `security invoker` con `search_path = ''`, así que el update
+  pasa por la misma policy que cualquier escritura del usuario.
+- **No hay botón de "empezar entrenamiento".** La primera serie que se marca
+  crea la sesión del día; `useLogSet` hace las dos cosas en una mutación. Un
+  paso previo que no registra nada es un paso que se olvida de dar.
+  `sessions_one_per_day` convierte los dos toques rápidos en un 23505, que
+  no es un error para mostrar sino la confirmación de que la sesión ya
+  existe: se relee y sigue.
+- **Las sesiones vacías no cuentan como días entrenados.** `fetchSessionDays`
+  filtra `set_count > 0`: marcar una serie y desmarcarla deja una fila en
+  cero, y sin el filtro el cuadradito saldría en nivel 0 mientras la racha y
+  el contador la sumarían igual.
+- **La sugerencia de peso sale del día de rutina, no del ejercicio.** Se lee
+  la última sesión con el mismo `routine_day_id` y de ahí salen los valores
+  por serie: "la vez pasada que hice Empuje" es la comparación que se hace
+  en el gimnasio y sale en una query, no en una por ejercicio. La pantalla
+  espera esa consulta antes de dibujar las filas, porque un input que se
+  autocompleta un segundo tarde pisa lo que se estaba tecleando.
+- **Entrenar es otra pantalla** (`/entrenar`), y no un bloque dentro de Hoy:
+  Hoy es la ruta índice y el registro necesita el catálogo para las fotos.
+  `?dia=` entrena un día que no es el de hoy, que es lo que pasa cuando la
+  semana se corre un día —y es un toque desde la pantalla de descanso.
+- **Filas de serie: el objetivo manda, pero nunca hacia abajo.** Si están
+  todas marcadas aparece una fila más, porque "una más" se decide en el
+  momento y no cuando se armó la rutina. Toda esa cuenta vive en
+  `plan.ts`, sin React ni red, con sus tests.
+- **`heatmapStart()` es nuevo en `heatmap.ts`.** La query pide exactamente el
+  rango que se dibuja, y el alineado a semanas sigue existiendo en un solo
+  archivo. Duplicar esa cuenta en la query es como se llega a cuadraditos
+  vacíos de días que sí se entrenaron.
+- **El `WidgetPayload` se arma completo desde ahora**, aunque en web
+  `syncWidget()` solo escriba en localStorage. Es lo que mantiene honesto el
+  §5.1: el contrato tiene un consumidor real desde el día uno, así que
+  cuando llegue SwiftUI no hay que descubrir ahí si la forma servía.
+  `buildWidgetPayload()` es puro —los nombres los resuelve quien llama— y
+  `WidgetSync` es un componente `lazy()` que no dibuja nada, porque el
+  catálogo no puede entrar al chunk inicial.
+- **`unwrap`/`unwrapRow` se mudaron a `src/lib/postgrest.ts`.** Con dos
+  features escribiendo en Postgres, la copia pegada era el lugar donde una
+  de las dos iba a dejar de lanzar.
+
+El chunk inicial queda en **494 KB (144 KB gzip)**: el registro entero pesa
+6,2 KB en su propio chunk y el catálogo sigue aparte.
 
 ### Fase 5 — Cuerpo y objetivo
 

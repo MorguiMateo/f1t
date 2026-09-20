@@ -1,0 +1,212 @@
+import { useRef } from "react";
+import { ExerciseLine } from "../routines/ExerciseLine";
+import type { ExercisePlan, PlannedSet } from "./plan";
+import { suggestFor } from "./plan";
+import { useLogSet, useUnlogSet } from "./queries";
+
+/**
+ * Un ejercicio mientras se entrena: sus series, una fila cada una.
+ *
+ * El gesto que tiene que costar un solo toque es marcar la serie hecha con
+ * lo que ya está sugerido —el peso de la vez pasada y las reps del
+ * objetivo—, porque es el que se repite quince veces por sesión con el
+ * teléfono apoyado en el banco. Cambiar un número es el caso raro, y por eso
+ * es el que lleva dos toques.
+ *
+ * Los inputs no son controlados, igual que en el editor de rutinas: el valor
+ * vive en el DOM y se lee al marcar o al salir del campo. Controlarlos
+ * obligaría a re-sincronizar con cada invalidación de React Query, que es de
+ * donde salen los campos que se borran solos mientras se escribe.
+ */
+
+// `session_sets.weight_kg` es numeric(6,2).
+const MAX_WEIGHT = 9999.99;
+const MAX_REPS = 999;
+
+/** Acepta coma o punto: el teclado numérico de iOS en español da coma. */
+function parseNumber(raw: string): number | null {
+  const text = raw.trim().replace(",", ".");
+  if (!text) return null;
+  const value = Number(text);
+  return Number.isFinite(value) ? value : null;
+}
+
+function parseReps(raw: string): number | null {
+  const value = parseNumber(raw);
+  if (value === null) return null;
+  return Math.min(MAX_REPS, Math.max(0, Math.round(value)));
+}
+
+function parseWeight(raw: string): number | null {
+  const value = parseNumber(raw);
+  if (value === null) return null;
+  // Dos decimales: más no entran en la columna y el redondeo de Postgres
+  // devolvería un número distinto del que se ve en pantalla.
+  return Math.min(MAX_WEIGHT, Math.max(0, Math.round(value * 100) / 100));
+}
+
+const FIELD_CLASS =
+  "w-full rounded-lg border border-line bg-surface-2 px-2 py-2 text-center text-sm tabular-nums placeholder:text-muted/70";
+
+function SetRow({
+  set,
+  plan,
+  sessionId,
+  performedOn,
+  routineDayId,
+}: {
+  set: PlannedSet;
+  plan: ExercisePlan;
+  sessionId: string | null;
+  performedOn: string;
+  routineDayId: string | null;
+}) {
+  const repsRef = useRef<HTMLInputElement>(null);
+  const weightRef = useRef<HTMLInputElement>(null);
+
+  const log = useLogSet();
+  const unlog = useUnlogSet();
+  const isBusy = log.isPending || unlog.isPending;
+
+  const suggested = suggestFor(set, plan.targetReps);
+  const isDone = set.done !== null;
+
+  function save() {
+    log.mutate({
+      sessionId,
+      performedOn,
+      routineDayId,
+      exerciseId: plan.exerciseId,
+      setIndex: set.setIndex,
+      reps: parseReps(repsRef.current?.value ?? ""),
+      weightKg: parseWeight(weightRef.current?.value ?? ""),
+    });
+  }
+
+  function toggle() {
+    if (set.done) {
+      unlog.mutate(set.done.id);
+      return;
+    }
+    save();
+  }
+
+  /** Editar una serie ya marcada la vuelve a guardar; si no, no hay qué. */
+  function saveIfDone() {
+    if (isDone) save();
+  }
+
+  return (
+    <li className="flex items-center gap-2">
+      <span className="w-4 shrink-0 text-xs text-muted tnum">
+        {set.setIndex + 1}
+      </span>
+
+      <label className="flex-1">
+        <span className="sr-only">Repeticiones de la serie {set.setIndex + 1}</span>
+        <input
+          ref={repsRef}
+          type="number"
+          inputMode="numeric"
+          min={0}
+          max={MAX_REPS}
+          // `key` sobre el valor guardado: cuando la mutación vuelve con otro
+          // número —o cuando se desmarca— el input se remonta con el valor
+          // nuevo en vez de quedarse con lo que había tecleado antes.
+          key={`reps-${set.done?.reps ?? "none"}`}
+          defaultValue={suggested.reps ?? ""}
+          placeholder="reps"
+          onBlur={saveIfDone}
+          className={FIELD_CLASS}
+        />
+      </label>
+
+      <span className="shrink-0 text-xs text-muted">×</span>
+
+      <label className="flex-1">
+        <span className="sr-only">Peso en kilos de la serie {set.setIndex + 1}</span>
+        <input
+          ref={weightRef}
+          type="number"
+          inputMode="decimal"
+          step="0.5"
+          min={0}
+          max={MAX_WEIGHT}
+          key={`kg-${set.done?.weight_kg ?? "none"}`}
+          defaultValue={suggested.weightKg ?? ""}
+          placeholder="kg"
+          onBlur={saveIfDone}
+          className={FIELD_CLASS}
+        />
+      </label>
+
+      {/* El único control grande de la fila: es el que se toca en cada serie
+          y con las manos ocupadas. */}
+      <button
+        type="button"
+        onClick={toggle}
+        disabled={isBusy}
+        aria-pressed={isDone}
+        aria-label={
+          isDone
+            ? `Desmarcar la serie ${set.setIndex + 1}`
+            : `Marcar la serie ${set.setIndex + 1} como hecha`
+        }
+        className={[
+          "flex size-10 shrink-0 items-center justify-center rounded-lg border text-base font-semibold transition-colors disabled:opacity-50",
+          isDone
+            ? "border-accent bg-accent text-accent-ink"
+            : "border-line-strong bg-surface text-muted",
+        ].join(" ")}
+      >
+        ✓
+      </button>
+    </li>
+  );
+}
+
+export function ExerciseLog({
+  plan,
+  sessionId,
+  performedOn,
+  routineDayId,
+}: {
+  plan: ExercisePlan;
+  sessionId: string | null;
+  performedOn: string;
+  routineDayId: string | null;
+}) {
+  const goal = plan.targetSets ?? plan.sets.length;
+
+  return (
+    <li className="rounded-xl border border-line bg-surface p-2.5">
+      <ExerciseLine
+        exerciseId={plan.exerciseId}
+        targetSets={plan.targetSets}
+        targetReps={plan.targetReps}
+      >
+        <span
+          className={[
+            "shrink-0 text-xs tnum",
+            plan.doneCount >= goal && goal > 0 ? "text-ok" : "text-muted",
+          ].join(" ")}
+        >
+          {plan.doneCount}/{goal}
+        </span>
+      </ExerciseLine>
+
+      <ul className="mt-2 flex flex-col gap-1.5">
+        {plan.sets.map((set) => (
+          <SetRow
+            key={set.setIndex}
+            set={set}
+            plan={plan}
+            sessionId={sessionId}
+            performedOn={performedOn}
+            routineDayId={routineDayId}
+          />
+        ))}
+      </ul>
+    </li>
+  );
+}

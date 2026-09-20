@@ -4,6 +4,7 @@ import {
   buildLevels,
   currentStreak,
   fromDateKey,
+  heatmapStart,
   toDateKey,
   trainedDays,
 } from "./heatmap";
@@ -147,5 +148,26 @@ describe("trainedDays", () => {
       { weeks: 4, endDate: WEDNESDAY },
     );
     expect(trainedDays(cells)).toBe(2);
+  });
+});
+
+describe("heatmapStart", () => {
+  it("es exactamente la primera celda de la grilla", () => {
+    // El invariante que hace que la query pida ni más ni menos de lo que se
+    // dibuja: si estos dos se separan, el heatmap muestra días vacíos que sí
+    // se entrenaron.
+    for (const weeks of [4, 26, 53]) {
+      const cells = buildHeatmap([], { weeks, endDate: WEDNESDAY });
+      expect(heatmapStart({ weeks, endDate: WEDNESDAY })).toBe(cells[0].date);
+    }
+  });
+
+  it("cae en el primer día de la semana", () => {
+    // Semana que empieza el lunes por defecto: getDay() === 1.
+    expect(fromDateKey(heatmapStart({ endDate: WEDNESDAY })).getDay()).toBe(1);
+    // Y en domingo cuando se pide domingo.
+    expect(
+      fromDateKey(heatmapStart({ endDate: WEDNESDAY, weekStartsOn: 0 })).getDay(),
+    ).toBe(0);
   });
 });

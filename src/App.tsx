@@ -37,6 +37,9 @@ const RoutineDayPage = lazy(() =>
     default: m.RoutineDayPage,
   })),
 );
+const WorkoutPage = lazy(() =>
+  import("./pages/WorkoutPage").then((m) => ({ default: m.WorkoutPage })),
+);
 
 export default function App() {
   return (
@@ -45,6 +48,11 @@ export default function App() {
       <Route element={<RequireAuth />}>
         <Route element={<AppLayout />}>
           <Route index element={<TodayPage />} />
+          {/* Registrar el entrenamiento es otra pantalla y no un bloque
+              dentro de Hoy: así el gesto de volver sale del entrenamiento,
+              y el catálogo que necesita para las fotos no entra al chunk
+              inicial. `?dia=` entrena un día que no es el de hoy. */}
+          <Route path="entrenar" element={<WorkoutPage />} />
           <Route path="rutinas" element={<RoutinesPage />} />
           <Route path="rutinas/:routineId" element={<RoutineDetailPage />} />
           {/* El día es una pantalla propia y no un acordeón dentro de la

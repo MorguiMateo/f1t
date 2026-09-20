@@ -18,8 +18,8 @@
  *   hace que colgar un día de la rutina de otro sea un error de integridad.
  */
 
-import type { PostgrestError } from "@supabase/supabase-js";
 import type { Tables } from "../../lib/database.types";
+import { unwrap, unwrapRow } from "../../lib/postgrest";
 import { supabase } from "../../lib/supabase";
 
 export type Routine = Tables<"routines">;
@@ -34,30 +34,6 @@ export type RoutineDetail = Routine & { days: RoutineDay[] };
 
 /** La fila de la lista: la rutina más cuántos días tiene. */
 export type RoutineSummary = Routine & { dayCount: number };
-
-/**
- * PostgREST devuelve `{ data, error }` y nunca lanza. React Query distingue
- * error de dato por la excepción, así que si no se lanza acá un fallo de
- * permisos llega a la pantalla como un "no hay nada" silencioso.
- */
-function unwrap<T>(result: { data: T; error: PostgrestError | null }): T {
-  if (result.error) throw new Error(result.error.message);
-  return result.data;
-}
-
-/**
- * Lo mismo, para las escrituras que devuelven la fila que acabaron de
- * escribir. Un null ahí no es "no hay nada", es un insert que la policy
- * dejó pasar pero cuyo `returning` no volvió: mejor enterarse acá.
- */
-function unwrapRow<T>(result: {
-  data: T | null;
-  error: PostgrestError | null;
-}): T {
-  const data = unwrap(result);
-  if (data === null) throw new Error("La base no devolvió la fila escrita.");
-  return data;
-}
 
 // Una rutina entera son unos pocos KB, así que se trae en un solo viaje con
 // los embeds anidados en lugar de tres queries encadenadas.

@@ -10,6 +10,7 @@ import {
   todayWeekday,
   whenLabel,
 } from "../features/routines/weekdays";
+import { useSessionForDate } from "../features/sessions/queries";
 
 /**
  * El bloque con los ejercicios se carga aparte porque necesita el catálogo
@@ -24,6 +25,16 @@ const TodayWorkout = lazy(() =>
   })),
 );
 
+/**
+ * Lo mismo, y por el mismo motivo: arma los nombres del `WidgetPayload` con
+ * el catálogo. No dibuja nada, así que su `Suspense` no muestra nada.
+ */
+const WidgetSync = lazy(() =>
+  import("../features/sessions/WidgetSync").then((m) => ({
+    default: m.WidgetSync,
+  })),
+);
+
 const FORMATTER = new Intl.DateTimeFormat("es", {
   weekday: "long",
   day: "numeric",
@@ -32,11 +43,14 @@ const FORMATTER = new Intl.DateTimeFormat("es", {
 
 export function TodayPage() {
   const { data: routine, isPending, error } = useActiveRoutine();
+  const { data: session } = useSessionForDate();
 
   const today = FORMATTER.format(new Date());
   const weekday = todayWeekday();
   const day = routine ? dayForWeekday(routine.days, weekday) : null;
   const next = routine ? nextTrainingDay(routine.days, weekday) : null;
+
+  const logged = session?.set_count ?? 0;
 
   return (
     <>
@@ -100,13 +114,37 @@ export function TodayPage() {
           >
             Ver la rutina
           </Link>
+          {/* Correr la semana un día es lo más común que le pasa a una
+              rutina, así que adelantar el próximo día tiene que ser un
+              toque y no una edición. */}
+          {next ? (
+            <Link
+              to={`/entrenar?dia=${next.day.id}`}
+              className="mt-4 block rounded-xl border border-line bg-surface-2 px-5 py-3 text-sm font-medium text-ink transition-colors hover:bg-surface"
+            >
+              Entrenar {next.day.label} igual
+            </Link>
+          ) : null}
         </div>
       ) : null}
 
-      {routine && day ? (
-        <p className="mt-4 text-center text-xs text-muted">
-          Registrar series, reps y peso llega en la Fase 4.
-        </p>
+      {routine && day?.exercises.length ? (
+        <Link
+          to="/entrenar"
+          className="mt-4 block rounded-xl border border-accent bg-accent px-5 py-3 text-center text-sm font-medium text-accent-ink transition-opacity hover:opacity-90"
+        >
+          {logged
+            ? `Seguir entrenando · ${logged} ${logged === 1 ? "serie" : "series"}`
+            : "Empezar entrenamiento"}
+        </Link>
+      ) : null}
+
+      {/* También sin rutina activa: el heatmap y la racha son del usuario,
+          no de la rutina, y el widget los muestra igual. */}
+      {!isPending && !error ? (
+        <Suspense fallback={null}>
+          <WidgetSync day={day} />
+        </Suspense>
       ) : null}
     </>
   );
