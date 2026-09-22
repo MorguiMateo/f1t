@@ -380,28 +380,221 @@ El chunk inicial queda en **494 KB (144 KB gzip)**: el registro entero pesa
 
 ### Fase 5 — Cuerpo y objetivo
 
-- `body_profile`: altura, fecha de nacimiento, sexo, objetivo
-- `weight_entries` + gráfico de evolución
-- IMC y estimación de TDEE (Mifflin-St Jeor) con el objetivo calórico según meta
+Primera fase partida en sub-fases. El motivo no es que sea más grande que las
+anteriores —no lo es—, sino que se construye mientras se sigue: cada sub-fase
+es un **corte vertical** que termina en algo que se usa en pantalla, no en una
+capa a medias esperando a la siguiente. El orden lo imponen los datos: sin
+altura no hay IMC, sin peso no hay gráfico, sin los dos no hay TDEE.
+
+#### 5.1 — Perfil corporal ✅
+
+Altura, fecha de nacimiento, sexo, objetivo y peso meta, guardados en
+`body_profile`. El cartel de Perfil que decía "se agrega en la Fase 5" pasó a
+ser el formulario.
+
+- `src/features/body/profile.ts` — el vocabulario de la fase (objetivos,
+  sexos, rangos) y el parseo de cada campo, puro y con 20 tests
+- `src/features/body/api.ts` y `queries.ts` — mismo reparto que rutinas y
+  sesiones: async sin React abajo, hooks de React Query encima
+- `src/features/body/body-profile-form.tsx` — el formulario
+- `20260922090000_body_profile_updated_at.sql`
+
+Decisiones que no estaban en el plan original:
+
+- **`updated_at` lo mantiene la base.** La columna nació con `default now()`,
+  y un default solo corre en el INSERT. Como el perfil es una fila por usuario
+  escrita con upsert, de la segunda vez en adelante es un UPDATE y la fecha
+  quedaba clavada en el día que se creó el perfil. Lo arregla un trigger
+  `before update`, con el mismo criterio que `set_count` en la Fase 4: si el
+  valor se deduce de la escritura, lo deduce Postgres. El cliente que manda su
+  propio `now()` es un cliente que puede equivocarse sobre qué hora es.
+- **Se agregaron los rangos que faltaban.** `height_cm` tenía check desde el
+  día uno; `target_weight_kg` y `birth_date` no, así que un dedazo podía
+  guardar una meta de cuatro kilos o un nacimiento en 2098 — y de ahí sale la
+  edad que alimenta Mifflin-St Jeor en 5.4. El peso meta usa el mismo rango
+  que `weight_entries`: son la misma magnitud, y dos límites distintos para lo
+  mismo es como se llega a una meta que se puede tipear y nunca registrar.
+- **"No en el futuro" va en un trigger y no en un CHECK.** `current_date` no
+  es inmutable, y un CHECK que depende del reloj es una tabla que puede
+  negarse a restaurarse desde su propio dump. El límite inferior sí es un
+  CHECK, porque 1900 es una constante.
+- **El upsert no manda `user_id`.** La PK es `user_id` con
+  `default auth.uid()`: Postgres completa la columna al insertar y recién
+  después chequea el conflicto, así que `on conflict (user_id)` resuelve en
+  una sola sentencia si la fila existe. Decidirlo en el cliente sería leer
+  primero y competir con cualquiera que haya leído en el mismo momento.
+- **Se manda solo la columna que cambió.** Mandar el formulario entero en cada
+  blur es reescribir arriba de lo que otro guardado paralelo acaba de dejar,
+  con los valores que React Query le pasó a los inputs hace rato. Mandando una
+  columna, dos campos que pierden el foco casi juntos llegan en cualquier
+  orden y el resultado es el mismo.
+- **La mutación escribe en la caché en vez de invalidar.** La respuesta del
+  upsert *es* el nuevo estado del perfil. Y hay un motivo de interfaz: los
+  inputs son no controlados, y una invalidación que aterriza mientras otro
+  campo tiene el foco es el re-render que hace parpadear lo que se está
+  tecleando.
+- **Se guarda campo por campo al salir del input, sin botón**, igual que las
+  filas de ejercicio de la Fase 3. Un perfil no se llena una vez y se olvida
+  —el peso meta es el campo al que se vuelve— y un botón convierte "cambié de
+  objetivo" en dos toques más el riesgo de irse de un formulario que parece
+  hecho y no guardó nada. Sin botón no hay momento que confirme, así que la
+  confirmación es un "Guardando…" con `aria-live`.
+- **Los campos numéricos son `type="text"` con `inputMode`, no
+  `type="number"`.** Un input numérico cuyo contenido no es un número válido
+  reporta su valor como string vacío, que es indistinguible de un campo
+  vaciado a propósito: tipear `1.7.8` en Altura borraba la altura guardada. Y
+  `type="number"` solo acepta punto decimal, mientras el separador que queda
+  bajo el pulgar en un teclado en español es la coma: `81,5` llegaba vacío. El
+  teclado numérico lo sigue dando `inputMode`.
+- **Los rangos se validan en el cliente para corregir, no para rechazar.**
+  Escribir 900 de altura convierte el campo en 260 a la vista, en vez de traer
+  un 400 de PostgREST. Los bounds están duplicados a propósito entre
+  `profile.ts` y el schema, y la duplicación va en un solo sentido: la base es
+  la que los hace cumplir, el cliente es el que evita el viaje. Mismo arreglo
+  que `MAX_SETS`.
+
+El chunk inicial pasó de 494 KB a **498,7 KB (145 KB gzip)**: Perfil es una
+pestaña y no va con `lazy()`.
+
+#### 5.2 — Registro de peso
+
+Anotar cuánto pesás. `weight_entries` ya tiene única `(user_id, measured_on)`
+y check 20–400 desde la Fase 1, así que es un peso por día.
+
+- Alta con fecha por defecto hoy y editable, para cargar atrasado
+- Lista de mediciones recientes con el delta contra la anterior
+- Borrado de una medición mal cargada
+- El peso actual queda **derivado** de la última entrada, no guardado como
+  columna del perfil: el peso es una serie temporal, y una copia en
+  `body_profile` serían dos fuentes de verdad que el día que falle el segundo
+  write se contradicen sin que nadie pueda decir cuál miente
+
+Queda por decidir: si pesarse dos veces el mismo día es un error o una
+corrección. La propuesta es corrección silenciosa vía upsert con
+`onConflict`, consistente con `logSet` de la Fase 4.
+
+#### 5.3 — Gráfico de evolución
+
+La curva de peso en el tiempo, con la línea del peso meta cruzada, en
+Progreso y debajo del heatmap.
+
+- SVG propio, **sin librería de charts**. Recharts o Chart.js suman 150–400 KB
+  para dibujar una polilínea de treinta puntos sobre un chunk inicial que ya
+  está en 145 KB gzip. Y el gráfico es candidato a viajar al widget en la Fase
+  6, donde una librería de React no sirve de nada — igual que pasó con
+  `buildLevels()`
+- Las escalas, los puntos y la media móvil que suaviza el ruido diario de la
+  balanza van en un módulo puro con tests, tipo `heatmap.ts` y `plan.ts`. El
+  componente solo dibuja
+
+#### 5.4 — IMC, TDEE y objetivo calórico
+
+Los números derivados: IMC con su categoría, BMR por Mifflin-St Jeor, TDEE y
+el objetivo calórico según la meta.
+
+Va solo porque es la sub-fase más chica en código y la más fácil de romper en
+silencio: una fórmula mal transcrita no da error, da un número plausible y
+equivocado. `ageOn` ya existe desde 5.1.
+
+**El hueco que hay que resolver acá:** Mifflin-St Jeor da BMR, que es el gasto
+en reposo; el TDEE necesita un factor de actividad y el schema de la Fase 1 no
+tiene dónde guardarlo. Dos salidas:
+
+- **Derivarlo de los entrenamientos reales.** `sessions` ya sabe cuántos días
+  por semana se entrena. Sin migración, sin una pregunta más en el formulario,
+  y se corrige solo cuando cambian los hábitos. Es la recomendada
+- Agregar una columna `activity_level` y preguntarlo. Más control, pero es el
+  típico campo que se completa una vez optimista y no se toca nunca más
+
+La tarjeta se muestra en gris hasta que haya altura, sexo, fecha de nacimiento
+y al menos un peso, y dice **qué** falta en vez de mostrar `NaN`.
+
+#### 5.5 — Integración y cierre
+
+Lo que suele quedar suelto cuando una fase termina.
+
+- El peso actual y el avance hacia la meta entran al `WidgetPayload`, o se
+  decide explícitamente que no. Hoy el payload es heatmap, rutina de hoy y
+  racha; la Fase 6 lo consume desde SwiftUI y agregarle un campo después es
+  tocar los dos lados
+- Revisar el reparto entre Perfil y Progreso con el contenido nuevo encima:
+  dejaron de ser "la pantalla de cerrar sesión" y "la pantalla del heatmap"
+- Dejar anotado qué expone la Fase 5 para que la Fase 7 enganche con el
+  objetivo calórico
 
 ### Fase 6 — Capacitor y widget de iOS
 
 El motivo por el que `device.ts` y `heatmap.ts` existen desde el día uno.
 
-- `npx cap add ios` sobre el build estático
-- Implementación nativa de `DeviceBridge`: escribe el `WidgetPayload` al App
-  Group, `UNUserNotificationCenter` para recordatorios, `CMPedometer` para pasos
-- Widget en SwiftUI: heatmap (mediano, 26 semanas) y rutina de hoy (grande)
-- El `Heatmap` de SwiftUI lee el mismo array de `buildLevels()`
+**Ninguna pantalla de la web cambia en esta fase.** Si alguna tiene que
+cambiar, es que algo se hizo mal en las fases anteriores — y esa es la prueba
+que la fase corre, no un deseo.
 
-**Ninguna pantalla de la web cambia en esta fase.** Si alguna tiene que cambiar,
-es que algo se hizo mal en las fases anteriores.
+Partida en sub-fases por un motivo distinto al de la Fase 5: acá cada paso
+puede fallar por razones que no son código propio —certificados, App Groups,
+el simulador— y conviene que cada una termine en algo verificable antes de
+que la siguiente agregue variables.
+
+#### 6.1 — La cáscara
+
+`npx cap add ios` sobre el build estático, la app corriendo dentro del
+WebView, safe areas y rebote del scroll. Termina cuando la web de hoy se abre
+en el simulador y se puede registrar una serie. Sin widget todavía.
+
+#### 6.2 — `DeviceBridge` nativo
+
+La implementación que hoy es no-op. Un plugin de Capacitor que escribe el
+`WidgetPayload` al App Group compartido entre la app y la extensión, y
+`device.ts` eligiendo implementación por `Capacitor.getPlatform()`. Termina
+cuando el JSON que hoy va a localStorage aparece en el contenedor compartido.
+
+#### 6.3 — Widget mediano: el heatmap
+
+El `Heatmap` en SwiftUI leyendo el mismo array de `buildLevels()`, 26 semanas.
+Acá se cobra el invariante §5.4: la intensidad por opacidad y no por tono,
+probada en los modos Clear y Tint de iOS 26.
+
+#### 6.4 — Widget grande: la rutina de hoy
+
+`todayLabel` y `todayExercises` del mismo payload. Es el consumidor que
+justifica que `targetLabel()` viva en su propio módulo desde la Fase 3.
+
+#### 6.5 — Recordatorios y pasos
+
+`UNUserNotificationCenter` para los recordatorios que la web no puede agendar,
+`CMPedometer` para los pasos. Van al final porque son las dos únicas cosas de
+`DeviceBridge` que no tienen consumidor en pantalla todavía: primero hay que
+decidir dónde se ven.
 
 ### Fase 7 — Plan de comidas (futuro)
 
-Cuelga del objetivo de la Fase 5. Sin investigar todavía: hace falta decidir
-fuente de datos nutricionales (Open Food Facts, USDA FoodData Central) con el
-mismo criterio de §2 — preferir dataset descargable sobre API en vivo.
+Cuelga del objetivo calórico de la Fase 5.4. Todavía sin investigar, pero el
+criterio ya está fijado por §2: preferir dataset descargable sobre API en
+vivo.
+
+#### 7.1 — Elegir la fuente
+
+Open Food Facts y USDA FoodData Central, comparadas con la misma tabla de §2:
+cantidad, licencia, peso del dump, si hay productos de acá. Termina en una
+decisión escrita, no en código.
+
+#### 7.2 — Catálogo curado
+
+Mismo patrón que `fetch-exercises.mjs`: un script de una sola corrida, una
+lista blanca versionada a mano y un JSON que viaja en el bundle. Los
+alimentos son muchos más que 165 ejercicios, así que la sub-fase es sobre
+todo decidir el recorte.
+
+#### 7.3 — Registro de comidas
+
+Qué se comió hoy, contra el objetivo calórico de 5.4. La unidad de medida
+—porciones, gramos, unidades— es la decisión que hace o rompe la pantalla.
+
+#### 7.4 — Cierre contra el objetivo
+
+Las calorías del día junto al gasto estimado, y qué pasa cuando las dos cifras
+no coinciden: hay que decidir si el objetivo se ajusta solo con la evolución
+real del peso o se queda quieto.
 
 ---
 

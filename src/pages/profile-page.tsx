@@ -1,10 +1,14 @@
 import { useState } from "react";
 import { PageHeader } from "../components/page-header";
+import { ErrorNote, LoadingNote } from "../components/status";
 import { useUser } from "../features/auth/session";
+import { BodyProfileForm } from "../features/body/body-profile-form";
+import { useBodyProfile } from "../features/body/queries";
 import { supabase } from "../lib/supabase";
 
 export function ProfilePage() {
   const user = useUser();
+  const { data: profile, isPending, error } = useBodyProfile();
   const [isSigningOut, setIsSigningOut] = useState(false);
 
   // The guard guarantees there is a user; this is only for TypeScript.
@@ -46,12 +50,18 @@ export function ProfilePage() {
         </div>
       </div>
 
-      <section className="mt-4 rounded-xl border border-line bg-surface p-5">
-        <h2 className="font-semibold">Datos corporales</h2>
-        <p className="mt-1 text-sm text-muted">
-          Altura, objetivo y seguimiento de peso se agregan en la Fase 5.
-        </p>
-      </section>
+      <div className="mt-4">
+        {isPending ? <LoadingNote /> : null}
+        {error ? <ErrorNote error={error} /> : null}
+        {/* The form is held back until the query resolves: its inputs are
+            uncontrolled, so `defaultValue` is read once and a profile that
+            arrives later would never reach the fields. `profile` being null
+            is a real answer — an account that never filled it in — and the
+            form starts empty. */}
+        {!isPending && !error ? (
+          <BodyProfileForm profile={profile ?? null} />
+        ) : null}
+      </div>
 
       <button
         type="button"
