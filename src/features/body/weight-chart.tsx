@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { Skeleton, SkeletonGroup } from "../../components/skeleton";
 import { fromDateKey, toDateKey } from "../../lib/heatmap";
 import { useBodyProfile, useWeightEntries } from "./queries";
 import { formatKg } from "./weight";
@@ -146,7 +147,7 @@ function Drawing({ chart }: { chart: Chart }) {
 }
 
 export function WeightChart({ weeks }: { weeks?: number }) {
-  const { data: entries } = useWeightEntries();
+  const { data: entries, isPending } = useWeightEntries();
   // A profile that fails to load costs the target line, not the chart.
   const { data: profile } = useBodyProfile();
   const target = profile?.target_weight_kg ?? null;
@@ -160,6 +161,15 @@ export function WeightChart({ weeks }: { weeks?: number }) {
         : null,
     [entries, target, weeks, today],
   );
+
+  if (isPending) {
+    return (
+      <SkeletonGroup className="rounded-xl border border-line bg-surface p-5">
+        <h2 className="font-semibold">Evolución</h2>
+        <Skeleton className="mt-3 aspect-[2/1] w-full" />
+      </SkeletonGroup>
+    );
+  }
 
   // No measurements at all: the log below already says so, with the form.
   if (!entries?.length) return null;

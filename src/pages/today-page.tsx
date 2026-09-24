@@ -2,7 +2,9 @@ import { Suspense, lazy } from "react";
 import { Link } from "react-router";
 import { EmptyState } from "../components/empty-state";
 import { PageHeader } from "../components/page-header";
-import { ErrorNote, LoadingNote } from "../components/status";
+import { SkeletonGroup, SkeletonLine } from "../components/skeleton";
+import { ErrorNote } from "../components/status";
+import { ExerciseLineSkeleton } from "../features/routines/exercise-line-skeleton";
 import { useActiveRoutine } from "../features/routines/queries";
 import {
   dayForWeekday,
@@ -35,6 +37,29 @@ const WidgetSync = lazy(() =>
   })),
 );
 
+/**
+ * The shape of `TodayWorkout`: the day's title and a few exercises. It covers
+ * both waits in a row — the active routine, then the chunk with the catalog —
+ * so the placeholder doesn't change shape halfway through.
+ */
+function TodayWorkoutSkeleton() {
+  return (
+    <SkeletonGroup>
+      <div className="flex items-baseline justify-between gap-3">
+        <SkeletonLine className="w-28 text-lg" />
+        <SkeletonLine className="w-24 text-sm" />
+      </div>
+      <ul className="mt-3 flex flex-col gap-2">
+        {[0, 1, 2, 3].map((index) => (
+          <li key={index} className="rounded-xl border border-line bg-surface p-2.5">
+            <ExerciseLineSkeleton />
+          </li>
+        ))}
+      </ul>
+    </SkeletonGroup>
+  );
+}
+
 const FORMATTER = new Intl.DateTimeFormat("es", {
   weekday: "long",
   day: "numeric",
@@ -59,7 +84,7 @@ export function TodayPage() {
         subtitle={today.charAt(0).toUpperCase() + today.slice(1)}
       />
 
-      {isPending ? <LoadingNote /> : null}
+      {isPending ? <TodayWorkoutSkeleton /> : null}
       {error ? <ErrorNote error={error} /> : null}
 
       {/* With no active routine there are two distinct cases: there is no
@@ -94,7 +119,7 @@ export function TodayPage() {
       ) : null}
 
       {routine && routine.days.length && day ? (
-        <Suspense fallback={<LoadingNote />}>
+        <Suspense fallback={<TodayWorkoutSkeleton />}>
           <TodayWorkout day={day} routineId={routine.id} />
         </Suspense>
       ) : null}

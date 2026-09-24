@@ -1,4 +1,5 @@
 import type { FocusEvent, ReactNode } from "react";
+import { Skeleton, SkeletonGroup, SkeletonLine } from "../../components/skeleton";
 import { ErrorNote } from "../../components/status";
 import type { BodyProfile, BodyProfilePatch } from "./api";
 import { useSaveBodyProfile } from "./queries";
@@ -114,6 +115,37 @@ function Choice<T extends string>({
         })}
       </div>
     </fieldset>
+  );
+}
+
+/**
+ * The form's shape while the profile loads: each field's label over a block
+ * the height of its input — 46 px for the text fields, 42 for the sex
+ * buttons and 60 for the goal ones, which carry a hint line.
+ */
+export function BodyProfileFormSkeleton() {
+  const field = (input: string, count = 1) => (
+    <div>
+      <SkeletonLine className="w-24 text-sm font-medium" />
+      <div className="mt-1.5 flex gap-2">
+        {Array.from({ length: count }, (_, index) => (
+          <Skeleton key={index} className={`${input} flex-1 rounded-xl`} />
+        ))}
+      </div>
+    </div>
+  );
+
+  return (
+    <SkeletonGroup className="rounded-xl border border-line bg-surface p-5">
+      <h2 className="font-semibold">Datos corporales</h2>
+      <div className="mt-4 space-y-4">
+        {field("h-11.5")}
+        {field("h-11.5")}
+        {field("h-10.5", 2)}
+        {field("h-15", 3)}
+        {field("h-11.5")}
+      </div>
+    </SkeletonGroup>
   );
 }
 

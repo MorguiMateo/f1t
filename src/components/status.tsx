@@ -1,17 +1,10 @@
 /**
- * The two states every screen with remote data has to know how to show.
- * They sit together so they look the same everywhere: loading and error are
- * precisely the ones each screen improvises differently when there is no
- * shared piece.
+ * The error state every screen with remote data has to know how to show,
+ * shared so it looks the same everywhere: it is precisely the one each screen
+ * improvises differently when there is no common piece. Loading has its own
+ * file, `skeleton.tsx`, because each screen's placeholder has that screen's
+ * shape.
  */
-
-export function LoadingNote({ label = "Cargando…" }: { label?: string }) {
-  return (
-    <p className="py-10 text-center text-sm text-muted" role="status">
-      {label}
-    </p>
-  );
-}
 
 export function ErrorNote({ error }: { error: unknown }) {
   const message = error instanceof Error ? error.message : String(error);

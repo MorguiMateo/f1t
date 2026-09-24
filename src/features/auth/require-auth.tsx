@@ -1,4 +1,5 @@
 import { Outlet } from "react-router";
+import { PageSkeleton } from "../../components/skeleton";
 import { useSession } from "./session";
 import { SignInScreen } from "./sign-in-screen";
 
@@ -13,13 +14,14 @@ export function RequireAuth() {
   const { session, isLoading } = useSession();
 
   // Without this the sign-in screen would flash every time you reload with a
-  // valid session, because reading storage isn't synchronous.
+  // valid session, because reading storage isn't synchronous. The frame is
+  // `AppLayout`'s `<main>`, so the skeleton sits where the first tab will.
   if (isLoading) {
     return (
-      <div className="flex min-h-dvh items-center justify-center bg-ground">
-        <p className="text-sm text-muted" role="status">
-          Cargando…
-        </p>
+      <div className="min-h-dvh bg-ground">
+        <div className="mx-auto w-full max-w-lg px-4">
+          <PageSkeleton />
+        </div>
       </div>
     );
   }

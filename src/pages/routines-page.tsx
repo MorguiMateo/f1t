@@ -3,7 +3,8 @@ import { Link, useNavigate } from "react-router";
 import { Button } from "../components/button";
 import { EmptyState } from "../components/empty-state";
 import { PageHeader } from "../components/page-header";
-import { ErrorNote, LoadingNote } from "../components/status";
+import { CardSkeleton, SkeletonGroup } from "../components/skeleton";
+import { ErrorNote } from "../components/status";
 import { TextInput } from "../components/text-input";
 import type { RoutineSummary } from "../features/routines/api";
 import { useActivateRoutine, useCreateRoutine, useRoutines } from "../features/routines/queries";
@@ -51,6 +52,16 @@ function RoutineItem({ routine }: { routine: RoutineSummary }) {
         </div>
       )}
     </li>
+  );
+}
+
+function RoutinesSkeleton() {
+  return (
+    <SkeletonGroup className="flex flex-col gap-2">
+      <CardSkeleton />
+      <CardSkeleton />
+      <CardSkeleton />
+    </SkeletonGroup>
   );
 }
 
@@ -126,7 +137,7 @@ export function RoutinesPage() {
 
       {createRoutine.error ? <ErrorNote error={createRoutine.error} /> : null}
 
-      {isPending ? <LoadingNote /> : null}
+      {isPending ? <RoutinesSkeleton /> : null}
       {error ? <ErrorNote error={error} /> : null}
 
       {routines && !routines.length && !isNaming ? (

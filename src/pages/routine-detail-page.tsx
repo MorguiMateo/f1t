@@ -4,7 +4,8 @@ import { Button } from "../components/button";
 import { ConfirmButton } from "../components/confirm-button";
 import { EmptyState } from "../components/empty-state";
 import { PageHeader } from "../components/page-header";
-import { ErrorNote, LoadingNote } from "../components/status";
+import { SkeletonGroup, SkeletonLine } from "../components/skeleton";
+import { ErrorNote } from "../components/status";
 import { TextInput } from "../components/text-input";
 import { RoutineCoverage } from "../features/routines/routine-coverage";
 import { exerciseIdsOf } from "../features/routines/coverage";
@@ -38,6 +39,23 @@ const LABEL_SUGGESTIONS = [
   "Cardio",
 ];
 
+/** The seven weekday rows, with the weekday, the day's name and its count. */
+function WeekSkeleton() {
+  return (
+    <SkeletonGroup>
+      <ul className="flex flex-col gap-2">
+        {WEEK_ORDER.map((weekday) => (
+          <li key={weekday} className="rounded-xl border border-line bg-surface p-4">
+            <SkeletonLine className="w-14 text-xs" />
+            <SkeletonLine className="mt-0.5 w-28 font-semibold" />
+            <SkeletonLine className="mt-0.5 w-20 text-sm" />
+          </li>
+        ))}
+      </ul>
+    </SkeletonGroup>
+  );
+}
+
 export function RoutineDetailPage() {
   const { routineId } = useParams();
   const navigate = useNavigate();
@@ -55,7 +73,7 @@ export function RoutineDetailPage() {
     return (
       <>
         <PageHeader title="Rutina" onBack={() => navigate(-1)} />
-        <LoadingNote />
+        <WeekSkeleton />
       </>
     );
   }

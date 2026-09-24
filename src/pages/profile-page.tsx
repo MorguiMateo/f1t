@@ -1,8 +1,11 @@
 import { useState } from "react";
 import { PageHeader } from "../components/page-header";
-import { ErrorNote, LoadingNote } from "../components/status";
+import { ErrorNote } from "../components/status";
 import { useUser } from "../features/auth/session";
-import { BodyProfileForm } from "../features/body/body-profile-form";
+import {
+  BodyProfileForm,
+  BodyProfileFormSkeleton,
+} from "../features/body/body-profile-form";
 import { useBodyProfile } from "../features/body/queries";
 import { supabase } from "../lib/supabase";
 
@@ -51,7 +54,7 @@ export function ProfilePage() {
       </div>
 
       <div className="mt-4">
-        {isPending ? <LoadingNote /> : null}
+        {isPending ? <BodyProfileFormSkeleton /> : null}
         {error ? <ErrorNote error={error} /> : null}
         {/* The form is held back until the query resolves: its inputs are
             uncontrolled, so `defaultValue` is read once and a profile that

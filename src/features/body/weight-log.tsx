@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Button } from "../../components/button";
 import { ConfirmButton } from "../../components/confirm-button";
 import { EmptyState } from "../../components/empty-state";
+import { Skeleton, SkeletonGroup, SkeletonLine } from "../../components/skeleton";
 import { ErrorNote } from "../../components/status";
 import { TextInput } from "../../components/text-input";
 import { fromDateKey } from "../../lib/heatmap";
@@ -124,6 +125,24 @@ function EntryRow({
   );
 }
 
+/** Rows of date, weight and delta, the shape `EntryRow` fills in. */
+function EntriesSkeleton() {
+  return (
+    <SkeletonGroup>
+      <ul className="mt-2 divide-y divide-line">
+        {[0, 1, 2].map((index) => (
+          <li key={index} className="flex items-center gap-3 py-2.5">
+            <SkeletonLine className="w-16 shrink-0 text-sm" />
+            <SkeletonLine className="w-14 font-semibold" />
+            <SkeletonLine className="w-8 text-xs" />
+            <Skeleton className="ml-auto h-7 w-16 rounded-lg" />
+          </li>
+        ))}
+      </ul>
+    </SkeletonGroup>
+  );
+}
+
 export function WeightLog() {
   const { data: entries, isPending, error } = useWeightEntries();
 
@@ -150,6 +169,10 @@ export function WeightLog() {
           <ErrorNote error={error} />
         </div>
       ) : null}
+
+      {/* The form doesn't depend on the list, so it is usable right away;
+          only the entries wait. */}
+      {isPending ? <EntriesSkeleton /> : null}
 
       {!isPending && !error && !rows.length ? (
         <div className="mt-4">

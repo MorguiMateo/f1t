@@ -1,6 +1,7 @@
 import { EmptyState } from "../components/empty-state";
 import { PageHeader } from "../components/page-header";
-import { ErrorNote, LoadingNote } from "../components/status";
+import { Skeleton, SkeletonGroup, SkeletonLine } from "../components/skeleton";
+import { ErrorNote } from "../components/status";
 import { WeightChart } from "../features/body/weight-chart";
 import { WeightLog } from "../features/body/weight-log";
 import { Heatmap } from "../features/sessions/heatmap";
@@ -31,6 +32,33 @@ function Stat({ value, label }: { value: string; label: string }) {
   );
 }
 
+/**
+ * The heatmap card and the three stats. The grid is a single block with its
+ * proportions: 26 columns by 7 rows, plus the month labels and the legend.
+ */
+function ActivitySkeleton() {
+  return (
+    <SkeletonGroup>
+      <div className="rounded-xl border border-line bg-surface p-4">
+        <SkeletonLine className="mb-3 w-36 text-sm" />
+        <Skeleton className="aspect-[26/8] w-full" />
+        <SkeletonLine className="mt-2 ml-auto w-24 text-[0.625rem]" />
+      </div>
+      <div className="mt-3 flex gap-2">
+        {[0, 1, 2].map((index) => (
+          <div
+            key={index}
+            className="min-w-0 flex-1 rounded-xl border border-line bg-surface p-4"
+          >
+            <SkeletonLine className="mx-auto w-8 text-2xl" />
+            <SkeletonLine className="mx-auto mt-0.5 w-3/4 max-w-16 text-xs" />
+          </div>
+        ))}
+      </div>
+    </SkeletonGroup>
+  );
+}
+
 export function ProgressPage() {
   const { data: days, isPending, error } = useSessionDays();
 
@@ -45,7 +73,7 @@ export function ProgressPage() {
         subtitle="Tu actividad, tu peso y tu evolución"
       />
 
-      {isPending ? <LoadingNote /> : null}
+      {isPending ? <ActivitySkeleton /> : null}
       {error ? <ErrorNote error={error} /> : null}
 
       {days && !days.length ? (

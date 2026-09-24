@@ -2,7 +2,9 @@ import { Link, useNavigate, useParams } from "react-router";
 import { ConfirmButton } from "../components/confirm-button";
 import { EmptyState } from "../components/empty-state";
 import { PageHeader } from "../components/page-header";
-import { ErrorNote, LoadingNote } from "../components/status";
+import { Skeleton, SkeletonGroup } from "../components/skeleton";
+import { ErrorNote } from "../components/status";
+import { ExerciseLineSkeleton } from "../features/routines/exercise-line-skeleton";
 import { TextInput } from "../components/text-input";
 import { RoutineCoverage } from "../features/routines/routine-coverage";
 import { RoutineExerciseItem } from "../features/routines/routine-exercise-item";
@@ -20,6 +22,25 @@ import { weekdayLabel } from "../features/routines/weekdays";
  * for the day alone. It is the same query already in cache from the routine
  * detail, so coming in here fires no request and neither does going back.
  */
+/** A few `RoutineExerciseItem`s: the exercise and its two target inputs. */
+function DaySkeleton() {
+  return (
+    <SkeletonGroup>
+      <ul className="flex flex-col gap-2">
+        {[0, 1, 2].map((index) => (
+          <li key={index} className="rounded-xl border border-line bg-surface p-2.5">
+            <ExerciseLineSkeleton />
+            <div className="mt-2 flex gap-2">
+              <Skeleton className="h-9.5 flex-1 rounded-lg" />
+              <Skeleton className="h-9.5 flex-2 rounded-lg" />
+            </div>
+          </li>
+        ))}
+      </ul>
+    </SkeletonGroup>
+  );
+}
+
 export function RoutineDayPage() {
   const { routineId, dayId } = useParams();
   const navigate = useNavigate();
@@ -34,7 +55,7 @@ export function RoutineDayPage() {
     return (
       <>
         <PageHeader title="Día" onBack={() => navigate(-1)} />
-        <LoadingNote />
+        <DaySkeleton />
       </>
     );
   }

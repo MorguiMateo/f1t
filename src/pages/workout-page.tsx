@@ -3,7 +3,9 @@ import { Button } from "../components/button";
 import { ConfirmButton } from "../components/confirm-button";
 import { EmptyState } from "../components/empty-state";
 import { PageHeader } from "../components/page-header";
-import { ErrorNote, LoadingNote } from "../components/status";
+import { Skeleton, SkeletonGroup } from "../components/skeleton";
+import { ErrorNote } from "../components/status";
+import { ExerciseLineSkeleton } from "../features/routines/exercise-line-skeleton";
 import { useActiveRoutine } from "../features/routines/queries";
 import { dayForWeekday, todayWeekday } from "../features/routines/weekdays";
 import { today } from "../features/sessions/api";
@@ -14,6 +16,26 @@ import {
   usePreviousSession,
   useSessionForDate,
 } from "../features/sessions/queries";
+
+/** A few `ExerciseLog` cards: the exercise and its rows of sets. */
+function WorkoutSkeleton() {
+  return (
+    <SkeletonGroup>
+      <ul className="flex flex-col gap-2">
+        {[0, 1, 2].map((index) => (
+          <li key={index} className="rounded-xl border border-line bg-surface p-2.5">
+            <ExerciseLineSkeleton />
+            <div className="mt-2 flex flex-col gap-1.5">
+              {[0, 1, 2].map((set) => (
+                <Skeleton key={set} className="h-9.5 rounded-lg" />
+              ))}
+            </div>
+          </li>
+        ))}
+      </ul>
+    </SkeletonGroup>
+  );
+}
 
 /**
  * Logging today's workout.
@@ -69,7 +91,7 @@ export function WorkoutPage() {
     return (
       <>
         <PageHeader title="Entrenar" onBack={() => navigate(-1)} />
-        <LoadingNote />
+        <WorkoutSkeleton />
       </>
     );
   }
