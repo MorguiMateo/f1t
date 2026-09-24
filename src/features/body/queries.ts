@@ -14,6 +14,11 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchBodyProfile, saveBodyProfile, type BodyProfile } from "./api";
+import {
+  deleteWeightEntry,
+  fetchWeightEntries,
+  saveWeight,
+} from "./weight-api";
 
 export const bodyKeys = {
   all: ["body"] as const,
@@ -33,6 +38,45 @@ export function useSaveBodyProfile() {
     mutationFn: saveBodyProfile,
     onSuccess: (profile: BodyProfile) => {
       queryClient.setQueryData(bodyKeys.profile(), profile);
+    },
+  });
+}
+
+export const weightKeys = {
+  all: ["weight"] as const,
+  entries: () => [...weightKeys.all, "entries"] as const,
+};
+
+export function useWeightEntries() {
+  return useQuery({
+    queryKey: weightKeys.entries(),
+    queryFn: fetchWeightEntries,
+  });
+}
+
+/**
+ * Recording or deleting a weight invalidates the list instead of writing the
+ * one returned row into the cache — the opposite of the profile mutation just
+ * above. A single upsert reorders the series and changes the delta of the
+ * neighbour it lands next to, so the honest answer is the refetched list, and
+ * it is only a handful of rows.
+ */
+export function useSaveWeight() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: saveWeight,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: weightKeys.entries() });
+    },
+  });
+}
+
+export function useDeleteWeight() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: deleteWeightEntry,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: weightKeys.entries() });
     },
   });
 }

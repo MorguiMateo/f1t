@@ -1,19 +1,23 @@
 import { EmptyState } from "../components/empty-state";
 import { PageHeader } from "../components/page-header";
 import { ErrorNote, LoadingNote } from "../components/status";
+import { WeightLog } from "../features/body/weight-log";
 import { Heatmap } from "../features/sessions/heatmap";
 import { useSessionDays } from "../features/sessions/queries";
 import { WIDGET_WEEKS } from "../features/sessions/widget";
 import { currentStreak } from "../lib/heatmap";
 
 /**
- * The activity calendar and the little that can be said with it.
+ * The activity calendar, the weight log, and the little that can be said with
+ * them.
  *
- * The same 26 weeks as the medium iOS widget: not a coincidence, it is the
- * shared `WIDGET_WEEKS` constant. If half a year shows here, half a year
- * shows on the phone's home screen too, and both paint the same array.
+ * The heatmap's 26 weeks are the same as the medium iOS widget: not a
+ * coincidence, it is the shared `WIDGET_WEEKS` constant. If half a year shows
+ * here, half a year shows on the phone's home screen too, and both paint the
+ * same array.
  *
- * Weight and its chart arrive in Phase 5.
+ * The weight chart (Phase 5.3) lands below the log; today the series is the
+ * list.
  */
 
 function Stat({ value, label }: { value: string; label: string }) {
@@ -71,6 +75,12 @@ export function ProgressPage() {
           </div>
         </>
       ) : null}
+
+      {/* The weight log stands on its own query, so it shows even for an
+          account that has never trained. */}
+      <div className="mt-4">
+        <WeightLog />
+      </div>
     </>
   );
 }
