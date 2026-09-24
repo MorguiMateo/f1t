@@ -17,8 +17,11 @@ import type { Tables } from "../../lib/database.types";
 
 export type WeightEntry = Tables<"weight_entries">;
 
-/** The one decimal `weight_kg` (`numeric(5, 2)`) rounds display to. */
-function round1(value: number): number {
+/**
+ * Rounds to one decimal: the precision weights are shown with, and the one
+ * the chart's coordinates need (`weight-trend.ts`).
+ */
+export function round1(value: number): number {
   return Math.round(value * 10) / 10;
 }
 

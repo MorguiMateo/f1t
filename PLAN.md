@@ -456,7 +456,7 @@ Decisiones que no estaban en el plan original:
 El chunk inicial pasó de 494 KB a **498,7 KB (145 KB gzip)**: Perfil es una
 pestaña y no va con `lazy()`.
 
-#### 5.2 — Registro de peso
+#### 5.2 — Registro de peso ✅
 
 Anotar cuánto pesás. `weight_entries` ya tiene única `(user_id, measured_on)`
 y check 20–400 desde la Fase 1, así que es un peso por día.
@@ -469,14 +469,21 @@ y check 20–400 desde la Fase 1, así que es un peso por día.
   `body_profile` serían dos fuentes de verdad que el día que falle el segundo
   write se contradicen sin que nadie pueda decir cuál miente
 
-Queda por decidir: si pesarse dos veces el mismo día es un error o una
-corrección. La propuesta es corrección silenciosa vía upsert con
-`onConflict`, consistente con `logSet` de la Fase 4.
+- `src/features/body/weight.ts` — deltas, peso actual y formato, puro y con
+  tests
+- `src/features/body/weight-api.ts` y `weight-log.tsx`
 
-#### 5.3 — Gráfico de evolución
+Pesarse dos veces el mismo día es una **corrección**: upsert con
+`onConflict: "user_id,measured_on"`, consistente con `logSet` de la Fase 4.
+
+#### 5.3 — Gráfico de evolución ✅
 
 La curva de peso en el tiempo, con la línea del peso meta cruzada, en
 Progreso y debajo del heatmap.
+
+- `src/features/body/weight-trend.ts` — media móvil, escalas y coordenadas
+  SVG, puro y con 20 tests
+- `src/features/body/weight-chart.tsx` — el componente; no hace cuentas
 
 - SVG propio, **sin librería de charts**. Recharts o Chart.js suman 150–400 KB
   para dibujar una polilínea de treinta puntos sobre un chunk inicial que ya
@@ -486,6 +493,35 @@ Progreso y debajo del heatmap.
 - Las escalas, los puntos y la media móvil que suaviza el ruido diario de la
   balanza van en un módulo puro con tests, tipo `heatmap.ts` y `plan.ts`. El
   componente solo dibuja
+
+Decisiones que no estaban en el plan original:
+
+- **La media móvil cuenta días, no entradas.** Promedia lo pesado en los 7
+  días calendario que terminan en cada punto. Con pesadas irregulares, "las
+  últimas tres entradas" mezclaría pesos de meses distintos como si fueran
+  seguidos. Las entradas anteriores a la ventana siguen alimentando la media,
+  para que el primer valor en pantalla no arranque en frío.
+- **El eje X es tiempo real y termina hoy.** Un mes sin pesarse es un hueco
+  visible, y dos semanas sin medición se ven como vacío a la derecha.
+- **La ventana es `WIDGET_WEEKS`, pero el eje arranca en la primera
+  medición.** Mismo medio año que el heatmap de arriba; empezar en el borde de
+  la ventana apretaría todo el historial de quien empezó la semana pasada en
+  los últimos píxeles.
+- **Un historial corto va centrado.** El eje mide como mínimo 14 días. Si
+  entre la primera medición y hoy hay menos, los días que faltan se reparten
+  mitad antes y mitad después, así que la parte derecha son días que todavía
+  no pasaron. Se centra primera medición → hoy, no → última, para que los días
+  sin pesarse sigan viéndose. El relleno se achica con cada día de historial
+  y es cero desde los 14, así que no hay salto al cruzar el umbral. Con 28 de
+  mínimo, tres días de datos centrados ocupaban un décimo del ancho.
+- **La meta siempre entra en la escala**, aunque aplane la curva: la
+  distancia a la meta es lo que el gráfico viene a mostrar.
+- **Rango vertical mínimo de 2 kg.** Sin él, una serie plana convierte 0,3 kg
+  de ruido de balanza en una cordillera.
+- **`viewBox` fijo y ancho 100 %**, con `vector-effect="non-scaling-stroke"`.
+  No hay que medir el contenedor ni escuchar resize.
+
+Con 5.2 y 5.3, el chunk inicial pasó de 498,7 KB a **506,9 KB (147,5 KB gzip)**.
 
 #### 5.4 — IMC, TDEE y objetivo calórico
 

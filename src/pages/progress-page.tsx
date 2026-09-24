@@ -1,6 +1,7 @@
 import { EmptyState } from "../components/empty-state";
 import { PageHeader } from "../components/page-header";
 import { ErrorNote, LoadingNote } from "../components/status";
+import { WeightChart } from "../features/body/weight-chart";
 import { WeightLog } from "../features/body/weight-log";
 import { Heatmap } from "../features/sessions/heatmap";
 import { useSessionDays } from "../features/sessions/queries";
@@ -16,8 +17,9 @@ import { currentStreak } from "../lib/heatmap";
  * here, half a year shows on the phone's home screen too, and both paint the
  * same array.
  *
- * The weight chart (Phase 5.3) lands below the log; today the series is the
- * list.
+ * The weight chart reaches back the same half year, so the calendar and the
+ * curve below it cover one stretch of time and can be read against each
+ * other.
  */
 
 function Stat({ value, label }: { value: string; label: string }) {
@@ -76,9 +78,11 @@ export function ProgressPage() {
         </>
       ) : null}
 
-      {/* The weight log stands on its own query, so it shows even for an
-          account that has never trained. */}
-      <div className="mt-4">
+      {/* The weight sections stand on their own queries, so they show even
+          for an account that has never trained. The chart hides itself until
+          there is a first weight; the log is where that weight gets typed. */}
+      <div className="mt-4 space-y-4">
+        <WeightChart weeks={WIDGET_WEEKS} />
         <WeightLog />
       </div>
     </>
