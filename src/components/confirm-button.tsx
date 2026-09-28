@@ -1,16 +1,8 @@
 import { useEffect, useState } from "react";
 import { Button } from "./button";
 
-/**
- * A destructive button that asks for confirmation in place.
- *
- * `window.confirm` would be one line, but in an installed PWA it opens the
- * browser's dialog — with its own typeface, language and web-page look —
- * right in the middle of something that reads as a native app. Here the
- * second tap confirms, and if the user gets distracted the button returns to
- * its normal state on its own instead of sitting armed waiting for an
- * accidental tap.
- */
+// Not `window.confirm`: in an installed PWA it opens a browser-styled dialog
+// that breaks the native feel. Disarms itself so it can't wait for a stray tap.
 export function ConfirmButton({
   label,
   confirmLabel,

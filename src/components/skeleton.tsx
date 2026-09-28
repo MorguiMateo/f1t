@@ -1,22 +1,10 @@
 import type { ComponentProps, ReactNode } from "react";
 
 /**
- * Loading placeholders: the shape of what is about to appear, instead of a
- * "Cargando…" that gets replaced by something of a completely different
- * height.
- *
- * `Skeleton` is shadcn/ui's (https://ui.shadcn.com/docs/components/skeleton,
- * MIT), copied in the way shadcn intends rather than installed with its CLI:
- * `shadcn init` rewrites index.css with its own theme, whose `--accent` is not
- * ours. Two changes to the original:
- *
- * - `bg-surface-2` instead of `bg-accent`. Here the accent is the orange of
- *   the primary button, and a pulsing orange block reads as an alert.
- * - The pulse only under `motion-safe`, so "reduce motion" gets a still grey
- *   block.
- *
- * Every block is `aria-hidden`: a screen reader hears the one "Cargando…"
- * that `SkeletonGroup` announces, not a dozen empty divs.
+ * shadcn/ui's Skeleton (MIT), copied rather than installed: `shadcn init`
+ * rewrites index.css with its own `--accent`. Uses `bg-surface-2` because our
+ * accent is orange and a pulsing orange block reads as an alert. Blocks are
+ * `aria-hidden` so screen readers only hear `SkeletonGroup`'s "Cargando…".
  */
 export function Skeleton({ className = "", ...props }: ComponentProps<"div">) {
   return (
@@ -29,12 +17,8 @@ export function Skeleton({ className = "", ...props }: ComponentProps<"div">) {
   );
 }
 
-/**
- * A skeleton exactly one line of text tall, for the text size in
- * `className` (`text-sm`, `text-2xl`…). The box is `1lh` high and the grey bar
- * inside it is shorter, the way glyphs are: that keeps the real line and its
- * placeholder the same height, so nothing moves when the data lands.
- */
+// A `1lh` box for the text size in `className`, with a shorter bar inside like
+// glyphs: the placeholder matches the real line's height, so nothing shifts.
 export function SkeletonLine({ className = "" }: { className?: string }) {
   return (
     <div className={["flex h-[1lh] items-center", className].join(" ")}>
@@ -43,11 +27,6 @@ export function SkeletonLine({ className = "" }: { className?: string }) {
   );
 }
 
-/**
- * The wrapper for a composed skeleton. `role="status"` plus a visually hidden
- * "Cargando…" is what `LoadingNote` used to announce, so assistive tech keeps
- * hearing the same thing.
- */
 export function SkeletonGroup({
   children,
   className = "",
@@ -63,10 +42,7 @@ export function SkeletonGroup({
   );
 }
 
-/**
- * The same padding as `PageHeader`, with its title and subtitle as
- * placeholders. For waits where not even the title is known yet.
- */
+// Mirrors `PageHeader`'s padding.
 function HeaderSkeleton() {
   return (
     <div
@@ -79,7 +55,6 @@ function HeaderSkeleton() {
   );
 }
 
-/** A card of the kind every list in the app is made of: title and a line. */
 export function CardSkeleton() {
   return (
     <div className="rounded-xl border border-line bg-surface p-4">
@@ -89,12 +64,8 @@ export function CardSkeleton() {
   );
 }
 
-/**
- * A whole page whose content isn't known: while the session is read at
- * startup, and while a `lazy()` route's code downloads. Either way the next
- * screen could be any tab, so this is the shape they share — a header and a
- * few cards.
- */
+// Used while the session loads and while a `lazy()` route downloads: the next
+// screen could be any tab, so this is the shape they all share.
 export function PageSkeleton() {
   return (
     <SkeletonGroup>

@@ -4,7 +4,6 @@ type PageHeaderProps = {
   title: string;
   subtitle?: string;
   action?: ReactNode;
-  /** If provided, a back arrow is drawn above the title. */
   onBack?: () => void;
 };
 

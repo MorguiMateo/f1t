@@ -1,18 +1,12 @@
 /**
- * Translation of the dataset's vocabulary.
- *
- * free-exercise-db is in English and react-body-highlighter uses its own
- * names, which don't match. Both tables live here: the one shown to the user
- * (Spanish) and the one feeding the body map.
- *
- * The vocabularies are closed and verified against the dataset and against
+ * The vocabularies are closed and verified against free-exercise-db and
  * `react-body-highlighter/dist/component/metadata.d.ts`, so they are typed:
- * adding a muscle the dataset doesn't have won't compile.
+ * a muscle the dataset doesn't have won't compile.
  */
 
 import type { Muscle } from "react-body-highlighter";
 
-/** free-exercise-db's 17 muscles, exactly as they come in the JSON. */
+/** Exactly as they come in the dataset JSON. */
 export const MUSCLES = [
   "abdominals",
   "abductors",
@@ -56,14 +50,9 @@ export const MUSCLE_ES: Record<DatasetMuscle, string> = {
 };
 
 /**
- * Mapping to the body map's vocabulary. The cases that aren't 1:1:
- *
- * - `shoulders` splits into front and back deltoids, because the model draws
- *   them separately and the dataset doesn't distinguish.
- * - `lats` and `middle back` both land on `upper-back`: the SVG has no
- *   separate region for lats. Precision is lost, correctness isn't.
- * - `traps` is `trapezius` and not `upper-back`, which would be the
- *   intuitive guess.
+ * Not 1:1: the dataset doesn't split front/back deltoids, the SVG has no lats
+ * region (so lats and middle back share `upper-back`), and traps is
+ * `trapezius`, not the intuitive `upper-back`.
  */
 export const MUSCLE_TO_BODY_PART: Record<DatasetMuscle, Muscle[]> = {
   abdominals: ["abs"],
@@ -85,7 +74,6 @@ export const MUSCLE_TO_BODY_PART: Record<DatasetMuscle, Muscle[]> = {
   triceps: ["triceps"],
 };
 
-/** Converts a dataset list to model regions, without duplicates. */
 export function toBodyParts(muscles: readonly string[]): Muscle[] {
   const parts = new Set<Muscle>();
   for (const m of muscles) {
@@ -99,10 +87,6 @@ export function toBodyParts(muscles: readonly string[]): Muscle[] {
 export function muscleLabel(muscle: string): string {
   return MUSCLE_ES[muscle as DatasetMuscle] ?? muscle;
 }
-
-// ---------------------------------------------------------------------------
-// The dataset's other closed vocabularies.
-// ---------------------------------------------------------------------------
 
 export const EQUIPMENT_ES: Record<string, string> = {
   "body only": "Peso corporal",
@@ -146,7 +130,6 @@ export const MECHANIC_ES: Record<string, string> = {
   isolation: "Aislamiento",
 };
 
-/** For the fields that can come back null from the dataset. */
 export function labelOr(
   table: Record<string, string>,
   value: string | null | undefined,

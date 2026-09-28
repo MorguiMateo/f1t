@@ -4,20 +4,10 @@ import type { RoutineExercise } from "./api";
 import { ExerciseLine } from "./exercise-line";
 import { useRemoveExercise, useSwapExercises, useUpdateExercise } from "./queries";
 
-/**
- * An editable row within a day: target, order and removal.
- *
- * Both fields save on blur, with no save button. On a phone, typing "12" and
- * tapping something else is the natural gesture; a save button per row
- * multiplies the taps and leaves state half-confirmed when the user forgets.
- *
- * The inputs are uncontrolled: the value lives in the DOM and only what
- * changed gets sent. Controlling them would force a re-sync against whatever
- * React Query's invalidation returns, and that is where fields that clear
- * themselves as you type come from.
- */
+// Fields save on blur and stay uncontrolled: controlled inputs would re-sync
+// with each React Query invalidation and wipe what the user is typing.
 
-/** The database check is 1..50; clamped here so the update isn't bounced. */
+// Matches the database check (1..50) so the update isn't rejected.
 const MAX_SETS = 50;
 
 export function RoutineExerciseItem({
@@ -42,8 +32,6 @@ export function RoutineExerciseItem({
     if (raw !== "") {
       const parsed = Math.round(Number(raw));
       if (!Number.isFinite(parsed)) {
-        // Text that isn't a number: discarded, and the input reverts to what
-        // was stored.
         event.target.value = item.target_sets?.toString() ?? "";
         return;
       }
@@ -56,8 +44,7 @@ export function RoutineExerciseItem({
   }
 
   function saveReps(event: FocusEvent<HTMLInputElement>) {
-    // Free text on purpose: "8-12", "al fallo" and "30 s" are all legitimate
-    // targets and none of them fits in a number.
+    // Free text: "8-12", "al fallo" and "30 s" are all valid targets.
     const value = event.target.value.trim() || null;
     if (value === item.target_reps) return;
     update.mutate({ id: item.id, patch: { target_reps: value } });

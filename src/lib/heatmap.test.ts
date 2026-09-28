@@ -9,13 +9,12 @@ import {
   trainedDays,
 } from "./heatmap";
 
-// A Wednesday. Useful for checking the grid aligns to whole weeks.
-const WEDNESDAY = new Date(2026, 8, 2); // 2026-09-02
+// 2026-09-02, mid-week so week alignment is exercised.
+const WEDNESDAY = new Date(2026, 8, 2);
 
 describe("claves de fecha", () => {
   it("formatea en hora local, sin correrse por UTC", () => {
-    // With toISOString, a local midnight date in a negative offset would
-    // come back as the previous day. This is the classic heatmap bug.
+    // toISOString returns the previous day in negative UTC offsets.
     expect(toDateKey(new Date(2026, 0, 1))).toBe("2026-01-01");
     expect(toDateKey(new Date(2026, 11, 31))).toBe("2026-12-31");
   });
@@ -57,9 +56,9 @@ describe("buildLevels", () => {
   it("escala el nivel según el volumen de series", () => {
     const cells = buildHeatmap(
       [
-        { performed_on: "2026-08-31", set_count: 4 }, // < 12  -> 1
-        { performed_on: "2026-09-01", set_count: 14 }, // >= 12 -> 2
-        { performed_on: "2026-09-02", set_count: 22 }, // >= 20 -> 3
+        { performed_on: "2026-08-31", set_count: 4 },
+        { performed_on: "2026-09-01", set_count: 14 },
+        { performed_on: "2026-09-02", set_count: 22 },
       ],
       { weeks: 2, endDate: WEDNESDAY },
     );
@@ -101,7 +100,7 @@ describe("buildLevels", () => {
 
   it("marca como futuras las celdas posteriores a hoy", () => {
     const cells = buildHeatmap([], { weeks: 2, endDate: WEDNESDAY });
-    // Wednesday: Thursday, Friday, Saturday and Sunday are still ahead.
+    // Thursday to Sunday.
     expect(cells.filter((cell) => cell.isFuture)).toHaveLength(4);
   });
 });
@@ -127,7 +126,7 @@ describe("currentStreak", () => {
   it("se corta ante un día salteado", () => {
     const sessions = [
       { performed_on: "2026-09-02" },
-      { performed_on: "2026-08-31" }, // falta el 01
+      { performed_on: "2026-08-31" },
     ];
     expect(currentStreak(sessions, WEDNESDAY)).toBe(1);
   });
@@ -153,9 +152,7 @@ describe("trainedDays", () => {
 
 describe("heatmapStart", () => {
   it("es exactamente la primera celda de la grilla", () => {
-    // The invariant that makes the query ask for neither more nor less than
-    // what gets drawn: if these two drift apart, the heatmap shows empty days
-    // that were actually trained.
+    // If these drift apart, the query misses days that get drawn empty.
     for (const weeks of [4, 26, 53]) {
       const cells = buildHeatmap([], { weeks, endDate: WEDNESDAY });
       expect(heatmapStart({ weeks, endDate: WEDNESDAY })).toBe(cells[0].date);
@@ -163,9 +160,7 @@ describe("heatmapStart", () => {
   });
 
   it("cae en el primer día de la semana", () => {
-    // Week starts on Monday by default: getDay() === 1.
     expect(fromDateKey(heatmapStart({ endDate: WEDNESDAY })).getDay()).toBe(1);
-    // And on Sunday when Sunday is asked for.
     expect(
       fromDateKey(heatmapStart({ endDate: WEDNESDAY, weekStartsOn: 0 })).getDay(),
     ).toBe(0);

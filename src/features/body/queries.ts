@@ -1,15 +1,7 @@
 /**
- * The React Query hooks on top of `body/api.ts`.
- *
- * There is a single key because there is a single row. The mutation writes
- * the row the server returns straight into the cache instead of invalidating
- * and asking again: the response to an upsert *is* the new state of the
- * profile, so a refetch would be a round trip whose only possible answer is
- * what we already have in hand.
- *
- * That also matters for the form. The inputs are uncontrolled, and an
- * invalidation that lands while another field has focus is exactly the kind
- * of re-render that makes a half-typed value flicker.
+ * The profile mutation writes the returned row into the cache instead of
+ * invalidating: the upsert response is the new state, and a refetch landing
+ * mid-typing would flicker the form's uncontrolled inputs.
  */
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -55,11 +47,8 @@ export function useWeightEntries() {
 }
 
 /**
- * Recording or deleting a weight invalidates the list instead of writing the
- * one returned row into the cache — the opposite of the profile mutation just
- * above. A single upsert reorders the series and changes the delta of the
- * neighbour it lands next to, so the honest answer is the refetched list, and
- * it is only a handful of rows.
+ * Invalidates instead of writing the returned row: one upsert reorders the
+ * series and changes its neighbour's delta, and the list is only a few rows.
  */
 export function useSaveWeight() {
   const queryClient = useQueryClient();

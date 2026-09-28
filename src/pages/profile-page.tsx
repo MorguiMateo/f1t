@@ -14,7 +14,7 @@ export function ProfilePage() {
   const { data: profile, isPending, error } = useBodyProfile();
   const [isSigningOut, setIsSigningOut] = useState(false);
 
-  // The guard guarantees there is a user; this is only for TypeScript.
+  // Only for TypeScript: the guard guarantees a user.
   if (!user) return null;
 
   const name = user.user_metadata.full_name ?? user.user_metadata.name ?? null;
@@ -23,8 +23,7 @@ export function ProfilePage() {
 
   async function signOut() {
     setIsSigningOut(true);
-    // No state to clear: onAuthStateChange fires and the guard shows the
-    // sign-in screen again on its own.
+    // No state to clear: onAuthStateChange makes the guard show sign-in.
     await supabase.auth.signOut();
   }
 
@@ -56,11 +55,8 @@ export function ProfilePage() {
       <div className="mt-4">
         {isPending ? <BodyProfileFormSkeleton /> : null}
         {error ? <ErrorNote error={error} /> : null}
-        {/* The form is held back until the query resolves: its inputs are
-            uncontrolled, so `defaultValue` is read once and a profile that
-            arrives later would never reach the fields. `profile` being null
-            is a real answer — an account that never filled it in — and the
-            form starts empty. */}
+        {/* Wait for the query: the inputs are uncontrolled, so a profile
+            arriving later would never reach them. Null means never filled in. */}
         {!isPending && !error ? (
           <BodyProfileForm profile={profile ?? null} />
         ) : null}

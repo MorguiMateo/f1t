@@ -6,13 +6,10 @@ import { PageSkeleton } from "./skeleton";
 export function AppLayout() {
   return (
     <div className="flex min-h-dvh flex-col bg-ground">
-      {/* The bottom padding leaves room for the fixed nav plus the home
-          indicator. */}
+      {/* pb-28: room for the fixed nav plus the home indicator. */}
       <main className="mx-auto w-full max-w-lg flex-1 px-4 pb-28">
-        {/* The fallback for `lazy()` routes lives here, wrapping the
-            `<Outlet>`, rather than repeated on each `<Route>`: the shell —
-            nav included — stays on screen while the chunk downloads, so
-            switching tabs never flashes white. */}
+        {/* Here rather than per `<Route>` so the nav stays on screen while a
+            chunk downloads. */}
         <Suspense fallback={<PageSkeleton />}>
           <Outlet />
         </Suspense>

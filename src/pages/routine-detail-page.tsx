@@ -23,13 +23,6 @@ import {
   weekdayLabel,
 } from "../features/routines/weekdays";
 
-/**
- * Typical names for a routine day.
- *
- * They exist so creating a day is one tap and not a decision: the field is
- * free text all the same, but most real routines are named after one of
- * these six.
- */
 const LABEL_SUGGESTIONS = [
   "Empuje",
   "Tracción",
@@ -39,7 +32,6 @@ const LABEL_SUGGESTIONS = [
   "Cardio",
 ];
 
-/** The seven weekday rows, with the weekday, the day's name and its count. */
 function WeekSkeleton() {
   return (
     <SkeletonGroup>
@@ -153,8 +145,6 @@ export function RoutineDetailPage() {
         }
       />
 
-      {/* The whole week and not only the training days: rest is part of the
-          routine and gets decided like everything else. */}
       <ul className="flex flex-col gap-2">
         {WEEK_ORDER.map((weekday) => {
           const day = dayForWeekday(routine.days, weekday);
@@ -269,7 +259,7 @@ export function RoutineDetailPage() {
         <h2 className="font-semibold">Ajustes</h2>
         <label className="mt-3 block">
           <span className="text-sm text-muted">Nombre</span>
-          {/* Uncontrolled, like the day editor: it saves on blur. */}
+          {/* Uncontrolled and saved on blur; `key` resets it after a rename. */}
           <TextInput
             key={routine.name}
             defaultValue={routine.name}

@@ -1,8 +1,3 @@
-/**
- * The navigation icons, inline. There are four of them: they justify neither
- * a library dependency nor the weight it would bring.
- */
-
 type IconProps = { className?: string };
 
 const base = {

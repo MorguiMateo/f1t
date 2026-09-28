@@ -10,15 +10,13 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let active = true;
 
-    // The session stored in localStorage. Resolves before any network call.
     supabase.auth.getSession().then(({ data }) => {
       if (!active) return;
       setSession(data.session);
       setIsLoading(false);
     });
 
-    // Covers login, logout and token refresh. It is also what catches the
-    // return from Google, because detectSessionInUrl emits here.
+    // Also catches the return from Google, since detectSessionInUrl emits here.
     const { data } = supabase.auth.onAuthStateChange((_event, next) => {
       if (!active) return;
       setSession(next);

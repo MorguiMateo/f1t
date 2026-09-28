@@ -1,17 +1,7 @@
 /**
- * The vocabulary of the body profile, with no React and no network.
- *
- * Two jobs live here. One is translating: the database stores `goal` and
- * `sex` as plain `text`, so what comes back is typed `string` and every
- * screen would otherwise cast it on its own. The other is parsing what gets
- * typed into a field, which has to happen before the write and not after the
- * database bounces it: a 400 from PostgREST arrives as a red box, while a
- * clamp arrives as the number correcting itself under your thumb.
- *
- * Every bound below mirrors a constraint in the schema. They are duplicated
- * on purpose and the duplication only goes one way: the database is the one
- * that enforces them, this is the one that avoids the round trip. Same
- * arrangement as `MAX_SETS` in `routine-exercise-item.tsx`.
+ * Every bound below duplicates a schema check on purpose: the database
+ * enforces it, this clamps before the write so a slip corrects itself in the
+ * field instead of bouncing as a PostgREST 400.
  */
 
 import { fromDateKey, toDateKey } from "../../lib/heatmap";
@@ -19,11 +9,7 @@ import { fromDateKey, toDateKey } from "../../lib/heatmap";
 export type Goal = "lose" | "gain" | "maintain";
 export type Sex = "male" | "female";
 
-/**
- * The goals, in the order they read as a scale: down, steady, up. The hint is
- * what makes the choice mean something before Phase 5.4 turns it into a
- * calorie number.
- */
+/** Ordered as a scale: down, steady, up. */
 export const GOALS: { value: Goal; label: string; hint: string }[] = [
   { value: "lose", label: "Bajar", hint: "Déficit calórico" },
   { value: "maintain", label: "Mantener", hint: "Sostener el peso actual" },
@@ -31,9 +17,8 @@ export const GOALS: { value: Goal; label: string; hint: string }[] = [
 ];
 
 /**
- * Only the two values Mifflin-St Jeor has a coefficient for, which is the
- * only reason the field exists at all. It stays optional: the equation is
- * one of several things the profile feeds, and the rest work without it.
+ * Only the values Mifflin-St Jeor has a coefficient for, the field's sole
+ * reason to exist. Optional: the rest of the profile works without it.
  */
 export const SEXES: { value: Sex; label: string }[] = [
   { value: "female", label: "Mujer" },
@@ -62,10 +47,8 @@ export function isSex(value: string | null | undefined): value is Sex {
 }
 
 /**
- * `goal` is `not null default 'maintain'` in the schema, so this fallback
- * should never fire. It exists because the generated type says `string` and
- * a cast would hide the day someone adds a fourth goal to the check
- * constraint and forgets this file.
+ * The fallback should never fire (`goal` is `not null`), but a cast would
+ * hide a fourth goal added to the check constraint and not here.
  */
 export function toGoal(value: string | null | undefined): Goal {
   return isGoal(value) ? value : "maintain";
@@ -78,14 +61,8 @@ export function toSex(value: string | null | undefined): Sex | null {
 type Range = { min: number; max: number; decimals: number };
 
 /**
- * Reads a number out of an input.
- *
- * Three outcomes, because a field has three of them: `null` is an emptied
- * field, which is a legitimate value — not knowing your height is a state
- * the schema allows. `undefined` is text that isn't a number, where the only
- * sane move is to keep what was stored. Anything else is the number, rounded
- * to the decimals the column holds and clamped into range, so a slipped key
- * turns into the nearest real value instead of a rejected write.
+ * `null` is an emptied field, a value the schema allows; `undefined` is text
+ * that isn't a number, so the caller keeps what was stored.
  */
 export function parseMeasure(
   raw: string,
@@ -103,12 +80,8 @@ export function parseMeasure(
 }
 
 /**
- * Reads a `<input type="date">` value. Same three outcomes as above: cleared,
- * unusable, or a `YYYY-MM-DD` the `date` column accepts.
- *
- * The future is rejected here and not clamped to today, because a date in the
- * future is a typo and today is not a better guess at a birthday than the
- * empty field the user can see.
+ * Same outcomes as `parseMeasure`. A future date is rejected, not clamped:
+ * it's a typo, and today is no better guess at a birthday.
  */
 export function parseBirthDate(
   raw: string,
@@ -129,11 +102,8 @@ export function parseBirthDate(
 }
 
 /**
- * Age in completed years, which is what Mifflin-St Jeor takes in Phase 5.4
- * and what the form echoes back so a mistyped year is visible immediately.
- *
- * Counted in calendar terms rather than by dividing milliseconds: leap years
- * make the division land a day early roughly one birthday in four.
+ * Counted in calendar terms: dividing milliseconds lands a day early roughly
+ * one birthday in four because of leap years.
  */
 export function ageOn(
   birthDate: string | null,
@@ -146,7 +116,6 @@ export function ageOn(
 
   let age = now.getFullYear() - born.getFullYear();
   const monthDelta = now.getMonth() - born.getMonth();
-  // The birthday has not come round yet this year.
   if (monthDelta < 0 || (monthDelta === 0 && now.getDate() < born.getDate())) {
     age -= 1;
   }

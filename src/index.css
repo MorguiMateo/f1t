@@ -1,10 +1,7 @@
 @import "tailwindcss";
 
-/* ---------------------------------------------------------------
-   Tokens. The light theme lives in :root; the dark one is redefined
-   twice — by system preference and by data-theme — so each wins in
-   the right direction.
-   --------------------------------------------------------------- */
+/* Dark is defined twice — by system preference and by data-theme — so each
+   wins in the right direction. */
 :root {
   --ground: #f6f6f8;
   --surface: #ffffff;
@@ -52,8 +49,7 @@
   --warn: #e0a93b;
 }
 
-/* `inline` makes the utilities point at var(--…) instead of inlining
-   the value, which is what allows theme switching. */
+/* `inline` makes utilities reference var(--…), which allows theme switching. */
 @theme inline {
   --color-ground: var(--ground);
   --color-surface: var(--surface);
@@ -86,7 +82,6 @@
     -webkit-tap-highlight-color: transparent;
   }
 
-  /* Numbers are the main content of a gym app. */
   .tnum {
     font-variant-numeric: tabular-nums;
   }

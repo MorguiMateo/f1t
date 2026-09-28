@@ -1,13 +1,6 @@
 import { useEffect } from "react";
 
-/**
- * Full-screen viewer for enlarging an exercise image.
- *
- * No dependencies: the catalog photos are 480px WebP, so an overlay with the
- * same image is enough to see it big. It closes on a tap anywhere or on
- * Escape — the most intuitive thing on a phone — and locks background
- * scrolling while it is open.
- */
+/** No library: the photos are only 480px, so a plain overlay is enough. */
 export function ImageLightbox({
   src,
   alt,
@@ -22,7 +15,6 @@ export function ImageLightbox({
       if (e.key === "Escape") onClose();
     };
     window.addEventListener("keydown", onKey);
-    // Keep the background from scrolling behind the viewer.
     const previous = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     return () => {
@@ -48,7 +40,6 @@ export function ImageLightbox({
       >
         ✕
       </button>
-      {/* object-contain so nothing is cropped: here the point is the whole photo. */}
       <img
         src={src}
         alt={alt}

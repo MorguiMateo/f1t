@@ -38,8 +38,7 @@ function RoutineItem({ routine }: { routine: RoutineSummary }) {
         </span>
       </Link>
 
-      {/* Only the active one feeds the Today tab, so the rest need a way to
-          become it without going into the detail screen. */}
+      {/* Only the active routine feeds the Today tab. */}
       {routine.is_active ? null : (
         <div className="border-t border-line px-4 py-2.5">
           <Button
@@ -79,16 +78,13 @@ export function RoutinesPage() {
     createRoutine.mutate(
       {
         name: trimmed,
-        // The first routine is born active: otherwise the Today tab would
-        // still be empty after building everything and nobody would know why.
+        // Otherwise the Today tab would stay empty with no obvious reason.
         isActive: (routines?.length ?? 0) === 0,
       },
       {
         onSuccess: (routine) => {
           setName("");
           setIsNaming(false);
-          // Straight to the detail: freshly created it has no days, and the
-          // only thing you can do with it is add them.
           navigate(`/rutinas/${routine.id}`);
         },
       },
@@ -160,8 +156,7 @@ export function RoutinesPage() {
         </ul>
       ) : null}
 
-      {/* No exercise count on purpose: importing the catalog here would drag
-          its 209 KB into the initial chunk just to show one integer. */}
+      {/* No exercise count: it would pull the 209 KB catalog into the initial chunk. */}
       <Link
         to="/ejercicios"
         className="mt-4 flex items-center justify-between gap-3 rounded-xl border border-line bg-surface p-5 transition-colors hover:bg-surface-2"

@@ -1,23 +1,8 @@
 /**
- * Builds the exercise catalog from free-exercise-db.
- *
- * A one-shot generator, same as gen-icons.mjs. It downloads the dataset,
- * trims it down to the whitelist in scripts/curated-ids.json, converts the
- * photos to WebP and writes three things:
- *
- *   public/exercises/<id>/{0,1}.webp      assets that enter the precache
- *   src/features/exercises/catalog.json   what the app consumes
- *   supabase/seed/exercises.sql           idempotent upsert for the table
- *
- * It is not a live API by decision (PLAN.md §2): the bench press doesn't
- * change, and as first-party assets the catalog works without reception at
- * the gym and travels inside the iOS bundle once Capacitor lands.
- *
- * It is idempotent and can be interrupted halfway: images that already exist
- * are not downloaded again. To force everything anew, delete
- * public/exercises.
- *
- * Usage: node scripts/fetch-exercises.mjs
+ * Not a live API on purpose (PLAN.md §2): the data doesn't change, and as
+ * first-party assets the catalog works without reception at the gym and ships
+ * inside the iOS bundle. Existing images are skipped, so the script can be
+ * interrupted; delete public/exercises to regenerate them.
  */
 import { existsSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
@@ -31,16 +16,12 @@ const OUT_IMAGES = resolve(ROOT, "public/exercises");
 const OUT_CATALOG = resolve(ROOT, "src/features/exercises/catalog.json");
 const OUT_SEED = resolve(ROOT, "supabase/seed/exercises.sql");
 
-// The raw JSON is ~1 MB. It is cached under node_modules — already ignored —
-// so re-running the script doesn't download it again.
 const CACHE = resolve(ROOT, "node_modules/.cache/f1t/exercises.json");
 
-// Measured with sharp on a real photo: 850px JPG 69.7 KB → 480px WebP q72
-// 16.8 KB. At 165 exercises × 2 that is ~5.5 MB, precacheable in full.
+// 850px JPG 69.7 KB → 480px WebP q72 16.8 KB; 165×2 photos (~5.5 MB) precacheable.
 const WIDTH = 480;
 const QUALITY = 72;
 
-/** How many downloads in parallel. Enough without hammering GitHub. */
 const CONCURRENCY = 8;
 
 async function loadDataset() {
@@ -57,7 +38,6 @@ async function loadDataset() {
   return JSON.parse(text);
 }
 
-/** The whitelist is grouped by muscle purely so it stays editable. */
 async function loadWhitelist() {
   const grouped = JSON.parse(
     await readFile(resolve(ROOT, "scripts/curated-ids.json"), "utf8"),
@@ -65,19 +45,14 @@ async function loadWhitelist() {
   return [...new Set(Object.values(grouped).flat())];
 }
 
-/**
- * Spanish names + shortened English + search aliases, written by hand.
- * The dataset ships raw English names ("Barbell Bench Press - Medium Grip");
- * this file shortens them, translates them and supplies the Spanish variants
- * so search works in both languages (PLAN.md Phase 2).
- */
+// Hand-written: the dataset only has raw English names ("Barbell Bench Press -
+// Medium Grip"), and search must work in both languages.
 async function loadNames() {
   return JSON.parse(
     await readFile(resolve(ROOT, "scripts/exercise-es.json"), "utf8"),
   );
 }
 
-/** Runs `task` over every item with a fixed-size pool. */
 async function pool(items, size, task) {
   const queue = [...items];
   const workers = Array.from({ length: size }, async () => {
@@ -103,10 +78,8 @@ async function convertImage(exerciseId, index, sourcePath) {
   return { skipped: false, bytes: info.size };
 }
 
-/** Escapes a string for SQL. The names contain apostrophes. */
 const q = (value) => `'${String(value).replaceAll("'", "''")}'`;
 
-/** text[] via the array[] constructor, which needs no brace escaping. */
 const arr = (values) =>
   values.length ? `array[${values.map(q).join(", ")}]` : "array[]::text[]";
 
@@ -145,15 +118,12 @@ on conflict (id) do update set
 `;
 }
 
-// ---------------------------------------------------------------------------
-
 const dataset = await loadDataset();
 const whitelist = await loadWhitelist();
 const names = await loadNames();
 const byId = new Map(dataset.map((e) => [e.id, e]));
 
-// If the dataset renames an id, you find out here and not from a broken
-// image in production three weeks later.
+// Catch ids renamed upstream here, not as broken images in production.
 const missing = whitelist.filter((id) => !byId.has(id));
 if (missing.length) {
   console.error(`\nEstos ids de la lista blanca no están en el dataset:`);
@@ -168,9 +138,7 @@ if (withoutImages.length) {
   process.exit(1);
 }
 
-// The names are written by hand: if one is missing, the exercise would ship
-// with the raw English name and no Spanish aliases. Better to bail out than
-// to let a half-translated catalog through.
+// A missing name would ship raw English with no Spanish aliases; bail out instead.
 const withoutName = whitelist.filter((id) => !names[id]);
 if (withoutName.length) {
   console.error(`\nEstos ids no tienen entrada en scripts/exercise-es.json:`);
@@ -178,8 +146,6 @@ if (withoutName.length) {
   process.exit(1);
 }
 
-// And the other way round: an entry that no longer matches a curated id is
-// cruft worth deleting by hand (typically after dropping an exercise).
 const whitelistSet = new Set(whitelist);
 const extraNames = Object.keys(names).filter((id) => !whitelistSet.has(id));
 if (extraNames.length) {
@@ -194,13 +160,12 @@ const catalog = whitelist
   .map((id) => {
     const e = byId.get(id);
     const tr = names[id];
-    // The dataset's raw name joins the aliases so English search keeps
-    // working even when the override doesn't repeat it.
+    // Keeps English search working when the hand-written aliases omit the raw name.
     const aliases = [...new Set([...tr.aliases, e.name])];
     return {
       id: e.id,
-      name: tr.es, // Default display: Spanish.
-      nameEn: tr.en, // The future language switcher will consume it (PLAN.md).
+      name: tr.es,
+      nameEn: tr.en, // Unused yet; reserved for the language switcher.
       aliases,
       category: e.category,
       equipment: e.equipment ?? null,
@@ -210,7 +175,6 @@ const catalog = whitelist
       primaryMuscles: e.primaryMuscles ?? [],
       secondaryMuscles: e.secondaryMuscles ?? [],
       instructions: e.instructions ?? [],
-      // Paths servable as-is, so <img src> needs no helper.
       images: [0, 1].map((i) => `/exercises/${e.id}/${i}.webp`),
     };
   })

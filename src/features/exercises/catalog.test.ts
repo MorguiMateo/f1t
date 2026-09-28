@@ -81,7 +81,6 @@ describe("filterExercises", () => {
   });
 
   it("encuentra por un alias en español que no está en el nombre", () => {
-    // "pecho plano" doesn't appear in "Press de banca": the alias resolves it.
     const ids = search("pecho plano").map((e) => e.id);
     expect(ids).toContain("Barbell_Bench_Press_-_Medium_Grip");
   });
@@ -92,11 +91,8 @@ describe("filterExercises", () => {
   });
 
   it("busca por músculo en español, aunque el nombre esté en inglés", () => {
-    // This is the index's reason for existing: nobody is going to type
-    // "chest". It doesn't demand exclusivity: "jalón al pecho" is the real
-    // name of several lat pulldowns, so the word "pecho" reaches them too.
-    // What matters is that chest work shows up and dominates; the muscle chip
-    // is the exact tool when filtering without noise is needed.
+    // Not exclusive: several lat pulldowns are really called "jalón al pecho".
+    // Chest work only has to dominate; the muscle chip is the exact filter.
     const hits = search("pecho");
     const chest = hits.filter((e) =>
       [...e.primaryMuscles, ...e.secondaryMuscles].includes("chest"),
@@ -135,8 +131,7 @@ describe("filterExercises", () => {
     );
     expect(hits.length).toBeGreaterThan(3);
     expect(hits.every((e) => e.equipment === "barbell")).toBe(true);
-    // The display name is Spanish ("Sentadilla…"); the English term matches
-    // via nameEn or the aliases, so it is validated against the index.
+    // The display name is Spanish, so match against the index.
     expect(hits.every((e) => index.get(e.id)?.includes("squat"))).toBe(true);
   });
 

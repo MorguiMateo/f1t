@@ -1,13 +1,5 @@
-/**
- * Generates the PWA icons from an SVG defined right here.
- *
- * The mark is the app's own activity grid, its most recognisable element:
- * vermilion squares at different opacities. Intensity is encoded with
- * opacity and not hue, same as in the heatmap and for the same reason — so
- * the iOS widget survives the Clear and Tint modes.
- *
- * Usage: node scripts/gen-icons.mjs
- */
+// Intensity is encoded with opacity, not hue, as in the heatmap: that way the
+// icon survives the iOS Clear and Tint modes.
 import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -19,7 +11,7 @@ const PUBLIC = resolve(ROOT, "public");
 const GROUND = "#0c0d10";
 const ACCENT = "#ff5a32";
 
-/** A 4×4 pattern. 0 = off; 1–4 = intensity. Draws an ascending diagonal. */
+// 0 = off; 1–4 = intensity.
 const PATTERN = [
   [0, 1, 2, 4],
   [1, 2, 4, 3],
@@ -29,14 +21,11 @@ const PATTERN = [
 
 const OPACITY = { 0: 0.14, 1: 0.34, 2: 0.55, 3: 0.78, 4: 1 };
 
-/**
- * @param {number} size  canvas side length
- * @param {number} inset fraction of the canvas left free on each edge.
- *                       Maskable icons need ~20% of safe margin.
- */
+// `inset` is the free fraction per edge; maskable icons need ~20% safe margin.
 function buildSvg(size, inset) {
   const area = size * (1 - inset * 2);
   const origin = size * inset;
+  // Safe margin ~20% for maskable icons.
   const gap = area * 0.075;
   const cell = (area - gap * 3) / 4;
   const radius = cell * 0.22;
@@ -59,9 +48,8 @@ async function png(svg, size, outPath) {
 
 await mkdir(resolve(PUBLIC, "icons"), { recursive: true });
 
-// Regular icon: the mark fills nearly the whole canvas.
 const standard = buildSvg(512, 0.14);
-// Maskable: generous margins so no system crop clips it.
+// Generous margins so no system crop clips it.
 const maskable = buildSvg(512, 0.24);
 
 console.log("Generando iconos:");

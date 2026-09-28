@@ -21,8 +21,7 @@ const SEARCH_INDEX = new Map(
   EXERCISES.map((e) => [e.id, buildSearchIndex(e, muscleLabel, equipmentLabel)]),
 );
 
-// In body order and not alphabetical: finding "hombros" next to "pecho" is
-// faster than remembering which letter it starts with.
+// Body order, not alphabetical: easier to scan.
 const MUSCLE_ORDER = MUSCLES.filter((m) =>
   availableMuscles(EXERCISES).includes(m),
 );
@@ -55,13 +54,8 @@ function Chip({
 }
 
 /**
- * The catalog, in two modes.
- *
- * With `?dia=…&rutina=…` the same screen serves to **pick** an exercise and
- * add it to that day. There is no second search box on the day screen: that
- * would be two searches to maintain, with two sets of filters that resemble
- * each other less and less. The mode lives in the URL and not in navigation
- * state so the phone's back gesture works.
+ * With `?dia=…&rutina=…` it picks an exercise for that day, so there's only
+ * one search to maintain. The mode lives in the URL so the back gesture works.
  */
 export function ExercisesPage() {
   const [params] = useSearchParams();
@@ -87,8 +81,7 @@ export function ExercisesPage() {
     addExercise.mutate(
       { dayId, exerciseId },
       {
-        // `replace` so going back from the day lands on the routine and not
-        // on the catalog again with the exercise already added.
+        // `replace` so going back doesn't return to the catalog.
         onSuccess: () =>
           navigate(`/rutinas/${routineId}/dias/${dayId}`, { replace: true }),
       },
@@ -125,8 +118,7 @@ export function ExercisesPage() {
         />
       </label>
 
-      {/* The filters scroll horizontally: on a phone, 17 muscles don't fit
-          in a grid without eating the screen. */}
+      {/* 17 muscles in a grid would eat a phone screen. */}
       <div className="-mx-4 mt-3 flex gap-2 overflow-x-auto px-4 pb-1">
         {MUSCLE_ORDER.map((m) => (
           <Chip

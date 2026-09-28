@@ -34,16 +34,13 @@ export default defineConfig({
         ],
       },
       workbox: {
-        // Las imágenes de ejercicios son assets del bundle: entran al
-        // precache y por eso la biblioteca funciona sin señal.
+        // webp included so exercise images are precached and work offline.
         globPatterns: ["**/*.{js,css,html,svg,png,webp,ico,woff2}"],
-        // El catálogo de ejercicios con imágenes puede pasar los 2 MB
-        // por archivo que Workbox permite por defecto.
+        // The exercise catalog chunk can exceed Workbox's 2 MB default.
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
         navigateFallback: "index.html",
         runtimeCaching: [
           {
-            // Después de la primera visita la tipografía queda offline.
             urlPattern: /^https:\/\/fonts\.(googleapis|gstatic)\.com\//,
             handler: "CacheFirst",
             options: {

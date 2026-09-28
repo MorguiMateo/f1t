@@ -12,9 +12,8 @@ export function SignInScreen() {
 
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
-      // Returns to the origin it left from: works the same on localhost, on
-      // Vercel and later under Capacitor's scheme. It has to be on the
-      // allowlist under Authentication → URL Configuration.
+      // Works on localhost, Vercel and Capacitor alike, but each origin must be
+      // allowlisted in Supabase under Authentication → URL Configuration.
       options: { redirectTo: window.location.origin },
     });
 

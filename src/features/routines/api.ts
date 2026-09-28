@@ -1,22 +1,5 @@
-/**
- * Every read and write against the `routine_*` tables.
- *
- * No React in here: these are plain async functions and the hooks live in
- * `queries.ts`. That way, the day a routine has to be resolved outside a
- * component — building the Phase 6 `WidgetPayload`, say — you just call the
- * function and you're done.
- *
- * Three things the schema handles, which is why they don't show up here:
- *
- * - **`user_id` is never sent.** All of those columns default to
- *   `auth.uid()` and the policy's `with check` rejects anything that isn't
- *   yours. Sending it from the client would be redundant, and a lie about
- *   who gets to decide identity.
- * - **Cascading deletes.** Deleting a routine takes its days with it, and
- *   deleting a day takes its exercises.
- * - **Parent/child consistency.** The composite FK `(routine_id, user_id)`
- *   makes hanging a day off somebody else's routine an integrity error.
- */
+// `user_id` is never sent: it defaults to `auth.uid()` and RLS `with check`
+// rejects anyone else's. Cascading deletes are also left to the schema.
 
 import type { Tables } from "../../lib/database.types";
 import { unwrap, unwrapRow } from "../../lib/postgrest";
@@ -26,17 +9,13 @@ export type Routine = Tables<"routines">;
 export type RoutineDayRow = Tables<"routine_days">;
 export type RoutineExercise = Tables<"routine_exercises">;
 
-/** A day with its exercises already sorted by `position`. */
 export type RoutineDay = RoutineDayRow & { exercises: RoutineExercise[] };
 
-/** A whole routine: what both the editor and the Today tab need. */
 export type RoutineDetail = Routine & { days: RoutineDay[] };
 
-/** The list row: the routine plus how many days it has. */
 export type RoutineSummary = Routine & { dayCount: number };
 
-// A whole routine is a few KB, so it travels in a single round trip with
-// nested embeds instead of three chained queries.
+// A whole routine is a few KB, so one nested embed beats three chained queries.
 const DETAIL_SELECT =
   "*, routine_days(*, routine_exercises(*))";
 
@@ -44,14 +23,8 @@ type DetailRow = Routine & {
   routine_days: (RoutineDayRow & { routine_exercises: RoutineExercise[] })[];
 };
 
-/**
- * Ordering is imposed here and not in the query.
- *
- * PostgREST can order embedded resources, but this is seven days and a
- * handful of exercises: sorting in memory is free and keeps the ordering
- * written somewhere you actually read, instead of scattered across query
- * modifiers.
- */
+// Sorted in memory rather than via PostgREST embed ordering: seven days and a
+// handful of exercises cost nothing, and the ordering stays readable here.
 function toDetail(row: DetailRow): RoutineDetail {
   const { routine_days, ...routine } = row;
   return {
@@ -65,13 +38,8 @@ function toDetail(row: DetailRow): RoutineDetail {
   };
 }
 
-// ---------------------------------------------------------------------------
-// Reads
-// ---------------------------------------------------------------------------
-
 export async function fetchRoutines(): Promise<RoutineSummary[]> {
-  // `routine_days(count)` is a PostgREST aggregate: it brings back the number
-  // of days without bringing the days. The list needs nothing else from them.
+  // PostgREST aggregate: returns the day count without fetching the days.
   const rows =
     unwrap(
       await supabase
@@ -99,11 +67,7 @@ export async function fetchRoutineDetail(
   return row ? toDetail(row) : null;
 }
 
-/**
- * The active routine, with everything inside it. This is the Today tab's
- * query. `maybeSingle` rather than `single`: having no active routine is a
- * normal state, not an error.
- */
+// `maybeSingle`: having no active routine is a normal state, not an error.
 export async function fetchActiveRoutine(): Promise<RoutineDetail | null> {
   const row = unwrap(
     await supabase
@@ -114,10 +78,6 @@ export async function fetchActiveRoutine(): Promise<RoutineDetail | null> {
   );
   return row ? toDetail(row) : null;
 }
-
-// ---------------------------------------------------------------------------
-// Routines
-// ---------------------------------------------------------------------------
 
 export async function createRoutine(input: {
   name: string;
@@ -148,15 +108,9 @@ export async function deleteRoutine(routineId: string): Promise<void> {
   unwrap(await supabase.from("routines").delete().eq("id", routineId));
 }
 
-/**
- * Activating a routine means switching off the previous one and switching on
- * this one, **in that order**.
- *
- * `routines_one_active_idx` is a partial unique index on `user_id` where
- * `is_active`: switching this one on first would leave two active for an
- * instant and Postgres would reject the update. `eq("is_active", true)` is
- * filter enough because RLS already limits the update to your own rows.
- */
+// Deactivate first: the partial unique index `routines_one_active_idx` would
+// reject two active routines even for an instant. RLS scopes the unfiltered
+// `eq("is_active", true)` update to the user's own rows.
 export async function activateRoutine(routineId: string): Promise<void> {
   unwrap(
     await supabase
@@ -171,10 +125,6 @@ export async function activateRoutine(routineId: string): Promise<void> {
       .eq("id", routineId),
   );
 }
-
-// ---------------------------------------------------------------------------
-// Days
-// ---------------------------------------------------------------------------
 
 export async function createDay(input: {
   routineId: string;
@@ -210,16 +160,8 @@ export async function deleteDay(dayId: string): Promise<void> {
   unwrap(await supabase.from("routine_days").delete().eq("id", dayId));
 }
 
-// ---------------------------------------------------------------------------
-// Exercises within a day
-// ---------------------------------------------------------------------------
-
-/**
- * Appends at the end. The position is read from the database and not from
- * client state: the exercise is picked from the catalog, which is a different
- * screen, and dragging the day's list all the way over there just to count
- * would be worse.
- */
+// The next position comes from the database because the exercise is picked on
+// the catalog screen, which doesn't have the day's list in hand.
 export async function addExerciseToDay(input: {
   dayId: string;
   exerciseId: string;
@@ -247,11 +189,6 @@ export async function addExerciseToDay(input: {
   );
 }
 
-/**
- * Changes sets/reps/notes on a routine exercise. The patch uses the column
- * names on purpose: a name-translation layer for three fields only adds one
- * more place to get them wrong.
- */
 export async function updateRoutineExercise(input: {
   id: string;
   patch: {
@@ -272,14 +209,9 @@ export async function removeRoutineExercise(id: string): Promise<void> {
   unwrap(await supabase.from("routine_exercises").delete().eq("id", id));
 }
 
-/**
- * Reordering is swapping the positions of two neighbouring rows.
- *
- * There is no unique constraint on `(routine_day_id, position)`, so both
- * updates can go in parallel without passing through a temporary value. If
- * one failed, the worst case is two exercises sharing a position: the order
- * looks odd, nothing is lost, and tapping the arrow again fixes it.
- */
+// No unique constraint on `(routine_day_id, position)`, so both updates run in
+// parallel with no temporary value. A partial failure only leaves two exercises
+// sharing a position, which the next swap fixes.
 export async function swapExercisePositions(input: {
   a: { id: string; position: number };
   b: { id: string; position: number };

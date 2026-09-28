@@ -1,10 +1,6 @@
 /**
- * The React Query hooks on top of `sessions/api.ts`.
- *
- * Same rule as routines: every mutation invalidates the **whole**
- * `["sessions"]` tree. Ticking a set changes today's detail, the `set_count`
- * that draws the heatmap and the streak; splitting them apart would mean
- * maintaining a dependency table to save a few KB for a single user.
+ * Every mutation invalidates the whole `["sessions"]` tree: ticking a set
+ * changes today's detail, set_count (heatmap), and streak.
  */
 
 import {
@@ -36,13 +32,8 @@ export const sessionKeys = {
 };
 
 /**
- * The days trained that fit inside the heatmap.
- *
- * The range comes from `heatmapStart()` and not from a local calculation: the
- * same file that decides where the grid begins decides what the query asks
- * for, so it fetches exactly what gets drawn. Since it depends on today's
- * date, the key includes `since`: past midnight the query rolls over on its
- * own.
+ * `heatmapStart()` keeps the fetched range identical to the drawn grid, and
+ * `since` in the key makes the query roll over at midnight.
  */
 export function useSessionDays(weeks: number = WIDGET_WEEKS) {
   const since = heatmapStart({ weeks });
@@ -59,7 +50,6 @@ export function useSessionForDate(date: string = today()) {
   });
 }
 
-/** Last time this routine day was trained. With no day there is nothing to ask. */
 export function usePreviousSession(
   routineDayId: string | null | undefined,
   before: string = today(),
@@ -69,8 +59,7 @@ export function usePreviousSession(
     queryFn: () =>
       fetchPreviousSession({ routineDayId: routineDayId as string, before }),
     enabled: Boolean(routineDayId),
-    // The past does not change while you train: no need to refetch it every
-    // time a set is ticked.
+    // The past doesn't change mid-workout; skip refetching on every tick.
     staleTime: Infinity,
   });
 }
@@ -86,12 +75,8 @@ function useSessionMutation<TArgs, TResult>(
 }
 
 /**
- * Tick a set, creating the day's session if it doesn't exist yet.
- *
- * The two go together in one mutation because from the screen they are a
- * single gesture: the first tap of the day has to record the set, not ask
- * first for a "start workout" that accomplishes nothing. `sessionId` comes in
- * when the screen already knows it, and then the round trip is saved.
+ * Creates session if needed: from the screen it's a single gesture, not a
+ * separate "start workout". `sessionId` comes in to save a round trip.
  */
 export function useLogSet(): UseMutationResult<
   SessionSet,

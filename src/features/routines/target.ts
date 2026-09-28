@@ -1,13 +1,5 @@
-/**
- * How an exercise's target is written out.
- *
- * It lives in its own module and not next to the component that draws it
- * because two consumers use it: the on-screen line and the `WidgetPayload`
- * the iOS widget reads. Two formatters for the same value drift apart the
- * moment one of them changes.
- */
-
-/** "3 × 8-12", or whatever is known. No em dashes: an empty target is valid. */
+// Shared with the iOS widget payload so both render the target identically.
+// An empty target is valid, so it returns null rather than a placeholder dash.
 export function targetLabel(
   sets: number | null,
   reps: string | null,

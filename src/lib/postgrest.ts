@@ -1,11 +1,6 @@
 /**
- * The two helpers that turn a PostgREST response into something React Query
- * understands.
- *
- * The Supabase client returns `{ data, error }` and **never throws**. React
- * Query tells data from error by the exception, so without these two a
- * permissions failure reaches the screen as a silent "there's nothing here",
- * which is the worst way to fail: the app looks like it works.
+ * The Supabase client never throws, but React Query detects errors by
+ * exception; without these, a permissions failure shows up as an empty list.
  */
 
 import type { PostgrestError } from "@supabase/supabase-js";
@@ -19,9 +14,8 @@ export function unwrap<T>(result: {
 }
 
 /**
- * The same, for writes that return the row they just wrote. A null there
- * isn't "there's nothing", it is an insert the policy let through whose
- * `returning` never came back: better to find out here.
+ * For writes that return their row: null means the policy let the write
+ * through but its `returning` was hidden, not "nothing".
  */
 export function unwrapRow<T>(result: {
   data: T | null;
@@ -32,7 +26,7 @@ export function unwrapRow<T>(result: {
   return data;
 }
 
-/** Unique violation. This is Postgres' code, not PostgREST's. */
+// Postgres error code for unique constraint violation.
 export const UNIQUE_VIOLATION = "23505";
 
 export function isUniqueViolation(error: PostgrestError | null): boolean {

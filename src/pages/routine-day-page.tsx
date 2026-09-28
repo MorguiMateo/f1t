@@ -15,14 +15,8 @@ import {
 } from "../features/routines/queries";
 import { weekdayLabel } from "../features/routines/weekdays";
 
-/**
- * A day's editor: which exercises, in what order and with what target.
- *
- * It reads the whole routine and finds the day inside it rather than asking
- * for the day alone. It is the same query already in cache from the routine
- * detail, so coming in here fires no request and neither does going back.
- */
-/** A few `RoutineExerciseItem`s: the exercise and its two target inputs. */
+// Reads the whole routine and picks the day from it: that query is already
+// cached from the detail screen, so navigating here fires no request.
 function DaySkeleton() {
   return (
     <SkeletonGroup>
@@ -114,8 +108,7 @@ export function RoutineDayPage() {
         />
       )}
 
-      {/* The whole catalog in "pick" mode, with its search and its filters.
-          Duplicating a small one here would mean maintaining two searches. */}
+      {/* Reuses the catalog in "pick" mode instead of maintaining a second search. */}
       <Link
         to={`/ejercicios?dia=${day.id}&rutina=${routine.id}`}
         className="mt-3 block rounded-xl border border-accent bg-accent px-5 py-3 text-center text-sm font-medium text-accent-ink transition-opacity hover:opacity-90"

@@ -15,7 +15,6 @@ import {
   muscleLabel,
 } from "../lib/muscles";
 
-/** The dataset's two photos are the start and the end of the movement. */
 function imageAlt(name: string, index: number): string {
   return index === 0
     ? `${name}: posición inicial`
@@ -62,8 +61,7 @@ export function ExerciseDetailPage() {
         onBack={() => navigate(-1)}
       />
 
-      {/* The two photos are the start and end of the movement, so they go
-          together and in order: one alone says nothing. Tapping enlarges them. */}
+      {/* Start and end of the movement: one alone says nothing. */}
       <div className="grid grid-cols-2 gap-2">
         {exercise.images.map((src, i) => (
           <button

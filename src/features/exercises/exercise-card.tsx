@@ -17,8 +17,7 @@ export function ExerciseCard({
 }) {
   const content = (
     <>
-      {/* Explicit width/height: 480×320 is 3:2, so there is no layout shift
-          while the image loads. */}
+      {/* Explicit size avoids layout shift while loading. */}
       <img
         src={exercise.images[0]}
         alt=""
@@ -42,9 +41,8 @@ export function ExerciseCard({
 
   return (
     <li>
-      {/* Same content, two semantics: navigating is a link and picking is a
-          button. A link that actually performs an INSERT breaks middle-click,
-          "open in new tab" and the screen reader. */}
+      {/* Picking is a button: a link that performs an INSERT breaks
+          middle-click, "open in new tab" and screen readers. */}
       {onSelect ? (
         <button
           type="button"

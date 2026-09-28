@@ -7,7 +7,6 @@ const WEDNESDAY = new Date(2026, 8, 2);
 
 function render(markup: string) {
   return {
-    /** One cell per day: the only thing the grid can have too many or too few of. */
     cells: markup.match(/rounded-\[2px\]/g)?.length ?? 0,
     markup,
   };

@@ -1,16 +1,3 @@
-/**
- * The React Query hooks on top of `api.ts`.
- *
- * One decision that holds for every mutation in this file: on success it
- * invalidates the **whole** `["routines"]` tree and not the specific key it
- * touched. Renaming a routine changes the list, the detail and — if it's
- * active — the Today tab; adding an exercise changes the detail and the
- * list's counter. Narrowing what to invalidate would mean inventing a
- * dependency table to save one request of a few KB over a single user's
- * data. Everything gets invalidated and there is no way for something stale
- * to stay on screen.
- */
-
 import {
   useMutation,
   useQuery,
@@ -49,11 +36,8 @@ export function useRoutines() {
   });
 }
 
-/**
- * A routine's detail. `routineId` can come in undefined because it comes
- * from `useParams()`, which guarantees nothing; with no id the query is
- * disabled instead of requesting `/routines?id=eq.undefined`.
- */
+// `routineId` comes from `useParams()`; without it the query stays disabled
+// instead of requesting `/routines?id=eq.undefined`.
 export function useRoutineDetail(routineId: string | undefined) {
   return useQuery({
     queryKey: routineKeys.detail(routineId ?? ""),
@@ -69,7 +53,9 @@ export function useActiveRoutine() {
   });
 }
 
-/** The wrapper that applies the invalidation described above. */
+// Every mutation invalidates the whole `["routines"]` tree: one change touches
+// the list, the detail and the Today tab, and tracking which keys depend on
+// what would cost more than refetching a few KB.
 function useRoutineMutation<TArgs, TResult>(
   mutationFn: (args: TArgs) => Promise<TResult>,
 ): UseMutationResult<TResult, Error, TArgs> {

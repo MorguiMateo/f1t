@@ -1,27 +1,13 @@
-/**
- * How many set rows to show and what to put in each one.
- *
- * This is the part of logging that depends on neither React nor the network:
- * given the day's target, what has already been ticked today and what was
- * done last time, it builds the grid that gets drawn. It lives apart so it
- * can be tested without mounting a screen, which is where this arithmetic
- * breaks without anyone noticing.
- */
-
 import type { RoutineExercise } from "../routines/api";
 import type { SessionSet } from "./api";
 
 export type PlannedSet = {
-  /** `session_sets.set_index`, zero-based. */
   setIndex: number;
-  /** The row already ticked today, if there is one. */
   done: SessionSet | null;
-  /** The same set last time, so you know what it was done with. */
   previous: SessionSet | null;
 };
 
 export type ExercisePlan = {
-  /** `routine_exercises.id`. */
   id: string;
   exerciseId: string;
   targetSets: number | null;
@@ -39,13 +25,8 @@ function bySetIndex(sets: readonly SessionSet[], exerciseId: string) {
 }
 
 /**
- * How many rows to draw for one exercise.
- *
- * The target rules, but never downwards: if more sets were ticked than
- * planned, all of them show. And if they are all ticked one more empty row
- * appears, because "one more" is decided in the moment and not back when the
- * routine was written; without that row you would have to go edit the day
- * just to record it.
+ * Never fewer rows than sets already ticked. Once all are ticked an extra empty
+ * row appears, so an unplanned extra set doesn't require editing the routine.
  */
 function rowCount(
   targetSets: number | null,
@@ -60,9 +41,8 @@ function rowCount(
 
 export function planExercise(input: {
   item: Pick<RoutineExercise, "id" | "exercise_id" | "target_sets" | "target_reps">;
-  /** Today's sets, for any exercise: they get filtered here. */
+  /** Sets for every exercise; filtered here. */
   logged: readonly SessionSet[];
-  /** Last time's sets, same deal. */
   previous: readonly SessionSet[];
 }): ExercisePlan {
   const { item } = input;
@@ -104,12 +84,8 @@ export function planWorkout(input: {
 }
 
 /**
- * The first number in a rep target. "8-12" becomes 8, "to failure" becomes
- * null.
- *
- * The first and not the last: it is the number you commit to, and correcting
- * it upwards after doing twelve is one tap; finding out twelve got recorded
- * when you did eight, on the other hand, goes unnoticed.
+ * "8-12" becomes 8: under-suggesting is fixed with one tap, while an
+ * over-suggested 12 recorded when you did 8 goes unnoticed.
  */
 export function parseTargetReps(targetReps: string | null): number | null {
   if (!targetReps) return null;
@@ -117,7 +93,6 @@ export function parseTargetReps(targetReps: string | null): number | null {
   return match ? Number(match[0]) : null;
 }
 
-/** The values a row that hasn't been ticked yet starts out with. */
 export function suggestFor(
   set: PlannedSet,
   targetReps: string | null,
@@ -130,9 +105,7 @@ export function suggestFor(
 
 export type WorkoutTotals = {
   doneSets: number;
-  /** The sets the day asks for. Extra rows don't count as outstanding. */
   plannedSets: number;
-  /** Σ reps × kg of what was ticked. Sets without a weight add nothing. */
   volumeKg: number;
 };
 
@@ -156,7 +129,6 @@ export function workoutTotals(
   return { doneSets, plannedSets, volumeKg };
 }
 
-/** "8 de 12 series". What goes at the very top while you train. */
 export function progressLabel(totals: WorkoutTotals): string {
   if (!totals.plannedSets) return "Sin series todavía";
   return `${totals.doneSets} de ${totals.plannedSets} series`;

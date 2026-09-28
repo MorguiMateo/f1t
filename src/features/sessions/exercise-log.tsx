@@ -5,18 +5,8 @@ import { suggestFor } from "./plan";
 import { useLogSet, useUnlogSet } from "./queries";
 
 /**
- * One exercise while you train: its sets, one row each.
- *
- * The gesture that has to cost a single tap is ticking a set done with
- * whatever is already suggested — last time's weight and the target's reps —
- * because that is the one repeated fifteen times a session with the phone
- * propped on the bench. Changing a number is the rare case, which is why it
- * is the one that takes two taps.
- *
- * The inputs are uncontrolled, same as in the routine editor: the value lives
- * in the DOM and is read when you tick or when you leave the field.
- * Controlling them would mean re-syncing on every React Query invalidation,
- * which is where fields that clear themselves as you type come from.
+ * Uncontrolled inputs: ticking with suggested values is the single-tap case.
+ * Controlling them would re-sync on every React Query invalidation.
  */
 
 // `session_sets.weight_kg` is numeric(6,2).
@@ -91,7 +81,6 @@ function SetRow({
     save();
   }
 
-  /** Editing an already-ticked set saves it again; otherwise there's nothing to save. */
   function saveIfDone() {
     if (isDone) save();
   }
@@ -110,9 +99,8 @@ function SetRow({
           inputMode="numeric"
           min={0}
           max={MAX_REPS}
-          // `key` keyed on the stored value: when the mutation comes back with
-          // a different number — or when the set is unticked — the input
-          // remounts with the new value instead of keeping what was typed.
+          // Keyed on the stored value so the input remounts with it after a
+          // save or untick instead of keeping what was typed.
           key={`reps-${set.done?.reps ?? "none"}`}
           defaultValue={suggested.reps ?? ""}
           placeholder="reps"
@@ -140,8 +128,7 @@ function SetRow({
         />
       </label>
 
-      {/* The only large control in the row: it is the one tapped on every set,
-          with your hands full. */}
+      {/* The only large control: it's tapped on every set, hands full. */}
       <button
         type="button"
         onClick={toggle}

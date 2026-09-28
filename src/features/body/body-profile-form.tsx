@@ -17,21 +17,10 @@ import {
 } from "./profile";
 
 /**
- * Height, birth date, sex and goal: what Phase 5.4 needs to compute a BMI and
- * a TDEE, and what Phase 5.3 needs to draw the target line on the chart.
- *
- * It saves field by field on blur, with no save button, the same way the
- * exercise rows of Phase 3 do. A profile isn't filled in once and left
- * alone — the target weight is the field you come back to — and a save
- * button turns "I changed my goal" into two taps plus the risk of walking
- * away from a form that looks done and saved nothing.
- *
- * The inputs are uncontrolled for the same reason as in
- * `routine-exercise-item.tsx`: the value lives in the DOM, only what changed
- * is sent, and nothing re-syncs them mid-typing. The one place that would
- * break — the profile arriving after the first paint, when `defaultValue`
- * has already been read — doesn't happen here, because the page holds the
- * form back until the query resolves.
+ * Saves field by field on blur with no save button: the target weight is
+ * revisited often, and a button risks leaving a form that looks saved and
+ * isn't. Inputs are uncontrolled, which only works because the page holds the
+ * form back until the profile loads (`defaultValue` is read once).
  */
 
 function Field({
@@ -57,13 +46,6 @@ function Field({
 const INPUT_CLASS =
   "mt-1.5 w-full rounded-xl border border-line bg-surface-2 px-4 py-3 text-sm placeholder:text-muted tnum";
 
-/**
- * A row of mutually exclusive options.
- *
- * Buttons and not a `<select>`: there are two or three choices, they all fit
- * on one line of a phone, and a native picker hides the options behind a tap
- * for no gain. `aria-pressed` is what tells a screen reader which one is on.
- */
 function Choice<T extends string>({
   legend,
   options,
@@ -88,9 +70,8 @@ function Choice<T extends string>({
               key={option.value}
               type="button"
               aria-pressed={isOn}
-              // Tapping the selected option clears it. Sex is optional in the
-              // schema and there is no third value to move to, so without
-              // this the only way back out of an accidental tap would be SQL.
+              // Tapping the selected option clears it, the only way to unset
+              // the optional sex after an accidental tap.
               onClick={() => onSelect(isOn ? null : option.value)}
               className={[
                 "flex-1 rounded-xl border px-3 py-2.5 text-sm font-medium transition-colors disabled:opacity-50",
@@ -118,11 +99,6 @@ function Choice<T extends string>({
   );
 }
 
-/**
- * The form's shape while the profile loads: each field's label over a block
- * the height of its input — 46 px for the text fields, 42 for the sex
- * buttons and 60 for the goal ones, which carry a hint line.
- */
 export function BodyProfileFormSkeleton() {
   const field = (input: string, count = 1) => (
     <div>
@@ -160,13 +136,7 @@ export function BodyProfileForm({ profile }: { profile: BodyProfile | null }) {
     save.mutate(patch);
   }
 
-  /**
-   * The shape every numeric field shares: parse, drop the write if the value
-   * didn't move, and put the stored value back if what was typed wasn't a
-   * number. Reverting in the input is the only feedback that fits — an error
-   * message for "alto" in a centimetres field explains something the user
-   * already knows.
-   */
+  // Non-number reverts to stored value; error message wouldn't add information.
   function saveMeasure(
     event: FocusEvent<HTMLInputElement>,
     range: typeof HEIGHT_RANGE | typeof WEIGHT_RANGE,
@@ -180,8 +150,7 @@ export function BodyProfileForm({ profile }: { profile: BodyProfile | null }) {
       return;
     }
 
-    // The clamped value goes back into the field, so 900 visibly becomes 260
-    // instead of being silently stored as something else.
+    // Shown back so 900 visibly becomes 260 instead of silently stored.
     event.target.value = parsed?.toString() ?? "";
     if (parsed === current) return;
     commit(apply(parsed));
@@ -203,8 +172,7 @@ export function BodyProfileForm({ profile }: { profile: BodyProfile | null }) {
     <section className="rounded-xl border border-line bg-surface p-5">
       <div className="flex items-baseline justify-between gap-3">
         <h2 className="font-semibold">Datos corporales</h2>
-        {/* No save button means no moment that confirms the write, so the
-            confirmation has to live here. */}
+        {/* With no save button, this is the only write confirmation. */}
         <span aria-live="polite" className="text-xs text-muted">
           {save.isPending ? "Guardando…" : null}
         </span>
@@ -213,11 +181,8 @@ export function BodyProfileForm({ profile }: { profile: BodyProfile | null }) {
       <div className="mt-4 space-y-4">
         <Field label="Altura" hint="cm">
           <input
-            // `type="text"` and not `type="number"`: a number input whose
-            // content isn't a valid number reports its value as the empty
-            // string, which is indistinguishable from a field the user
-            // cleared on purpose — so a slip like "1.7.8" would wipe the
-            // stored height. `inputMode` still brings up the numeric keypad.
+            // Not `type="number"`: it reports invalid text like "1.7.8" as "",
+            // indistinguishable from a cleared field, which would wipe the height.
             type="text"
             inputMode="numeric"
             defaultValue={profile?.height_cm ?? ""}
@@ -257,18 +222,14 @@ export function BodyProfileForm({ profile }: { profile: BodyProfile | null }) {
           options={GOALS}
           value={goal}
           disabled={save.isPending}
-          // `goal` is `not null` in the schema: clearing it falls back to the
-          // column's own default rather than writing a null the check would
-          // reject.
+          // `goal` is `not null`: clearing falls back to the column default.
           onSelect={(value) => commit({ goal: value ?? "maintain" })}
         />
 
         <Field label="Peso objetivo" hint="kg, opcional">
           <input
-            // Same as the height, plus one of its own: `type="number"` only
-            // accepts a period, and the decimal separator under the thumb of
-            // a Spanish keypad is the comma. "81,5" would arrive empty and
-            // clear the target instead of setting it.
+            // Also, `type="number"` rejects the comma of a Spanish keypad, so
+            // "81,5" would arrive empty and clear the target.
             type="text"
             inputMode="decimal"
             defaultValue={profile?.target_weight_kg ?? ""}

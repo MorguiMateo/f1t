@@ -2,15 +2,8 @@ import { Link } from "react-router";
 import type { RoutineDay } from "./api";
 import { ExerciseLine } from "./exercise-line";
 
-/**
- * Today's workout.
- *
- * It lives in its own module because it imports the catalog — for the photo
- * and the name — and the Today tab is the index route: if this were imported
- * statically, `catalog.json` would travel in the whole app's initial chunk.
- * The tab paints all the same and this block arrives an instant later, which
- * is time already spent waiting on Supabase's response anyway.
- */
+// Its own lazy module because it imports the catalog; statically imported
+// from the index route, `catalog.json` would land in the initial chunk.
 export function TodayWorkout({
   day,
   routineId,

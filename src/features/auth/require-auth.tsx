@@ -3,19 +3,13 @@ import { PageSkeleton } from "../../components/skeleton";
 import { useSession } from "./session";
 import { SignInScreen } from "./sign-in-screen";
 
-/**
- * The route guard. It wraps everything that needs a `user_id`.
- *
- * It does not redirect to /login: the app is single-user and nothing is
- * public, so the sign-in screen takes the content's place. That also avoids
- * the flicker of a navigation at startup.
- */
+// No redirect to /login: nothing is public, so the sign-in screen replaces
+// the content, avoiding a navigation flicker at startup.
 export function RequireAuth() {
   const { session, isLoading } = useSession();
 
-  // Without this the sign-in screen would flash every time you reload with a
-  // valid session, because reading storage isn't synchronous. The frame is
-  // `AppLayout`'s `<main>`, so the skeleton sits where the first tab will.
+  // Reading storage is async; without this the sign-in screen flashes on
+  // every reload. The wrapper mirrors `AppLayout`'s `<main>`.
   if (isLoading) {
     return (
       <div className="min-h-dvh bg-ground">

@@ -8,17 +8,10 @@ import {
 } from "../../lib/heatmap";
 
 /**
- * The activity calendar. The first real consumer of the Phase 0 contract: it
- * draws exactly the array the SwiftUI `Heatmap` will later render.
- *
- * **Intensity is encoded with opacity, not hue** (PLAN.md §5.4). This is not
- * an aesthetic preference: on iOS 26 the Clear and Tint modes flatten widget
- * colour to monochrome, so a scale of hues collapses into one uniform block.
- * An opacity scale survives both modes, and as a bonus works identically in
- * light and dark themes because the accent already follows the theme.
+ * Intensity is encoded with opacity, not hue: iOS 26 Clear and Tint widget
+ * modes flatten colour to monochrome, which would collapse a hue scale.
  */
 
-/** One value per level 1–4. Level 0 uses no accent: it is the empty-day background. */
 const OPACITY = [0, 0.26, 0.48, 0.72, 1];
 
 const DAY_FORMATTER = new Intl.DateTimeFormat("es", {
@@ -29,7 +22,6 @@ const DAY_FORMATTER = new Intl.DateTimeFormat("es", {
 
 const MONTH_FORMATTER = new Intl.DateTimeFormat("es", { month: "short" });
 
-/** Only three of the seven: all seven and the text won't fit beside the grid. */
 const ROW_LABELS = ["Lun", "", "Mié", "", "Vie", "", ""];
 
 function cellTitle(date: string, sets: number): string {
@@ -52,7 +44,6 @@ export function Heatmap({
     [sessions, weeks, endDate],
   );
 
-  // The month label sits above the first column that falls in that month.
   const months = useMemo(() => {
     const labels: { column: number; label: string }[] = [];
     let last = "";
@@ -96,9 +87,7 @@ export function Heatmap({
             ))}
           </div>
 
-          {/* A single accessible element: 182 cells announced one by one are
-              not information, they are noise. Each day's detail stays in the
-              `title`, which is what shows on a long press. */}
+          {/* One accessible element; per-day detail stays in `title`. */}
           <div
             className="grid grid-flow-col gap-[2px]"
             style={{ ...columns, gridTemplateRows: "repeat(7, minmax(0, 1fr))" }}

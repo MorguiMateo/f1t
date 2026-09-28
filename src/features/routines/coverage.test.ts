@@ -15,14 +15,13 @@ describe("muscleCoverage", () => {
   });
 
   it("separa primarios de secundarios", () => {
-    // Bench press: chest primary; shoulders and triceps secondary.
     const coverage = muscleCoverage([BENCH]);
     expect(coverage.primary).toEqual(["chest"]);
     expect(coverage.secondary).toEqual(["shoulders", "triceps"]);
   });
 
   it("no cuenta dos veces un músculo que es primario en otro ejercicio", () => {
-    // The curl makes biceps primary, which in pull-ups are secondary.
+    // Biceps are secondary in pull-ups but primary in curls.
     const coverage = muscleCoverage([PULLUPS, CURL]);
     expect(coverage.primary).toContain("biceps");
     expect(coverage.secondary).not.toContain("biceps");
@@ -36,9 +35,7 @@ describe("muscleCoverage", () => {
   it("marca como falta solo los grupos grandes sin trabajo", () => {
     const coverage = muscleCoverage([BENCH, SQUAT, PULLUPS]);
     expect(coverage.missing).not.toContain("chest");
-    // Nobody touched abs across those three.
     expect(coverage.missing).toContain("abdominals");
-    // Neck and abductors aren't key groups: they are never reported as debt.
     expect(coverage.missing).not.toContain("neck");
     expect(coverage.missing).not.toContain("abductors");
   });

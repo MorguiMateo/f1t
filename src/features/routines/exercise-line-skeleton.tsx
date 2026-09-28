@@ -1,12 +1,7 @@
 import { Skeleton, SkeletonLine } from "../../components/skeleton";
 
-/**
- * The placeholder for an `<ExerciseLine>`: photo, name and target.
- *
- * Its own file and not next to `ExerciseLine` on purpose. That one imports
- * the catalog and is only reachable through `lazy()`; this one is shown
- * precisely while those chunks download, so it has to live outside them.
- */
+// Kept apart from `ExerciseLine`, which pulls in the catalog: this renders
+// while those lazy chunks download, so it must live outside them.
 export function ExerciseLineSkeleton() {
   return (
     <div className="flex items-center gap-3">

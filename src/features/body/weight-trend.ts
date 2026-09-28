@@ -1,52 +1,37 @@
 /**
- * The weight chart's geometry, with no React and no network.
- *
- * Same split as `heatmap.ts` → `heatmap.tsx`: every number the chart needs is
- * computed here, in SVG coordinates, and `weight-chart.tsx` only draws. That
- * keeps the maths testable, and keeps it portable to the widget in Phase 6,
- * where a React component is worth nothing but an array of points is not.
- *
- * Three layers go on the chart:
- *
- * - **The measurements**, faint. A single weigh-in swings ±1 kg with water,
- *   salt and the last meal, so it is the least trustworthy thing on screen.
- * - **The trend**, a trailing average over calendar days. It is the line to
- *   read.
- * - **The target**, a horizontal line at the profile's `target_weight_kg`.
+ * Chart geometry with no React, like `heatmap.ts` → `heatmap.tsx`: the maths
+ * stays testable and portable to the Phase 6 widget, where only an array of
+ * points is useful. A single weigh-in swings ±1 kg with water and salt, so
+ * the trailing-average trend is the line to read.
  */
 
 import { fromDateKey, toDateKey } from "../../lib/heatmap";
 import { round1, type WeightPoint } from "./weight";
 
-/** The drawing's own units. The SVG scales them to whatever width it gets. */
 export const CHART_WIDTH = 320;
 export const CHART_HEIGHT = 160;
 
 /** Room for the kg labels on the left and the month labels below. */
 const PLOT = { left: 30, right: CHART_WIDTH - 6, top: 10, bottom: CHART_HEIGHT - 18 };
 
-/** How many calendar days the trend averages over, the day itself included. */
+/** Calendar days, the day itself included. */
 export const TREND_DAYS = 7;
 
 /**
- * The smallest vertical range the chart will show. Without it a flat series
- * — 80.0, 80.2, 79.9 — stretches 0.3 kg of scale noise across the full
- * height and draws a mountain range.
+ * Without it a flat series (80.0, 80.2, 79.9) stretches 0.3 kg of scale
+ * noise across the full height.
  */
 export const MIN_SPAN_KG = 2;
 
 /**
- * The smallest horizontal range. A shorter history is centred inside it
- * instead of stretched across it: two weigh-ins three days apart shouldn't be
- * pinned to opposite edges as if they spanned the whole chart. Two weeks, so
- * a few days of data still take up a readable fifth of the width.
+ * A shorter history is centred, not stretched: two weigh-ins three days apart
+ * shouldn't sit at opposite edges.
  */
 export const MIN_SPAN_DAYS = 14;
 
-/** Candidate gaps between kg gridlines, smallest first. */
 const STEPS = [0.5, 1, 2, 5, 10, 20, 50];
 
-/** At most this many gaps between gridlines, so their labels don't crowd. */
+/** More gaps than this and the kg labels crowd. */
 const MAX_TICK_GAPS = 5;
 
 /** A month label needs this much room before the right edge, or it clips. */
@@ -57,7 +42,6 @@ const DAY_MS = 86_400_000;
 export type ChartPoint = {
   date: string;
   kg: number;
-  /** The trailing average at this date. */
   trend: number;
   x: number;
   y: number;
@@ -66,39 +50,30 @@ export type ChartPoint = {
 
 export type WeightChart = {
   plot: typeof PLOT;
-  /**
-   * First and last day on the x axis, YYYY-MM-DD. `end` is today once the
-   * history spans `MIN_SPAN_DAYS`; before that it is a day in the future.
-   */
+  /** `end` is in the future until the history spans `MIN_SPAN_DAYS`. */
   start: string;
   end: string;
   today: string;
-  /** Oldest to newest, only those inside the window. */
+  /** Oldest first, only those inside the window. */
   points: ChartPoint[];
-  /** The `d` of the trend's <path>. */
   trendPath: string;
   target: { kg: number; y: number } | null;
   yTicks: { kg: number; y: number }[];
   /**
    * Month starts when the range crosses at least two, otherwise the first
-   * measurement and today — one label if they are the same day. A two-week
-   * chart with a single "sept" under it says nothing about where it starts.
+   * measurement and today: a lone "sept" says nothing about where it starts.
    */
   xTicks: { date: string; x: number }[];
   xTickFormat: "month" | "day";
 };
 
 export type WeightChartOptions = {
-  /** How far back the chart reaches. Defaults to the heatmap's half year. */
+  /** Defaults to the heatmap's half year. */
   weeks?: number;
-  /** The right edge. Defaults to today. */
   endDate?: Date;
 };
 
-/**
- * Whole days from `a` to `b`. Rounded because a daylight-saving change makes
- * one day 23 or 25 hours long, and a floor would lose it.
- */
+/** Rounded because a DST day is 23 or 25 hours long and a floor would lose it. */
 function daysBetween(a: string, b: string): number {
   return Math.round((fromDateKey(b).getTime() - fromDateKey(a).getTime()) / DAY_MS);
 }
@@ -111,13 +86,8 @@ function addDays(key: string, days: number): string {
 }
 
 /**
- * Pairs each measurement with the mean of every measurement in the
- * `TREND_DAYS` calendar days ending on it.
- *
- * The window is counted in days, not in entries: weighing in three times one
- * week and then not for a month, "the last three entries" would average
- * weights from different months as if they were back to back. A measurement
- * with nothing else in its window is its own average.
+ * The window is counted in calendar days, not entries, or sparse weigh-ins
+ * from different months would be averaged as if back to back.
  */
 export function withTrend<T extends WeightPoint>(
   oldestFirst: readonly T[],
@@ -135,11 +105,7 @@ export function withTrend<T extends WeightPoint>(
   });
 }
 
-/**
- * The kg range and its gridlines: the data plus the target, widened to
- * `MIN_SPAN_KG`, padded so no point sits on the frame, and snapped outwards
- * to a round step so the labels read 78 · 80 · 82 and not 78.37.
- */
+/** Snapped outwards to a round step so labels read 78 · 80 · 82, not 78.37. */
 export function yScale(values: readonly number[]): {
   min: number;
   max: number;
@@ -165,32 +131,17 @@ export function yScale(values: readonly number[]): {
   const max = Math.ceil(hi / step) * step;
 
   const ticks: number[] = [];
-  // Built from an index, not by adding `step` up: 0.5 is exact in binary,
-  // but a running sum is still the habit that ends in 80.49999.
+  // Built from an index: a running sum of steps drifts to 80.49999.
   for (let i = 0; min + i * step <= max + 1e-9; i++) ticks.push(min + i * step);
   return { min, max, ticks };
 }
 
 /**
- * Everything the chart draws, or null when no measurement falls inside the
- * window.
- *
- * `newestFirst` is the order `useWeightEntries` returns. Entries older than
- * the window still feed the trend, so its first value on screen is the real
- * average and not one that starts cold at the left edge.
- *
- * The x axis runs by date, not by index: a month without weighing in is a
- * gap you can see. It covers the first measurement inside the window through
- * today, so two weeks without a measurement show up as empty space on the
- * right — and it starts at that measurement, not at the window's edge, or
- * someone who started last week would get their whole history squeezed into
- * the last few pixels.
- *
- * A history shorter than `MIN_SPAN_DAYS` is centred: the missing days are
- * split half before the first measurement and half after today, which puts
- * days that haven't happened yet on the right. The padding shrinks as the
- * history grows and is zero from `MIN_SPAN_DAYS` on, so the day the
- * threshold is crossed nothing jumps.
+ * Entries older than the window still feed the trend, so it doesn't start
+ * cold at the left edge. The x axis runs by date so gaps show, from the first
+ * visible measurement (not the window's edge, or a new user's history gets
+ * squeezed right) through today. Short histories are padded on both sides;
+ * the padding reaches zero at `MIN_SPAN_DAYS`, so nothing jumps.
  */
 export function buildWeightChart(
   newestFirst: readonly WeightPoint[],
@@ -210,8 +161,7 @@ export function buildWeightChart(
   const first = visible[0].measured_on;
   const history = daysBetween(first, today);
   const spanDays = Math.max(history, MIN_SPAN_DAYS - 1);
-  // Half the missing days on each side. It can be a half day, which is what
-  // centres an odd gap exactly; the axis ends round it outwards.
+  // Can be a half day, which centres an odd gap; the axis ends round it outwards.
   const pad = (spanDays - history) / 2;
   const start = addDays(first, -Math.floor(pad));
   const end = addDays(today, Math.ceil(pad));
@@ -244,9 +194,8 @@ export function buildWeightChart(
     .join(" ");
 
   const months: { date: string; x: number }[] = [];
-  // Every 1st of a month from `start` to `end`, `start` included when it is
-  // one. `setMonth(m, 1)` pins the day, or January 31st plus a month would
-  // overflow into March.
+  // `setMonth(m, 1)` pins the day, or January 31st plus a month overflows
+  // into March.
   const cursor = fromDateKey(start);
   if (cursor.getDate() !== 1) cursor.setMonth(cursor.getMonth() + 1, 1);
   for (; toDateKey(cursor) <= end; cursor.setMonth(cursor.getMonth() + 1, 1)) {
