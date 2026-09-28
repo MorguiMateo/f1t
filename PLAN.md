@@ -523,27 +523,45 @@ Decisiones que no estaban en el plan original:
 
 Con 5.2 y 5.3, el chunk inicial pasó de 498,7 KB a **506,9 KB (147,5 KB gzip)**.
 
-#### 5.4 — IMC, TDEE y objetivo calórico
+#### 5.4 — IMC, TDEE y objetivo calórico ✅
 
 Los números derivados: IMC con su categoría, BMR por Mifflin-St Jeor, TDEE y
-el objetivo calórico según la meta.
+el objetivo calórico según la meta, en una tarjeta de Perfil debajo del
+formulario.
 
-Va solo porque es la sub-fase más chica en código y la más fácil de romper en
-silencio: una fórmula mal transcrita no da error, da un número plausible y
-equivocado. `ageOn` ya existe desde 5.1.
+- `src/features/body/energy.ts` — las fórmulas, puras y con 17 tests contra
+  valores calculados a mano (80 kg, 180 cm, 30 años, hombre → BMR 1780)
+- `src/features/body/energy-card.tsx` — la tarjeta; no hace cuentas
 
-**El hueco que hay que resolver acá:** Mifflin-St Jeor da BMR, que es el gasto
-en reposo; el TDEE necesita un factor de actividad y el schema de la Fase 1 no
-tiene dónde guardarlo. Dos salidas:
+Decisiones:
 
-- **Derivarlo de los entrenamientos reales.** `sessions` ya sabe cuántos días
-  por semana se entrena. Sin migración, sin una pregunta más en el formulario,
-  y se corrige solo cuando cambian los hábitos. Es la recomendada
-- Agregar una columna `activity_level` y preguntarlo. Más control, pero es el
-  típico campo que se completa una vez optimista y no se toca nunca más
+- **El factor de actividad sale de las sesiones, no de una pregunta.** Sin
+  migración y sin un campo que se completa una vez optimista. Se cuentan las
+  sesiones de los **últimos 28 días** (cuatro semanas enteras: una semana
+  floja no mueve el número, un cambio de hábito sí), el promedio semanal se
+  redondea a días enteros y cae en los multiplicadores estándar: 0 → 1,2;
+  1–2 → 1,375; 3–4 → 1,55; 5–6 → 1,725; 7 → 1,9. La tarjeta dice de dónde
+  sale ("3 entrenamientos/semana en las últimas 4 semanas · actividad
+  moderada"). Reusa la query de 26 semanas del heatmap, que ya está en caché.
+- **Objetivo: −500 kcal para bajar, +300 para subir, el TDEE para
+  mantener.** −500 es alrededor de medio kilo por semana; +300 es un
+  superávit sin grasa de más. Redondeado a 50, porque la precisión más fina
+  es ficción.
+- **Nunca por debajo del BMR.** Si el déficit lo cruza, el objetivo sube al
+  BMR —redondeando para arriba— y la tarjeta lo dice. Comer menos que el gasto
+  en reposo no es un plan que deba repartir una fórmula.
+- **El IMC aparece antes que el resto.** Solo necesita altura y peso, así que
+  con eso ya se muestra aunque falten sexo o fecha de nacimiento.
+- **La categoría se calcula sobre el IMC redondeado**, el mismo que se
+  muestra: 24,96 se lee 25,0 y dice "Sobrepeso", no "Normal".
+- **Va en Perfil.** Casi todo lo que falta se completa ahí, y como el
+  formulario escribe en la caché del perfil al salir de cada campo, la
+  tarjeta se recalcula sola. Si falta el peso, lleva a Progreso.
 
-La tarjeta se muestra en gris hasta que haya altura, sexo, fecha de nacimiento
-y al menos un peso, y dice **qué** falta en vez de mostrar `NaN`.
+La Fase 7 engancha en `energyReport()`: `target.kcal` es el número contra el
+que se cierra el día de comidas.
+
+El chunk inicial pasó de 510,4 KB a **515,1 KB (149,6 KB gzip)**.
 
 #### 5.5 — Integración y cierre
 
