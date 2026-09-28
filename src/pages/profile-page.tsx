@@ -33,7 +33,7 @@ export function ProfilePage() {
 
   return (
     <>
-      <PageHeader title="Perfil" subtitle="Tu cuenta y tus preferencias" />
+      <PageHeader title="Perfil" subtitle="Tu cuenta, tu cuerpo y tu objetivo" />
 
       <div className="flex items-center gap-4 rounded-xl border border-line bg-surface p-5">
         {avatarUrl ? (

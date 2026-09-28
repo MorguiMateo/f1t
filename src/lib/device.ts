@@ -5,7 +5,12 @@
 
 export type Platform = "web" | "ios" | "android";
 
-/** Serialised to the App Group for the iOS widget. */
+/**
+ * Serialised to the App Group for the iOS widget. Weight is left out on
+ * purpose (PLAN.md, Phase 5.5): no widget shows it yet, and Swift's
+ * `JSONDecoder` ignores unknown keys, so adding a field later is backwards
+ * compatible.
+ */
 export type WidgetPayload = {
   /** Output of buildLevels(). */
   levels: number[];

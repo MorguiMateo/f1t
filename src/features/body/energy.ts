@@ -63,7 +63,7 @@ const ACTIVITY_LEVELS: { minDays: number; factor: number; label: string }[] = [
   { minDays: 5, factor: 1.725, label: "alta" },
   { minDays: 3, factor: 1.55, label: "moderada" },
   { minDays: 1, factor: 1.375, label: "ligera" },
-  { minDays: 0, factor: 1.2, label: "sedentaria" }, 
+  { minDays: 0, factor: 1.2, label: "sedentaria" },
 ];
 
 export type ActivityLevel = {

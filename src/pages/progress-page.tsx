@@ -77,8 +77,9 @@ export function ProgressPage() {
       {error ? <ErrorNote error={error} /> : null}
 
       {days && !days.length ? (
+        // Scoped to the activity: the weight sections below still show.
         <EmptyState
-          title="Nada que mostrar por ahora"
+          title="Todavía no entrenaste"
           description="El calendario de actividad se llena solo a medida que registres entrenamientos."
         />
       ) : null}

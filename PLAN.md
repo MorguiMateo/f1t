@@ -378,7 +378,7 @@ Decisiones que no estaban en el plan original:
 El chunk inicial queda en **494 KB (144 KB gzip)**: el registro entero pesa
 6,2 KB en su propio chunk y el catálogo sigue aparte.
 
-### Fase 5 — Cuerpo y objetivo
+### Fase 5 — Cuerpo y objetivo ✅
 
 Primera fase partida en sub-fases. El motivo no es que sea más grande que las
 anteriores —no lo es—, sino que se construye mientras se sigue: cada sub-fase
@@ -563,18 +563,69 @@ que se cierra el día de comidas.
 
 El chunk inicial pasó de 510,4 KB a **515,1 KB (149,6 KB gzip)**.
 
-#### 5.5 — Integración y cierre
+#### 5.5 — Integración y cierre ✅
 
-Lo que suele quedar suelto cuando una fase termina.
+Lo que suele quedar suelto cuando una fase termina. Tres puntos, los tres
+cerrados.
 
-- El peso actual y el avance hacia la meta entran al `WidgetPayload`, o se
-  decide explícitamente que no. Hoy el payload es heatmap, rutina de hoy y
-  racha; la Fase 6 lo consume desde SwiftUI y agregarle un campo después es
-  tocar los dos lados
-- Revisar el reparto entre Perfil y Progreso con el contenido nuevo encima:
-  dejaron de ser "la pantalla de cerrar sesión" y "la pantalla del heatmap"
-- Dejar anotado qué expone la Fase 5 para que la Fase 7 enganche con el
-  objetivo calórico
+**El peso no entra al `WidgetPayload`.** Se decidió que no, y no por
+olvido:
+
+- Ninguna sub-fase de la Fase 6 lo muestra: el mediano es el heatmap y el
+  grande la rutina de hoy. Un campo sin consumidor es justo lo que el
+  payload evitó desde la Fase 4 —se armó completo porque cada campo tenía
+  quien lo leyera—.
+- La premisa de "agregarlo después es tocar los dos lados" no se sostiene
+  para un campo **nuevo**. El `JSONDecoder` de Swift ignora las claves que
+  el struct no declara, así que la web puede empezar a mandar `weight`
+  cuando quiera sin romper un widget que no lo conoce. Lo que sí rompe es
+  renombrar o sacar un campo, y eso sí sigue siendo tocar los dos lados.
+- Hay además un costo que no se ve en el tipo. `WidgetSync` vive en Hoy,
+  y el peso se anota en Progreso: para que el widget no mostrara un peso
+  viejo habría que moverlo a `AppLayout`, y el catálogo pasaría a bajar en
+  cualquier pestaña.
+
+Si algún día hay un widget de peso, el bloque natural es
+`weight: { currentKg, targetKg, goal } | null`, con `latestWeight()` y
+`toGoal()` de siempre. La decisión quedó también como comentario en
+`WidgetPayload`, que es donde alguien la iría a buscar.
+
+**Perfil y Progreso: el reparto se queda como está.** Revisado con el
+contenido nuevo encima, el criterio aguanta: **Perfil tiene lo que casi no
+cambia y lo que se deduce de eso** (datos corporales, calorías), y
+**Progreso tiene las series temporales** (sesiones y peso). Lo que había
+que ajustar eran los bordes:
+
+- El vacío de Progreso decía "Nada que mostrar por ahora" arriba del
+  registro de peso, que sí mostraba cosas. Ahora dice "Todavía no
+  entrenaste", que es de lo único que habla.
+- El subtítulo de Perfil decía "Tu cuenta y tus preferencias", pero la app
+  no tiene preferencias. Ahora dice "Tu cuenta, tu cuerpo y tu objetivo".
+- El cruce entre pestañas iba en un solo sentido. La tarjeta de calorías
+  lleva a Progreso cuando falta el peso; ahora el gráfico, cuando no hay
+  peso meta, lleva a Perfil. Solo con el perfil cargado: si falló, no
+  insiste.
+
+**Qué expone la Fase 5 para la Fase 7:**
+
+- **`energyReport()`** (`src/features/body/energy.ts`) es el punto de
+  entrada. `target.kcal` es la cifra contra la que se cierra el día de
+  comidas, `tdee` el gasto estimado y `goal` el sentido de la meta. Es pura:
+  recibe el perfil, el último peso y los días entrenados.
+- **La composición vive hoy dentro de `EnergyCard`**: las tres queries
+  (`useBodyProfile`, `useWeightEntries`, `useSessionDays`) y la llamada. La
+  7.3 va a necesitar lo mismo fuera de Perfil, así que ahí se extrae un
+  `useEnergyReport()` en `body/queries.ts` en vez de copiarla. No se extrae
+  antes porque todavía tiene un solo consumidor.
+- **Para la 7.4** —¿el objetivo se ajusta con la evolución real?— la señal
+  es la media móvil de `withTrend()` en `weight-trend.ts`, no el último
+  peso. `energyReport()` usa el último peso crudo, y para el BMR no importa
+  (±1 kg de balanza son ±10 kcal), pero para decidir si el peso baja o no, sí.
+- Las tres queries usan las mismas claves que Perfil y Progreso y ninguna
+  vive en un chunk `lazy()`: si la Fase 7 las lee, comparte la caché con
+  esas pantallas en vez de sumar requests.
+
+El chunk inicial pasó de 515,1 KB a **515,9 KB (149,8 KB gzip)**.
 
 ### Fase 6 — Capacitor y widget de iOS
 

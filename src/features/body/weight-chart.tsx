@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { Link } from "react-router";
 import { Skeleton, SkeletonGroup } from "../../components/skeleton";
 import { fromDateKey, toDateKey } from "../../lib/heatmap";
 import { useBodyProfile, useWeightEntries } from "./queries";
@@ -204,6 +205,18 @@ export function WeightChart({ weeks }: { weeks?: number }) {
             <p className="mt-2 text-xs text-muted">
               Con un peso más ya se ve la curva.
             </p>
+          ) : null}
+
+          {/* The target lives in Perfil; this is the way back, as the energy
+              card links here for a missing weight. `undefined` is a profile
+              still loading or failed, which shouldn't nag. */}
+          {profile !== undefined && target === null ? (
+            <Link
+              to="/perfil"
+              className="mt-2 inline-block text-xs font-medium text-accent"
+            >
+              Poné un peso objetivo para ver la meta
+            </Link>
           ) : null}
         </>
       )}
