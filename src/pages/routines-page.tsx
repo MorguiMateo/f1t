@@ -54,11 +54,11 @@ function RoutineItem({ routine }: { routine: RoutineSummary }) {
   );
 }
 
+// A single card: the catalog link below is static and already on screen, so
+// only the routine list is being waited on.
 function RoutinesSkeleton() {
   return (
     <SkeletonGroup className="flex flex-col gap-2">
-      <CardSkeleton />
-      <CardSkeleton />
       <CardSkeleton />
     </SkeletonGroup>
   );

@@ -6,7 +6,10 @@ import {
   BodyProfileForm,
   BodyProfileFormSkeleton,
 } from "../features/body/body-profile-form";
-import { EnergyCard } from "../features/body/energy-card";
+import {
+  EnergyCard,
+  EnergyCardSkeleton,
+} from "../features/body/energy-card";
 import { useBodyProfile } from "../features/body/queries";
 import { supabase } from "../lib/supabase";
 
@@ -54,7 +57,14 @@ export function ProfilePage() {
       </div>
 
       <div className="mt-4">
-        {isPending ? <BodyProfileFormSkeleton /> : null}
+        {isPending ? (
+          <>
+            <BodyProfileFormSkeleton />
+            <div className="mt-4">
+              <EnergyCardSkeleton />
+            </div>
+          </>
+        ) : null}
         {error ? <ErrorNote error={error} /> : null}
         {/* Wait for the query: the inputs are uncontrolled, so a profile
             arriving later would never reach them. Null means never filled in. */}

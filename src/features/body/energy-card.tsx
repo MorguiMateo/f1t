@@ -1,5 +1,9 @@
 import { Link } from "react-router";
-import { SkeletonGroup, SkeletonLine } from "../../components/skeleton";
+import {
+  Skeleton,
+  SkeletonGroup,
+  SkeletonLine,
+} from "../../components/skeleton";
 import { ErrorNote } from "../../components/status";
 import { useSessionDays } from "../sessions/queries";
 import {
@@ -57,19 +61,39 @@ function Figure({
   );
 }
 
+/**
+ * The ready card's layout line for line: target, goal, the three figures and
+ * the activity line. Most people who open Perfil have filled it in, so that
+ * is the shape worth reserving.
+ */
+export function EnergyCardSkeleton() {
+  return (
+    <SkeletonGroup className="rounded-xl border border-line bg-surface p-5">
+      <h2 className="font-semibold">Calorías</h2>
+      <SkeletonLine className="mt-3 w-40 text-3xl" />
+      <SkeletonLine className="mt-1 w-28 text-xs" />
+      <div className="mt-4 flex gap-2">
+        {[0, 1, 2].map((index) => (
+          // The figure's own box and padding, pulsing as a whole: a bar in
+          // `bg-surface-2` would vanish against the box's `bg-surface-2`.
+          <Skeleton key={index} className="min-w-0 flex-1 rounded-xl p-3">
+            <div className="h-[1lh]" />
+            <div className="mt-0.5 h-[1lh] text-xs" />
+          </Skeleton>
+        ))}
+      </div>
+      <SkeletonLine className="mt-3 w-4/5 text-xs" />
+    </SkeletonGroup>
+  );
+}
+
 export function EnergyCard() {
   const { data: profile } = useBodyProfile();
   const weights = useWeightEntries();
   const sessions = useSessionDays();
 
   if (weights.isPending || sessions.isPending) {
-    return (
-      <SkeletonGroup className="rounded-xl border border-line bg-surface p-5">
-        <h2 className="font-semibold">Calorías</h2>
-        <SkeletonLine className="mt-3 w-32 text-3xl" />
-        <SkeletonLine className="mt-1 w-48 text-xs" />
-      </SkeletonGroup>
-    );
+    return <EnergyCardSkeleton />;
   }
 
   const error = weights.error ?? sessions.error;

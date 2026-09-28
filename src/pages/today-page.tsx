@@ -37,12 +37,26 @@ const WidgetSync = lazy(() =>
   })),
 );
 
+/** A button's box — same border, padding and line height — around a bar. */
+function ButtonSkeleton({ className, width }: { className: string; width: string }) {
+  return (
+    <div
+      className={`rounded-xl border border-line bg-surface px-5 py-3 text-sm ${className}`}
+    >
+      <SkeletonLine className={`mx-auto ${width}`} />
+    </div>
+  );
+}
+
 /**
- * The shape of `TodayWorkout`: the day's title and a few exercises. It covers
- * both waits in a row — the active routine, then the chunk with the catalog —
- * so the placeholder doesn't change shape halfway through.
+ * The shape of `TodayWorkout` plus the start button below it: the day's
+ * title, eight exercises, "Editar este día" and "Empezar entrenamiento". It
+ * covers both waits in a row — the active routine, then the chunk with the
+ * catalog — so the placeholder doesn't change shape halfway through. During
+ * the second wait the page already draws the real start button, hence
+ * `withStart`.
  */
-function TodayWorkoutSkeleton() {
+function TodayWorkoutSkeleton({ withStart }: { withStart: boolean }) {
   return (
     <SkeletonGroup>
       <div className="flex items-baseline justify-between gap-3">
@@ -50,12 +64,14 @@ function TodayWorkoutSkeleton() {
         <SkeletonLine className="w-24 text-sm" />
       </div>
       <ul className="mt-3 flex flex-col gap-2">
-        {[0, 1, 2, 3].map((index) => (
+        {Array.from({ length: 8 }, (_, index) => (
           <li key={index} className="rounded-xl border border-line bg-surface p-2.5">
             <ExerciseLineSkeleton />
           </li>
         ))}
       </ul>
+      <ButtonSkeleton className="mt-3" width="w-28" />
+      {withStart ? <ButtonSkeleton className="mt-4" width="w-40" /> : null}
     </SkeletonGroup>
   );
 }
@@ -84,7 +100,7 @@ export function TodayPage() {
         subtitle={today.charAt(0).toUpperCase() + today.slice(1)}
       />
 
-      {isPending ? <TodayWorkoutSkeleton /> : null}
+      {isPending ? <TodayWorkoutSkeleton withStart /> : null}
       {error ? <ErrorNote error={error} /> : null}
 
       {/* With no active routine there are two distinct cases: there is no
@@ -119,7 +135,7 @@ export function TodayPage() {
       ) : null}
 
       {routine && routine.days.length && day ? (
-        <Suspense fallback={<TodayWorkoutSkeleton />}>
+        <Suspense fallback={<TodayWorkoutSkeleton withStart={false} />}>
           <TodayWorkout day={day} routineId={routine.id} />
         </Suspense>
       ) : null}
