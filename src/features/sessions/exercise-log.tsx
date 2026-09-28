@@ -95,10 +95,10 @@ function SetRow({
         <span className="sr-only">Repeticiones de la serie {set.setIndex + 1}</span>
         <input
           ref={repsRef}
-          type="number"
+          // Text, not `type="number"`, in both fields: a number input reports
+          // "82,5" as "" in Safari, so ticking the set wiped its weight.
+          type="text"
           inputMode="numeric"
-          min={0}
-          max={MAX_REPS}
           // Keyed on the stored value so the input remounts with it after a
           // save or untick instead of keeping what was typed.
           key={`reps-${set.done?.reps ?? "none"}`}
@@ -115,11 +115,8 @@ function SetRow({
         <span className="sr-only">Peso en kilos de la serie {set.setIndex + 1}</span>
         <input
           ref={weightRef}
-          type="number"
+          type="text"
           inputMode="decimal"
-          step="0.5"
-          min={0}
-          max={MAX_WEIGHT}
           key={`kg-${set.done?.weight_kg ?? "none"}`}
           defaultValue={suggested.weightKg ?? ""}
           placeholder="kg"

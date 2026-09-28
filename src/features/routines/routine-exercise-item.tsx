@@ -105,10 +105,10 @@ export function RoutineExerciseItem({
         <label className="flex-1">
           <span className="sr-only">Series objetivo</span>
           <input
-            type="number"
+            // Not `type="number"`: it reports invalid text as "", which
+            // `saveSets` would take as a cleared field and wipe the target.
+            type="text"
             inputMode="numeric"
-            min={1}
-            max={MAX_SETS}
             defaultValue={item.target_sets ?? ""}
             onBlur={saveSets}
             placeholder="Series"
