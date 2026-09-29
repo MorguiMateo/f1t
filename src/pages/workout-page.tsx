@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router";
 import { Button } from "../components/button";
 import { ConfirmButton } from "../components/confirm-button";
@@ -68,6 +69,8 @@ export function WorkoutPage() {
   const sessionQuery = useSessionForDate(performedOn);
   const previousQuery = usePreviousSession(day?.id, performedOn);
   const deleteSession = useDeleteSession();
+  const [continueWithoutHistoryFor, setContinueWithoutHistoryFor] =
+    useState<string | null>(null);
 
   const session = sessionQuery.data ?? null;
   // `isLoading` and not `isPending` for the previous session: with no day the
@@ -77,7 +80,12 @@ export function WorkoutPage() {
   // second later overwrites whatever was being typed.
   const isPending =
     routineQuery.isPending || sessionQuery.isPending || previousQuery.isLoading;
-  const error = routineQuery.error ?? sessionQuery.error;
+  const error =
+    (routineQuery.data === undefined ? routineQuery.error : null) ??
+    (sessionQuery.data === undefined ? sessionQuery.error : null);
+  const refreshError =
+    (routineQuery.data !== undefined ? routineQuery.error : null) ??
+    (sessionQuery.data !== undefined ? sessionQuery.error : null);
 
   const plans = planWorkout({
     items: day?.exercises ?? [],
@@ -100,7 +108,35 @@ export function WorkoutPage() {
     return (
       <>
         <PageHeader title="Entrenar" onBack={() => navigate(-1)} />
-        <ErrorNote error={error} />
+        <ErrorNote error={error} title="No se pudo cargar el entrenamiento" />
+      </>
+    );
+  }
+
+  if (
+    previousQuery.error &&
+    previousQuery.data === undefined &&
+    day &&
+    continueWithoutHistoryFor !== day.id
+  ) {
+    return (
+      <>
+        <PageHeader title={day.label} onBack={() => navigate(-1)} />
+        <ErrorNote
+          error={previousQuery.error}
+          title="No se pudo cargar el entrenamiento anterior"
+        />
+        <div className="mt-3 flex flex-wrap gap-2">
+          <Button
+            onClick={() => void previousQuery.refetch()}
+            disabled={previousQuery.isFetching}
+          >
+            {previousQuery.isFetching ? "Reintentando…" : "Reintentar"}
+          </Button>
+          <Button onClick={() => setContinueWithoutHistoryFor(day.id)}>
+            Continuar sin sugerencias
+          </Button>
+        </div>
       </>
     );
   }
@@ -137,6 +173,23 @@ export function WorkoutPage() {
         }
         onBack={() => navigate(-1)}
       />
+
+      {refreshError ? (
+        <div className="mb-3">
+          <ErrorNote
+            error={refreshError}
+            title="No se pudo actualizar el entrenamiento; conservamos tus datos en pantalla"
+          />
+        </div>
+      ) : null}
+      {previousQuery.error && previousQuery.data !== undefined ? (
+        <div className="mb-3">
+          <ErrorNote
+            error={previousQuery.error}
+            title="No se pudo actualizar el historial; seguimos con la última sugerencia"
+          />
+        </div>
+      ) : null}
 
       {day.exercises.length ? (
         <ul className="flex flex-col gap-2">
@@ -188,6 +241,14 @@ export function WorkoutPage() {
             disabled={deleteSession.isPending}
             className="shrink-0"
             onConfirm={() => deleteSession.mutate(session.id)}
+          />
+        </div>
+      ) : null}
+      {deleteSession.error ? (
+        <div className="mt-3">
+          <ErrorNote
+            error={deleteSession.error}
+            title="No se borró el entrenamiento; volvé a tocar Borrar"
           />
         </div>
       ) : null}

@@ -5,6 +5,10 @@ import {
   type UseMutationResult,
 } from "@tanstack/react-query";
 import {
+  guardAuthMutation,
+  runIfAuthQueryClientActive,
+} from "../auth/auth-query-client";
+import {
   activateRoutine,
   addExerciseToDay,
   createDay,
@@ -61,8 +65,11 @@ function useRoutineMutation<TArgs, TResult>(
 ): UseMutationResult<TResult, Error, TArgs> {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: routineKeys.all }),
+    mutationFn: guardAuthMutation(queryClient, mutationFn),
+    onSuccess: () =>
+      runIfAuthQueryClientActive(queryClient, () =>
+        queryClient.invalidateQueries({ queryKey: routineKeys.all }),
+      ),
   });
 }
 

@@ -2,7 +2,7 @@
 // rejects anyone else's. Cascading deletes are also left to the schema.
 
 import type { Tables } from "../../lib/database.types";
-import { unwrap, unwrapRow } from "../../lib/postgrest";
+import { isUniqueViolation, unwrap, unwrapRow } from "../../lib/postgrest";
 import { supabase } from "../../lib/supabase";
 
 export type Routine = Tables<"routines">;
@@ -108,22 +108,10 @@ export async function deleteRoutine(routineId: string): Promise<void> {
   unwrap(await supabase.from("routines").delete().eq("id", routineId));
 }
 
-// Deactivate first: the partial unique index `routines_one_active_idx` would
-// reject two active routines even for an instant. RLS scopes the unfiltered
-// `eq("is_active", true)` update to the user's own rows.
+// The RPC validates ownership and switches routines in one transaction. A
+// failed activation must not leave the user with no active routine.
 export async function activateRoutine(routineId: string): Promise<void> {
-  unwrap(
-    await supabase
-      .from("routines")
-      .update({ is_active: false })
-      .eq("is_active", true),
-  );
-  unwrap(
-    await supabase
-      .from("routines")
-      .update({ is_active: true })
-      .eq("id", routineId),
-  );
+  unwrap(await supabase.rpc("activate_routine", { p_routine_id: routineId }));
 }
 
 export async function createDay(input: {
@@ -176,17 +164,24 @@ export async function addExerciseToDay(input: {
       .maybeSingle(),
   );
 
-  return unwrapRow(
-    await supabase
-      .from("routine_exercises")
-      .insert({
-        routine_day_id: input.dayId,
-        exercise_id: input.exerciseId,
-        position: (last?.position ?? -1) + 1,
-      })
-      .select()
-      .single(),
-  );
+  const inserted = await supabase
+    .from("routine_exercises")
+    .insert({
+      routine_day_id: input.dayId,
+      exercise_id: input.exerciseId,
+      position: (last?.position ?? -1) + 1,
+    })
+    .select()
+    .single();
+
+  if (
+    isUniqueViolation(inserted.error) &&
+    inserted.error?.message.includes("routine_exercises_day_exercise_key")
+  ) {
+    throw new Error("Este ejercicio ya está agregado a este día.");
+  }
+
+  return unwrapRow(inserted);
 }
 
 export async function updateRoutineExercise(input: {
@@ -209,24 +204,20 @@ export async function removeRoutineExercise(id: string): Promise<void> {
   unwrap(await supabase.from("routine_exercises").delete().eq("id", id));
 }
 
-// No unique constraint on `(routine_day_id, position)`, so both updates run in
-// parallel with no temporary value. A partial failure only leaves two exercises
-// sharing a position, which the next swap fixes.
+// The RPC locks both rows, verifies their expected positions and updates them
+// atomically. Retrying stale positions surfaces an error instead of reordering
+// a different pair after another device changed the day.
 export async function swapExercisePositions(input: {
   a: { id: string; position: number };
   b: { id: string; position: number };
 }): Promise<void> {
   const { a, b } = input;
-  const [first, second] = await Promise.all([
-    supabase
-      .from("routine_exercises")
-      .update({ position: b.position })
-      .eq("id", a.id),
-    supabase
-      .from("routine_exercises")
-      .update({ position: a.position })
-      .eq("id", b.id),
-  ]);
-  unwrap(first);
-  unwrap(second);
+  unwrap(
+    await supabase.rpc("swap_routine_exercise_positions", {
+      p_a_id: a.id,
+      p_a_position: a.position,
+      p_b_id: b.id,
+      p_b_position: b.position,
+    }),
+  );
 }

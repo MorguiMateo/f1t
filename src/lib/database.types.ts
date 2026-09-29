@@ -265,11 +265,11 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "sessions_routine_day_id_fkey"
-            columns: ["routine_day_id"]
+            foreignKeyName: "sessions_routine_day_owner_fk"
+            columns: ["routine_day_id", "user_id"]
             isOneToOne: false
             referencedRelation: "routine_days"
-            referencedColumns: ["id"]
+            referencedColumns: ["id", "user_id"]
           },
         ]
       }
@@ -299,7 +299,19 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      activate_routine: {
+        Args: { p_routine_id: string }
+        Returns: undefined
+      }
+      swap_routine_exercise_positions: {
+        Args: {
+          p_a_id: string
+          p_a_position: number
+          p_b_id: string
+          p_b_position: number
+        }
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never

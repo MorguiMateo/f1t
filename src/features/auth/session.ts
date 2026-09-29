@@ -6,6 +6,7 @@ import { createContext, useContext } from "react";
 export type SessionState = {
   session: Session | null;
   isLoading: boolean;
+  error: Error | null;
 };
 
 export const SessionContext = createContext<SessionState | null>(null);

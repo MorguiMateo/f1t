@@ -8,8 +8,8 @@
 --      policy.
 --   2. Every user table carries its own `user_id`, child tables included.
 --      That way the policy is a direct `user_id = auth.uid()`, with no
---      per-row subqueries. Parent/child consistency is guaranteed by a
---      composite FK, not by trusting the client.
+--      per-row subqueries. Composite FKs protect child ownership; the initial
+--      sessions -> routine_days exception is closed by the 20260929 migration.
 --
 -- `(select auth.uid())` is used and not bare `auth.uid()`: in parentheses
 -- Postgres evaluates it once per query (an initplan) instead of once per row.
@@ -224,8 +224,8 @@ create policy exercises_read on public.exercises
 
 -- The rest: everyone sees and touches only their own.
 -- `using` filters what is read/modified; `with check` validates what is
--- written. Both are needed: without `with check`, rows belonging to someone
--- else could be inserted.
+-- written. The explicit `with check` documents the write rule; for an ALL
+-- policy PostgreSQL would otherwise reuse `using` as its implicit check.
 drop policy if exists routines_own on public.routines;
 create policy routines_own on public.routines
   for all to authenticated

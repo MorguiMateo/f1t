@@ -181,9 +181,8 @@ export function TodayPage() {
         </Link>
       ) : null}
 
-      {/* Also with no active routine: the heatmap and the streak belong to
-          the user, not to the routine, and the widget shows them either
-          way. */}
+      {/* Also with no active routine: the heatmap and streak belong to the
+          user, so the future widget payload should still include them. */}
       {!isPending && !error ? (
         <Suspense fallback={null}>
           <WidgetSync day={day} />

@@ -7,9 +7,8 @@ import { ProgressPage } from "./pages/progress-page";
 import { RoutinesPage } from "./pages/routines-page";
 import { TodayPage } from "./pages/today-page";
 
-// Lazy because `catalog.json` (~209 KB) and react-body-highlighter (~176 KB)
-// doubled the initial chunk. The SW precaches them anyway, so only first paint
-// changes. The `<Suspense>` lives in `AppLayout`.
+// Keep the catalog and body-highlighter out of the initial chunk. The service
+// worker precaches lazy chunks for offline use; `AppLayout` owns Suspense.
 const ExercisesPage = lazy(() =>
   import("./pages/exercises-page").then((m) => ({ default: m.ExercisesPage })),
 );

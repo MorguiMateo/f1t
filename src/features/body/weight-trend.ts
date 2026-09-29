@@ -1,8 +1,7 @@
 /**
- * Chart geometry with no React, like `heatmap.ts` → `heatmap.tsx`: the maths
- * stays testable and portable to the Phase 6 widget, where only an array of
- * points is useful. A single weigh-in swings ±1 kg with water and salt, so
- * the trailing-average trend is the line to read.
+ * Chart geometry without React so its calculations stay testable. A single
+ * weigh-in can swing with water and salt, so the trailing-average trend is
+ * the line to read.
  */
 
 import { fromDateKey, toDateKey } from "../../lib/heatmap";

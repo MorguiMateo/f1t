@@ -7,13 +7,13 @@
 -- client means two requests for every set ticked at the gym — and an
 -- intensity that lies whenever the second one fails.
 --
--- Here a trigger recomputes it: one write per tap, and the number cannot
--- drift out of sync even if somebody writes from somewhere else.
+-- Here a trigger recomputes it for inserts and deletes: one write per tap.
+-- The 20260929 migration hardens concurrency and other permitted writes.
 -- ============================================================================
 
--- `security invoker` on purpose: the function runs as the user who ticked the
--- set, so the update against `sessions` goes through the same policy as any
--- other write of theirs. `security definer` would bypass RLS for no reason.
+-- At this stage, `security invoker` lets the update use the user's RLS policy.
+-- The 20260929 migration changes this to a narrowly scoped definer function
+-- so authenticated clients can lose direct UPDATE access to `sessions`.
 --
 -- `search_path = ''` forces every name to be schema-qualified, which is what
 -- stops anyone from prepending their own schema and serving a different

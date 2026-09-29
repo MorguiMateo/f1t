@@ -74,7 +74,7 @@ export function RoutineDetailPage() {
     return (
       <>
         <PageHeader title="Rutina" onBack={() => navigate(-1)} />
-        <ErrorNote error={error} />
+        <ErrorNote error={error} title="No se pudo cargar la rutina" />
       </>
     );
   }
@@ -246,7 +246,18 @@ export function RoutineDetailPage() {
 
       {createDay.error ? (
         <div className="mt-3">
-          <ErrorNote error={createDay.error} />
+          <ErrorNote
+            error={createDay.error}
+            title="No se pudo crear el día; corregí el nombre y reintentá"
+          />
+        </div>
+      ) : null}
+      {activate.error ? (
+        <div className="mt-3">
+          <ErrorNote
+            error={activate.error}
+            title="No se pudo activar la rutina; volvé a tocar Activar"
+          />
         </div>
       ) : null}
 
@@ -293,6 +304,22 @@ export function RoutineDetailPage() {
             }
           />
         </div>
+        {renameRoutine.error ? (
+          <div className="mt-3">
+            <ErrorNote
+              error={renameRoutine.error}
+              title="No se guardó el nombre; enfocá el campo y salí de él para reintentar"
+            />
+          </div>
+        ) : null}
+        {deleteRoutine.error ? (
+          <div className="mt-3">
+            <ErrorNote
+              error={deleteRoutine.error}
+              title="No se pudo borrar; volvé a tocar Borrar"
+            />
+          </div>
+        ) : null}
       </section>
     </>
   );

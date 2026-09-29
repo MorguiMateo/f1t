@@ -3,6 +3,7 @@ import { Skeleton, SkeletonGroup, SkeletonLine } from "../../components/skeleton
 import { ErrorNote } from "../../components/status";
 import type { BodyProfile, BodyProfilePatch } from "./api";
 import { useSaveBodyProfile } from "./queries";
+import { shouldCommitProfileField, type ProfileField } from "./profile-cache";
 import {
   ageOn,
   GOALS,
@@ -46,18 +47,28 @@ function Field({
 const INPUT_CLASS =
   "mt-1.5 w-full rounded-xl border border-line bg-surface-2 px-4 py-3 text-sm placeholder:text-muted tnum";
 
+const PROFILE_FIELD_LABELS: Record<ProfileField, string> = {
+  height_cm: "la altura",
+  birth_date: "la fecha de nacimiento",
+  sex: "el sexo",
+  goal: "el objetivo",
+  target_weight_kg: "el peso objetivo",
+};
+
 function Choice<T extends string>({
   legend,
   options,
   value,
   onSelect,
   disabled,
+  retrySelected,
 }: {
   legend: string;
   options: readonly { value: T; label: string; hint?: string }[];
   value: T | null;
   onSelect: (value: T | null) => void;
   disabled: boolean;
+  retrySelected?: boolean;
 }) {
   return (
     <fieldset disabled={disabled}>
@@ -72,7 +83,9 @@ function Choice<T extends string>({
               aria-pressed={isOn}
               // Tapping the selected option clears it, the only way to unset
               // the optional sex after an accidental tap.
-              onClick={() => onSelect(isOn ? null : option.value)}
+              onClick={() =>
+                onSelect(isOn && !retrySelected ? null : option.value)
+              }
               className={[
                 "flex-1 rounded-xl border px-3 py-2.5 text-sm font-medium transition-colors disabled:opacity-50",
                 isOn
@@ -127,6 +140,7 @@ export function BodyProfileFormSkeleton() {
 
 export function BodyProfileForm({ profile }: { profile: BodyProfile | null }) {
   const save = useSaveBodyProfile();
+  const failures = Object.entries(save.failures) as [ProfileField, Error][];
 
   const goal = toGoal(profile?.goal);
   const sex = toSex(profile?.sex);
@@ -139,6 +153,7 @@ export function BodyProfileForm({ profile }: { profile: BodyProfile | null }) {
   // Non-number reverts to stored value; error message wouldn't add information.
   function saveMeasure(
     event: FocusEvent<HTMLInputElement>,
+    field: "height_cm" | "target_weight_kg",
     range: typeof HEIGHT_RANGE | typeof WEIGHT_RANGE,
     current: number | null,
     apply: (value: number | null) => BodyProfilePatch,
@@ -152,7 +167,7 @@ export function BodyProfileForm({ profile }: { profile: BodyProfile | null }) {
 
     // Shown back so 900 visibly becomes 260 instead of silently stored.
     event.target.value = parsed?.toString() ?? "";
-    if (parsed === current) return;
+    if (!shouldCommitProfileField(field, parsed, current, save.failures)) return;
     commit(apply(parsed));
   }
 
@@ -164,7 +179,7 @@ export function BodyProfileForm({ profile }: { profile: BodyProfile | null }) {
       event.target.value = current ?? "";
       return;
     }
-    if (parsed === current) return;
+    if (!shouldCommitProfileField("birth_date", parsed, current, save.failures)) return;
     commit({ birth_date: parsed });
   }
 
@@ -187,7 +202,7 @@ export function BodyProfileForm({ profile }: { profile: BodyProfile | null }) {
             inputMode="numeric"
             defaultValue={profile?.height_cm ?? ""}
             onBlur={(event) =>
-              saveMeasure(event, HEIGHT_RANGE, profile?.height_cm ?? null, (v) => ({
+              saveMeasure(event, "height_cm", HEIGHT_RANGE, profile?.height_cm ?? null, (v) => ({
                 height_cm: v,
               }))
             }
@@ -214,6 +229,7 @@ export function BodyProfileForm({ profile }: { profile: BodyProfile | null }) {
           options={SEXES}
           value={sex}
           disabled={save.isPending}
+          retrySelected={Boolean(save.failures.sex)}
           onSelect={(value) => commit({ sex: value })}
         />
 
@@ -222,6 +238,7 @@ export function BodyProfileForm({ profile }: { profile: BodyProfile | null }) {
           options={GOALS}
           value={goal}
           disabled={save.isPending}
+          retrySelected={Boolean(save.failures.goal)}
           // `goal` is `not null`: clearing falls back to the column default.
           onSelect={(value) => commit({ goal: value ?? "maintain" })}
         />
@@ -236,6 +253,7 @@ export function BodyProfileForm({ profile }: { profile: BodyProfile | null }) {
             onBlur={(event) =>
               saveMeasure(
                 event,
+                "target_weight_kg",
                 WEIGHT_RANGE,
                 profile?.target_weight_kg ?? null,
                 (v) => ({ target_weight_kg: v }),
@@ -247,11 +265,17 @@ export function BodyProfileForm({ profile }: { profile: BodyProfile | null }) {
         </Field>
       </div>
 
-      {save.error ? (
-        <div className="mt-4">
-          <ErrorNote error={save.error} />
+      {failures.map(([field, error]) => (
+        <div key={field} className="mt-4">
+          <ErrorNote
+            error={error}
+            title={`No se pudo guardar ${PROFILE_FIELD_LABELS[field]}`}
+          />
+          <p className="mt-1 text-xs text-muted">
+            El valor que ves puede no estar guardado. Volvé a editar ese campo para reintentar.
+          </p>
         </div>
-      ) : null}
+      ))}
     </section>
   );
 }

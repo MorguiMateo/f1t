@@ -17,19 +17,7 @@ import {
   type WeightEntry,
 } from "./weight";
 
-/**
- * Logging your weight and reading back the series.
- *
- * It lives in Progreso and not in Perfil: weight is a time series you come
- * back to, next to the heatmap and — from Phase 5.3 — its chart, while Perfil
- * holds the static body data. Unlike the profile form, which saves on blur,
- * adding a weight is a form with a button: you are appending a row, not
- * editing a field that already exists.
- *
- * The current weight isn't a stored column: it is `latestWeight` off the top
- * of the series. One source of truth, so it can't drift from the list under
- * it.
- */
+/** Weight is a dated series; the current value is derived, never stored twice. */
 
 /** How a stored `measured_on` reads in the list: "22 sept". */
 function formatDay(measuredOn: string): string {
@@ -65,32 +53,39 @@ function AddForm() {
         event.preventDefault();
         submit();
       }}
-      className="flex gap-2"
     >
-      <TextInput
-        type="date"
-        value={date}
-        // No future weigh-ins; the past is open, for logging a day late.
-        max={today()}
-        onChange={(event) => setDate(event.target.value)}
-        aria-label="Fecha"
-        className="min-w-0 flex-1 tnum"
-      />
-      <TextInput
-        // `type="text"` with `inputMode`, not `type="number"`: same reason as
-        // the profile fields — a number input reports an invalid value as the
-        // empty string, and it rejects the comma the Spanish keypad offers.
-        type="text"
-        inputMode="decimal"
-        value={weight}
-        onChange={(event) => setWeight(event.target.value)}
-        aria-label="Peso en kilos"
-        placeholder="kg"
-        className="w-20 tnum"
-      />
-      <Button type="submit" variant="primary" disabled={save.isPending}>
-        {save.isPending ? "…" : "Anotar"}
-      </Button>
+      <div className="flex gap-2">
+        <TextInput
+          type="date"
+          value={date}
+          // No future weigh-ins; the past is open, for logging a day late.
+          max={today()}
+          onChange={(event) => setDate(event.target.value)}
+          aria-label="Fecha"
+          className="min-w-0 flex-1 tnum"
+        />
+        <TextInput
+          // `type="text"` with `inputMode`, not `type="number"`: same reason as
+          // the profile fields — a number input reports an invalid value as the
+          // empty string, and it rejects the comma the Spanish keypad offers.
+          type="text"
+          inputMode="decimal"
+          value={weight}
+          onChange={(event) => setWeight(event.target.value)}
+          aria-label="Peso en kilos"
+          placeholder="kg"
+          className="w-20 tnum"
+        />
+        <Button type="submit" variant="primary" disabled={save.isPending}>
+          {save.isPending ? "…" : "Anotar"}
+        </Button>
+      </div>
+      {save.error ? (
+        <p role="alert" className="mt-2 text-xs text-warn">
+          No se guardó el peso. Volvé a tocar Anotar para reintentar.{" "}
+          {save.error.message}
+        </p>
+      ) : null}
     </form>
   );
 }
@@ -105,22 +100,29 @@ function EntryRow({
   const remove = useDeleteWeight();
 
   return (
-    <li className="flex items-center gap-3 py-2.5">
-      <span className="w-16 shrink-0 text-sm text-muted tnum">
-        {formatDay(entry.measured_on)}
-      </span>
-      <span className="font-semibold tnum">{formatKg(entry.weight_kg)} kg</span>
-      {delta !== null ? (
-        <span className="text-xs text-muted tnum">{formatDelta(delta)}</span>
+    <li className="py-2.5">
+      <div className="flex items-center gap-3">
+        <span className="w-16 shrink-0 text-sm text-muted tnum">
+          {formatDay(entry.measured_on)}
+        </span>
+        <span className="font-semibold tnum">{formatKg(entry.weight_kg)} kg</span>
+        {delta !== null ? (
+          <span className="text-xs text-muted tnum">{formatDelta(delta)}</span>
+        ) : null}
+        <ConfirmButton
+          label="Borrar"
+          confirmLabel="¿Seguro?"
+          size="sm"
+          className="ml-auto"
+          disabled={remove.isPending}
+          onConfirm={() => remove.mutate(entry.id)}
+        />
+      </div>
+      {remove.error ? (
+        <p role="alert" className="mt-1 text-xs text-warn">
+          No se borró el peso. Volvé a tocar Borrar para reintentar. {remove.error.message}
+        </p>
       ) : null}
-      <ConfirmButton
-        label="Borrar"
-        confirmLabel="¿Seguro?"
-        size="sm"
-        className="ml-auto"
-        disabled={remove.isPending}
-        onConfirm={() => remove.mutate(entry.id)}
-      />
     </li>
   );
 }

@@ -3,19 +3,27 @@ import { unwrap, unwrapRow } from "../../lib/postgrest";
 import { supabase } from "../../lib/supabase";
 import type { WeightEntry } from "./weight";
 
-/**
- * Newest first, the order `withDeltas` expects. At most one row per day, so
- * no range filter is needed even after years.
- */
+/** Below Supabase's default 1,000-row API cap; fetch until a short page. */
+export const WEIGHT_PAGE_SIZE = 500;
+
+/** Keyset paging avoids shifting offsets if another weigh-in is written mid-read. */
 export async function fetchWeightEntries(): Promise<WeightEntry[]> {
-  return (
-    unwrap(
-      await supabase
-        .from("weight_entries")
-        .select("*")
-        .order("measured_on", { ascending: false }),
-    ) ?? []
-  );
+  const entries: WeightEntry[] = [];
+  let before: string | null = null;
+  for (;;) {
+    // One row per user/day, so measured_on alone is a unique cursor under RLS.
+    const query = supabase.from("weight_entries").select("*");
+    const filtered: typeof query = before ? query.lt("measured_on", before) : query;
+    const page: WeightEntry[] = unwrap(
+      await filtered
+        .order("measured_on", { ascending: false })
+        .order("id", { ascending: false })
+        .limit(WEIGHT_PAGE_SIZE),
+    ) ?? [];
+    entries.push(...page);
+    if (page.length < WEIGHT_PAGE_SIZE) return entries;
+    before = page[page.length - 1].measured_on;
+  }
 }
 
 /**

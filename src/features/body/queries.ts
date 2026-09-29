@@ -1,11 +1,13 @@
-/**
- * The profile mutation writes the returned row into the cache instead of
- * invalidating: the upsert response is the new state, and a refetch landing
- * mid-typing would flicker the form's uncontrolled inputs.
- */
+/** Profile edits serialize at the server and keep later drafts over older rows. */
 
+import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { fetchBodyProfile, saveBodyProfile, type BodyProfile } from "./api";
+import {
+  guardAuthMutation,
+  runIfAuthQueryClientActive,
+} from "../auth/auth-query-client";
+import { fetchBodyProfile, saveBodyProfile } from "./api";
+import { profileSaveOptions, type ProfileField } from "./profile-cache";
 import {
   deleteWeightEntry,
   fetchWeightEntries,
@@ -26,12 +28,30 @@ export function useBodyProfile() {
 
 export function useSaveBodyProfile() {
   const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: saveBodyProfile,
-    onSuccess: (profile: BodyProfile) => {
-      queryClient.setQueryData(bodyKeys.profile(), profile);
-    },
-  });
+  const [failures, setFailures] = useState<Partial<Record<ProfileField, Error>>>({});
+  const options = useMemo(
+    () =>
+      profileSaveOptions(queryClient, bodyKeys.profile(), saveBodyProfile, {
+        onFailed: (fields, error) => {
+          if (!fields.length) return;
+          setFailures((previous) => {
+            const next = { ...previous };
+            for (const field of fields) next[field] = error;
+            return next;
+          });
+        },
+        onConfirmed: (fields) => {
+          if (!fields.length) return;
+          setFailures((previous) => {
+            const next = { ...previous };
+            for (const field of fields) delete next[field];
+            return next;
+          });
+        },
+      }),
+    [queryClient],
+  );
+  return { ...useMutation(options), failures };
 }
 
 export const weightKeys = {
@@ -48,24 +68,26 @@ export function useWeightEntries() {
 
 /**
  * Invalidates instead of writing the returned row: one upsert reorders the
- * series and changes its neighbour's delta, and the list is only a few rows.
+ * series and changes its neighbour's delta.
  */
 export function useSaveWeight() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: saveWeight,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: weightKeys.entries() });
-    },
+    mutationFn: guardAuthMutation(queryClient, saveWeight),
+    onSuccess: () =>
+      runIfAuthQueryClientActive(queryClient, () =>
+        queryClient.invalidateQueries({ queryKey: weightKeys.entries() }),
+      ),
   });
 }
 
 export function useDeleteWeight() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: deleteWeightEntry,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: weightKeys.entries() });
-    },
+    mutationFn: guardAuthMutation(queryClient, deleteWeightEntry),
+    onSuccess: () =>
+      runIfAuthQueryClientActive(queryClient, () =>
+        queryClient.invalidateQueries({ queryKey: weightKeys.entries() }),
+      ),
   });
 }

@@ -1,7 +1,7 @@
 /**
- * Contract with the iOS widget: `buildLevels` output (levels 0–4, oldest to
- * newest, length `weeks * 7`) is rendered by both the web and SwiftUI. Changing
- * its shape means changing both sides, hence no dependencies and tests.
+ * Intended contract for the future iOS widget: `buildLevels` outputs levels
+ * 0–4, oldest to newest, with length `weeks * 7`. Keep this calculation
+ * dependency-free and tested so SwiftUI can consume the same shape later.
  */
 
 export const HEATMAP_MAX_LEVEL = 4;
@@ -22,7 +22,7 @@ export type HeatmapCell = {
 };
 
 export type HeatmapOptions = {
-  /** Column count: 26 ≈ half a year (medium widget size). */
+  /** Column count: 26 ≈ half a year, planned for the medium widget. */
   weeks?: number;
   /** Final day of the range; defaults to today. */
   endDate?: Date;
@@ -97,7 +97,7 @@ export function buildHeatmap(
   const thresholds = options.thresholds ?? DEFAULTS.thresholds;
   const today = startOfDay(options.endDate ?? new Date());
 
-  // A day can have more than one session.
+  // Sum duplicate date keys defensively; stored sessions are unique per day.
   const volumeByDate = new Map<string, number>();
   for (const session of sessions) {
     const previous = volumeByDate.get(session.performed_on) ?? 0;

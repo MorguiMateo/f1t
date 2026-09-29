@@ -1,5 +1,6 @@
 import type { FocusEvent } from "react";
 import { Button } from "../../components/button";
+import { ErrorNote } from "../../components/status";
 import type { RoutineExercise } from "./api";
 import { ExerciseLine } from "./exercise-line";
 import { useRemoveExercise, useSwapExercises, useUpdateExercise } from "./queries";
@@ -19,11 +20,13 @@ export function RoutineExerciseItem({
   previous?: RoutineExercise;
   next?: RoutineExercise;
 }) {
-  const update = useUpdateExercise();
+  const updateSets = useUpdateExercise();
+  const updateReps = useUpdateExercise();
   const remove = useRemoveExercise();
   const swap = useSwapExercises();
 
-  const isBusy = update.isPending || remove.isPending || swap.isPending;
+  const isBusy =
+    updateSets.isPending || updateReps.isPending || remove.isPending || swap.isPending;
 
   function saveSets(event: FocusEvent<HTMLInputElement>) {
     const raw = event.target.value.trim();
@@ -40,14 +43,14 @@ export function RoutineExerciseItem({
     }
 
     if (value === item.target_sets) return;
-    update.mutate({ id: item.id, patch: { target_sets: value } });
+    updateSets.mutate({ id: item.id, patch: { target_sets: value } });
   }
 
   function saveReps(event: FocusEvent<HTMLInputElement>) {
     // Free text: "8-12", "al fallo" and "30 s" are all valid targets.
     const value = event.target.value.trim() || null;
     if (value === item.target_reps) return;
-    update.mutate({ id: item.id, patch: { target_reps: value } });
+    updateReps.mutate({ id: item.id, patch: { target_reps: value } });
   }
 
   const inputClass =
@@ -127,6 +130,38 @@ export function RoutineExerciseItem({
           />
         </label>
       </div>
+      {updateSets.error ? (
+        <div className="mt-2">
+          <ErrorNote
+            error={updateSets.error}
+            title="No se guardó la cantidad de series; enfocá el campo y salí de él para reintentar"
+          />
+        </div>
+      ) : null}
+      {updateReps.error ? (
+        <div className="mt-2">
+          <ErrorNote
+            error={updateReps.error}
+            title="No se guardaron las repeticiones; enfocá el campo y salí de él para reintentar"
+          />
+        </div>
+      ) : null}
+      {swap.error ? (
+        <div className="mt-2">
+          <ErrorNote
+            error={swap.error}
+            title="No se pudo reordenar; reintentá la misma flecha"
+          />
+        </div>
+      ) : null}
+      {remove.error ? (
+        <div className="mt-2">
+          <ErrorNote
+            error={remove.error}
+            title="No se pudo quitar; volvé a tocar la cruz para reintentar"
+          />
+        </div>
+      ) : null}
     </li>
   );
 }

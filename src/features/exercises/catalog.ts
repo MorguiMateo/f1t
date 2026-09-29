@@ -25,7 +25,7 @@ export type Exercise = {
   images: string[];
 };
 
-// Avoids inferring the literal type of a 184 KB JSON, which slows typechecking.
+// Avoid inferring the large JSON's literal type during typechecking.
 export const EXERCISES = raw as Exercise[];
 
 const BY_ID = new Map(EXERCISES.map((e) => [e.id, e]));

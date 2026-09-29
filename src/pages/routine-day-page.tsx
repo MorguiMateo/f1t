@@ -58,7 +58,7 @@ export function RoutineDayPage() {
     return (
       <>
         <PageHeader title="Día" onBack={() => navigate(-1)} />
-        <ErrorNote error={error} />
+        <ErrorNote error={error} title="No se pudo cargar el día" />
       </>
     );
   }
@@ -155,6 +155,22 @@ export function RoutineDayPage() {
             }
           />
         </div>
+        {renameDay.error ? (
+          <div className="mt-3">
+            <ErrorNote
+              error={renameDay.error}
+              title="No se guardó el nombre; enfocá el campo y salí de él para reintentar"
+            />
+          </div>
+        ) : null}
+        {deleteDay.error ? (
+          <div className="mt-3">
+            <ErrorNote
+              error={deleteDay.error}
+              title="No se pudo sacar el día; volvé a tocar Sacar día"
+            />
+          </div>
+        ) : null}
       </section>
     </>
   );

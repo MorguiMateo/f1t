@@ -1,14 +1,17 @@
-/**
- * Every mutation invalidates the whole `["sessions"]` tree: ticking a set
- * changes today's detail, set_count (heatmap), and streak.
- */
+/** Set writes change the date and day totals, but not prior workouts. */
 
 import {
   useMutation,
   useQuery,
   useQueryClient,
+  type QueryClient,
   type UseMutationResult,
 } from "@tanstack/react-query";
+import {
+  assertAuthQueryClientActive,
+  guardAuthMutation,
+  runIfAuthQueryClientActive,
+} from "../auth/auth-query-client";
 import { heatmapStart } from "../../lib/heatmap";
 import {
   deleteSession,
@@ -25,11 +28,28 @@ import { WIDGET_WEEKS } from "./widget";
 
 export const sessionKeys = {
   all: ["sessions"] as const,
-  days: (since: string) => [...sessionKeys.all, "days", since] as const,
-  onDate: (date: string) => [...sessionKeys.all, "date", date] as const,
+  allDays: () => [...sessionKeys.all, "days"] as const,
+  allDates: () => [...sessionKeys.all, "date"] as const,
+  days: (since: string) => [...sessionKeys.allDays(), since] as const,
+  onDate: (date: string) => [...sessionKeys.allDates(), date] as const,
   previous: (dayId: string, before: string) =>
     [...sessionKeys.all, "previous", dayId, before] as const,
 };
+
+export async function invalidateSessionViews(
+  queryClient: QueryClient,
+  includePrevious = false,
+): Promise<void> {
+  if (includePrevious) {
+    // Deleting an older session can change the next workout's suggestion.
+    await queryClient.invalidateQueries({ queryKey: sessionKeys.all });
+    return;
+  }
+  await Promise.all([
+    queryClient.invalidateQueries({ queryKey: sessionKeys.allDays() }),
+    queryClient.invalidateQueries({ queryKey: sessionKeys.allDates() }),
+  ]);
+}
 
 /**
  * `heatmapStart()` keeps the fetched range identical to the drawn grid, and
@@ -66,11 +86,15 @@ export function usePreviousSession(
 
 function useSessionMutation<TArgs, TResult>(
   mutationFn: (args: TArgs) => Promise<TResult>,
+  includePrevious = false,
 ): UseMutationResult<TResult, Error, TArgs> {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: sessionKeys.all }),
+    mutationFn: guardAuthMutation(queryClient, mutationFn),
+    onSuccess: () =>
+      runIfAuthQueryClientActive(queryClient, () =>
+        invalidateSessionViews(queryClient, includePrevious),
+      ),
   });
 }
 
@@ -91,6 +115,7 @@ export function useLogSet(): UseMutationResult<
     weightKg: number | null;
   }
 > {
+  const queryClient = useQueryClient();
   return useSessionMutation(async (input) => {
     const sessionId =
       input.sessionId ??
@@ -101,6 +126,8 @@ export function useLogSet(): UseMutationResult<
         })
       ).id;
 
+    // `ensureSession` may finish after an account switch; never log under the new user.
+    assertAuthQueryClientActive(queryClient);
     return logSet({
       sessionId,
       exerciseId: input.exerciseId,
@@ -112,4 +139,4 @@ export function useLogSet(): UseMutationResult<
 }
 
 export const useUnlogSet = () => useSessionMutation(unlogSet);
-export const useDeleteSession = () => useSessionMutation(deleteSession);
+export const useDeleteSession = () => useSessionMutation(deleteSession, true);

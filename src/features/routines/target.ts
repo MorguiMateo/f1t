@@ -1,4 +1,4 @@
-// Shared with the iOS widget payload so both render the target identically.
+// Shared by the web and the payload prepared for the future iOS widget.
 // An empty target is valid, so it returns null rather than a placeholder dash.
 export function targetLabel(
   sets: number | null,

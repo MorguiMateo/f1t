@@ -6,10 +6,9 @@
 export type Platform = "web" | "ios" | "android";
 
 /**
- * Serialised to the App Group for the iOS widget. Weight is left out on
- * purpose (PLAN.md, Phase 5.5): no widget shows it yet, and Swift's
- * `JSONDecoder` ignores unknown keys, so adding a field later is backwards
- * compatible.
+ * Stored in localStorage on the web; intended for the future iOS widget's App
+ * Group. Weight is omitted until a widget needs it. Swift's `JSONDecoder`
+ * ignores unknown keys, so a future field can be added compatibly.
  */
 export type WidgetPayload = {
   /** Output of buildLevels(). */
@@ -35,7 +34,7 @@ export interface DeviceBridge {
   readonly isNative: boolean;
 
   /** On the web there is no widget; the payload is only stored for debugging. */
-  syncWidget(payload: WidgetPayload): Promise<void>;
+  syncWidget(payload: WidgetPayload, ownerId: string): Promise<void>;
 
   /**
    * Returns false on the web: the Notifications API has no triggers, so it
@@ -53,12 +52,28 @@ export interface DeviceBridge {
 }
 
 const WIDGET_DEBUG_KEY = "f1t:widget-payload";
+let widgetDebugOwner: string | null = null;
+let widgetDebugOwnerInitialized = false;
+
+/** Invalidate the unscoped debug copy before a new account can see it. */
+export function setWidgetDebugIdentity(userId: string | null): void {
+  if (widgetDebugOwnerInitialized && widgetDebugOwner === userId) return;
+  widgetDebugOwnerInitialized = true;
+  widgetDebugOwner = userId;
+  try {
+    localStorage.removeItem(WIDGET_DEBUG_KEY);
+  } catch {
+    // Private mode or blocked storage; nothing reads this on the web.
+  }
+}
 
 const webBridge: DeviceBridge = {
   platform: "web",
   isNative: false,
 
-  async syncWidget(payload) {
+  async syncWidget(payload, ownerId) {
+    // A stale effect may finish after auth switches; it must not restore old data.
+    if (!ownerId || ownerId !== widgetDebugOwner) return;
     try {
       localStorage.setItem(WIDGET_DEBUG_KEY, JSON.stringify(payload));
     } catch {

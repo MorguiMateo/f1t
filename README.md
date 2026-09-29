@@ -8,8 +8,8 @@ Plan, fases y decisiones tomadas: **[PLAN.md](PLAN.md)**.
 
 ## Stack
 
-- **Vite + React 19 + TypeScript** — build estático, para que `npx cap add ios`
-  funcione sin tocar nada
+- **Vite + React 19 + TypeScript** — build estático preparado para una futura
+  integración con Capacitor
 - **Tailwind CSS v4** — tokens en `src/index.css`, tema claro y oscuro
 - **Supabase** — Postgres, Auth con Google, RLS
 - **TanStack Query** — caché de datos remotos
@@ -26,11 +26,32 @@ npm run lint     # oxlint
 npm run icons    # regenera los iconos de la PWA
 ```
 
+Validación local del catálogo, seed y assets, y tests del validador:
+
+```bash
+node scripts/check-exercise-catalog.mjs
+node --test scripts/check-exercise-catalog.node-test.mjs
+```
+
+## Antes de publicar el frontend
+
+Aplicar `supabase/migrations/20260929010000_integrity_boundaries.sql` mediante
+un despliegue autorizado **antes** del frontend: este ya llama a las RPC
+`activate_routine` y `swap_routine_exercise_positions`. No ejecutar
+`npm run db:push` automáticamente. El preflight de la migración aborta si hay
+ejercicios duplicados en un día o sesiones vinculadas a un día de otro usuario;
+resolver esos registros manualmente, sin borrado automático, antes de reintentar.
+
+La regresión SQL local está en `supabase/tests/20260929_integrity.sql`. Una
+validación independiente pasó en un clúster temporal PostgreSQL 16.9 con las
+cuatro migraciones, el seed de 165 ejercicios y pruebas de RLS/preflight;
+PostgreSQL 17, configurado para el proyecto, aún no fue validado.
+
 ## Estructura
 
 ```
 src/
-├── lib/heatmap.ts   contrato con el widget de iOS — ver abajo
+├── lib/heatmap.ts   contrato previsto para el widget de iOS — ver abajo
 ├── lib/device.ts    abstracción web/nativo
 ├── components/      shell, navegación, piezas compartidas
 ├── features/        auth, exercises, routines, sessions, body
@@ -42,9 +63,10 @@ scripts/             generadores de una sola corrida
 ## Dos módulos que no son código común
 
 **`src/lib/heatmap.ts`** — `buildLevels()` devuelve enteros 0–4, uno por día,
-longitud `weeks * 7`, alineado a semanas. Ese array es el **contrato con el
-widget de iOS**: la web lo dibuja en React y el widget lo dibuja en SwiftUI.
-Si cambia la forma, cambia en los dos lados. Por eso está aislado y con tests.
+longitud `weeks * 7`, alineado a semanas. La web usa esos niveles para el
+calendario; el array está previsto como **contrato con el futuro widget de
+iOS** en SwiftUI. Mantener su forma estable facilitará compartir el cálculo.
+Por eso está aislado y con tests.
 
 **`src/lib/device.ts`** — todo lo que toca el dispositivo pasa por acá.
 Hoy hay una sola implementación (web) y casi todo es no-op. Cuando entre
@@ -52,11 +74,10 @@ Capacitor se agrega la nativa y ninguna pantalla cambia.
 
 ## Nota de diseño
 
-La intensidad del heatmap se codifica con **opacidad, no con tono**. En iOS 26
-el usuario puede poner la pantalla de inicio en modo Clear o Tint, y ahí el
-sistema aplana todos los colores del widget a un tinte monocromo: un heatmap
-que distingue por color se convertiría en un bloque uniforme. La opacidad
-sobrevive intacta.
+La intensidad del heatmap se codifica con **opacidad, no con tono**. En iOS 26,
+los modos Clear y Tint de la pantalla de inicio aplanan los colores de los
+widgets a un tinte monocromo: un futuro widget que distinguiera niveles por
+color perdería esa distinción. La opacidad la conserva.
 
 ## Créditos
 

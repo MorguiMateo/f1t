@@ -17,6 +17,7 @@ export function ProfilePage() {
   const user = useUser();
   const { data: profile, isPending, error } = useBodyProfile();
   const [isSigningOut, setIsSigningOut] = useState(false);
+  const [signOutError, setSignOutError] = useState<Error | null>(null);
 
   // Only for TypeScript: the guard guarantees a user.
   if (!user) return null;
@@ -27,8 +28,16 @@ export function ProfilePage() {
 
   async function signOut() {
     setIsSigningOut(true);
-    // No state to clear: onAuthStateChange makes the guard show sign-in.
-    await supabase.auth.signOut();
+    setSignOutError(null);
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) setSignOutError(error);
+      // On success, onAuthStateChange makes the guard show sign-in.
+    } catch (reason) {
+      setSignOutError(reason instanceof Error ? reason : new Error(String(reason)));
+    } finally {
+      setIsSigningOut(false);
+    }
   }
 
   return (
@@ -88,6 +97,11 @@ export function ProfilePage() {
       >
         {isSigningOut ? "Cerrando sesión…" : "Cerrar sesión"}
       </button>
+      {signOutError ? (
+        <div className="mt-3">
+          <ErrorNote error={signOutError} title="No se pudo cerrar sesión" />
+        </div>
+      ) : null}
     </>
   );
 }

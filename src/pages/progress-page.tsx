@@ -13,10 +13,8 @@ import { currentStreak } from "../lib/heatmap";
  * The activity calendar, the weight log, and the little that can be said with
  * them.
  *
- * The heatmap's 26 weeks are the same as the medium iOS widget: not a
- * coincidence, it is the shared `WIDGET_WEEKS` constant. If half a year shows
- * here, half a year shows on the phone's home screen too, and both paint the
- * same array.
+ * The heatmap uses `WIDGET_WEEKS`, the range planned for the future medium iOS
+ * widget. Keeping the range shared lets that widget use the same level array.
  *
  * The weight chart reaches back the same half year, so the calendar and the
  * curve below it cover one stretch of time and can be read against each

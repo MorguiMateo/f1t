@@ -9,6 +9,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import sharp from "sharp";
+import { checkExerciseCatalog } from "./check-exercise-catalog.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const RAW = "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main";
@@ -203,6 +204,11 @@ await writeFile(OUT_CATALOG, JSON.stringify(catalog, null, 2) + "\n", "utf8");
 
 await mkdir(dirname(OUT_SEED), { recursive: true });
 await writeFile(OUT_SEED, buildSeed(catalog), "utf8");
+
+const consistencyErrors = await checkExerciseCatalog(ROOT);
+if (consistencyErrors.length) {
+  throw new Error(`Generated catalog is inconsistent:\n${consistencyErrors.join("\n")}`);
+}
 
 const avg = converted ? (totalBytes / converted / 1024).toFixed(1) : "—";
 console.log(`\nImágenes: ${converted} convertidas, ${skipped} ya estaban.`);

@@ -156,7 +156,7 @@ export function RoutinesPage() {
         </ul>
       ) : null}
 
-      {/* No exercise count: it would pull the 209 KB catalog into the initial chunk. */}
+      {/* Avoid importing the catalog just to show an exercise count here. */}
       <Link
         to="/ejercicios"
         className="mt-4 flex items-center justify-between gap-3 rounded-xl border border-line bg-surface p-5 transition-colors hover:bg-surface-2"
