@@ -25,6 +25,14 @@ export function RoutinesIcon({ className }: IconProps) {
   );
 }
 
+export function FoodsIcon({ className }: IconProps) {
+  return (
+    <svg {...base} className={className} aria-hidden="true">
+      <path d="M4 3v4a3 3 0 0 0 6 0V3M7 3v18M17 3c-2 2-3 5-3 8h4M18 3v18" />
+    </svg>
+  );
+}
+
 export function ProgressIcon({ className }: IconProps) {
   return (
     <svg {...base} className={className} aria-hidden="true">

@@ -13,6 +13,8 @@ import {
   runIfAuthQueryClientActive,
 } from "../auth/auth-query-client";
 import { heatmapStart } from "../../lib/heatmap";
+import { energySessionKeys } from "../body/energy-keys";
+import { routineKeys } from "../routines/queries";
 import {
   deleteSession,
   ensureSession,
@@ -24,6 +26,7 @@ import {
   unlogSet,
   type SessionSet,
 } from "./api";
+import { rememberLoggedWeight, type RoutineExerciseWeight } from "./remember-weight";
 import { WIDGET_WEEKS } from "./widget";
 
 export const sessionKeys = {
@@ -42,12 +45,16 @@ export async function invalidateSessionViews(
 ): Promise<void> {
   if (includePrevious) {
     // Deleting an older session can change the next workout's suggestion.
-    await queryClient.invalidateQueries({ queryKey: sessionKeys.all });
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: sessionKeys.all }),
+      queryClient.invalidateQueries({ queryKey: energySessionKeys.all }),
+    ]);
     return;
   }
   await Promise.all([
     queryClient.invalidateQueries({ queryKey: sessionKeys.allDays() }),
     queryClient.invalidateQueries({ queryKey: sessionKeys.allDates() }),
+    queryClient.invalidateQueries({ queryKey: energySessionKeys.all }),
   ]);
 }
 
@@ -102,40 +109,62 @@ function useSessionMutation<TArgs, TResult>(
  * Creates session if needed: from the screen it's a single gesture, not a
  * separate "start workout". `sessionId` comes in to save a round trip.
  */
-export function useLogSet(): UseMutationResult<
-  SessionSet,
-  Error,
-  {
-    sessionId: string | null;
-    performedOn: string;
-    routineDayId: string | null;
-    exerciseId: string;
-    setIndex: number;
-    reps: number | null;
-    weightKg: number | null;
-  }
-> {
-  const queryClient = useQueryClient();
-  return useSessionMutation(async (input) => {
-    const sessionId =
-      input.sessionId ??
-      (
-        await ensureSession({
-          performedOn: input.performedOn,
-          routineDayId: input.routineDayId,
-        })
-      ).id;
+export type LoggedSessionSet = SessionSet & { defaultWeightError?: string };
 
-    // `ensureSession` may finish after an account switch; never log under the new user.
-    assertAuthQueryClientActive(queryClient);
-    return logSet({
-      sessionId,
-      exerciseId: input.exerciseId,
-      setIndex: input.setIndex,
-      reps: input.reps,
-      weightKg: input.weightKg,
-    });
+export type LogSetInput = {
+  sessionId: string | null;
+  performedOn: string;
+  routineDayId: string | null;
+  exerciseId: string;
+  setIndex: number;
+  reps: number | null;
+  weightKg: number | null;
+  /** The routine row that learns its first logged weight, if unset. */
+  routineExercise?: RoutineExerciseWeight | null;
+};
+
+export async function logWorkoutSet(queryClient: QueryClient, input: LogSetInput): Promise<LoggedSessionSet> {
+  assertAuthQueryClientActive(queryClient);
+  const sessionId =
+    input.sessionId ??
+    (
+      await ensureSession({
+        performedOn: input.performedOn,
+        routineDayId: input.routineDayId,
+      })
+    ).id;
+
+  // `ensureSession` may finish after an account switch; never log under the new user.
+  assertAuthQueryClientActive(queryClient);
+  const saved = await logSet({
+    sessionId,
+    exerciseId: input.exerciseId,
+    setIndex: input.setIndex,
+    reps: input.reps,
+    weightKg: input.weightKg,
   });
+
+  let remembered = false;
+  let defaultWeightError: string | undefined;
+  try {
+    remembered = (await runIfAuthQueryClientActive(queryClient, () => rememberLoggedWeight({
+      routineExercise: input.routineExercise ?? null,
+      weightKg: saved.weight_kg,
+    }))) ?? false;
+  } catch {
+    defaultWeightError = "La serie se guardó, pero no se pudo recordar el peso para futuros entrenamientos. Podés guardarlo desde la rutina.";
+  }
+  if (remembered) {
+    await runIfAuthQueryClientActive(queryClient, () =>
+      queryClient.invalidateQueries({ queryKey: routineKeys.all }),
+    );
+  }
+  return { ...saved, ...(defaultWeightError ? { defaultWeightError } : {}) };
+}
+
+export function useLogSet(): UseMutationResult<LoggedSessionSet, Error, LogSetInput> {
+  const queryClient = useQueryClient();
+  return useSessionMutation((input) => logWorkoutSet(queryClient, input));
 }
 
 export const useUnlogSet = () => useSessionMutation(unlogSet);

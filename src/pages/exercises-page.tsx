@@ -1,10 +1,13 @@
-import { useMemo, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router";
+import { useMemo, useRef, useState } from "react";
+import { useLocation, useNavigate, useSearchParams } from "react-router";
+import { Button } from "../components/button";
 import { EmptyState } from "../components/empty-state";
 import { PageHeader } from "../components/page-header";
 import { ErrorNote } from "../components/status";
 import { ExerciseCard } from "../features/exercises/exercise-card";
-import { useAddExercise } from "../features/routines/queries";
+import { useAddExercise, useRoutineDetail } from "../features/routines/queries";
+import { RoutineNavigation } from "../features/routines/routine-navigation";
+import { weekdayLabel } from "../features/routines/weekdays";
 import {
   EXERCISES,
   availableEquipment,
@@ -58,16 +61,31 @@ function Chip({
  * one search to maintain. The mode lives in the URL so the back gesture works.
  */
 export function ExercisesPage() {
-  const [params] = useSearchParams();
+  const [params, setParams] = useSearchParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const dayId = params.get("dia");
   const routineId = params.get("rutina");
   const isPicking = Boolean(dayId && routineId);
   const addExercise = useAddExercise();
+  const { data: routine, isPending: dayPending, error: dayError } = useRoutineDetail(isPicking ? routineId! : undefined);
+  const day = routine?.days.find((item) => item.id === dayId);
+  const inFlight = useRef(false);
+  const [confirmedAdds, setConfirmedAdds] = useState<{ dayId: string | null; ids: string[] }>({ dayId, ids: [] });
+  const addedIDs = new Set([...(day?.exercises.map((item) => item.exercise_id) ?? []), ...(confirmedAdds.dayId === dayId ? confirmedAdds.ids : [])]);
 
-  const [query, setQuery] = useState("");
-  const [muscle, setMuscle] = useState<string | null>(null);
-  const [equipment, setEquipment] = useState<string | null>(null);
+  const query = params.get("q") ?? "";
+  const muscle = params.get("musculo");
+  const equipment = params.get("equipo");
+  function setFilter(key: string, value: string | null) {
+    const next = new URLSearchParams(params);
+    if (value) next.set(key, value); else next.delete(key);
+    setParams(next, { replace: true, state: location.state });
+  }
+  function finish() {
+    if (location.state?.fromRoutineDay) navigate(-1);
+    else navigate(`/rutinas/${routineId}/dias/${dayId}`, { replace: true });
+  }
 
   const results = useMemo(
     () => filterExercises(EXERCISES, { query, muscle, equipment }, SEARCH_INDEX),
@@ -77,28 +95,33 @@ export function ExercisesPage() {
   const hasFilters = query !== "" || muscle !== null || equipment !== null;
 
   function pick(exerciseId: string) {
-    if (!dayId || !routineId) return;
+    if (!dayId || !routineId || !day || inFlight.current || addedIDs.has(exerciseId)) return;
+    inFlight.current = true;
     addExercise.mutate(
       { dayId, exerciseId },
       {
-        // `replace` so going back doesn't return to the catalog.
-        onSuccess: () =>
-          navigate(`/rutinas/${routineId}/dias/${dayId}`, { replace: true }),
+        onSuccess: () => setConfirmedAdds((previous) => ({ dayId, ids: [...(previous.dayId === dayId ? previous.ids : []), exerciseId] })),
+        onSettled: () => { inFlight.current = false; },
       },
     );
   }
 
   return (
     <>
+      {!isPicking ? <RoutineNavigation /> : null}
       <PageHeader
         title={isPicking ? "Elegir ejercicio" : "Ejercicios"}
         subtitle={
           isPicking
-            ? "Se agrega al final del día"
+            ? day ? `${routine!.name} · ${day.label} · ${weekdayLabel(day.weekday)}` : "Cargando el día destino…"
             : `${EXERCISES.length} ejercicios con foto y músculos`
         }
-        onBack={isPicking ? () => navigate(-1) : undefined}
+        onBack={isPicking ? finish : undefined}
+        action={isPicking ? <Button size="sm" onClick={finish}>Volver al día · {addedIDs.size}</Button> : undefined}
       />
+      {isPicking && dayError ? <ErrorNote error={dayError} title="No se pudo cargar el día destino" /> : null}
+      {isPicking && !dayPending && !day && !dayError ? <EmptyState title="Ese día ya no existe" description="Volvé a tus rutinas para elegir otro día." /> : null}
+      {isPicking && day ? <p role="status" className="mb-3 text-sm text-muted">Agregá varios ejercicios sin salir. Se guardan al final de {day.label}.</p> : null}
 
       {addExercise.error ? (
         <div className="mb-3">
@@ -111,7 +134,7 @@ export function ExercisesPage() {
         <input
           type="search"
           value={query}
-          onChange={(e) => setQuery(e.target.value)}
+          onChange={(e) => setFilter("q", e.target.value)}
           placeholder="Buscar por nombre o músculo…"
           enterKeyHint="search"
           className="w-full rounded-xl border border-line bg-surface px-4 py-3 placeholder:text-muted"
@@ -119,24 +142,26 @@ export function ExercisesPage() {
       </label>
 
       {/* 17 muscles in a grid would eat a phone screen. */}
-      <div className="-mx-4 mt-3 flex gap-2 overflow-x-auto px-4 pb-1">
+      <h2 className="mt-3 text-xs font-semibold text-muted">Músculo</h2>
+      <div className="-mx-4 mt-1 flex gap-2 overflow-x-auto px-4 pb-1">
         {MUSCLE_ORDER.map((m) => (
           <Chip
             key={m}
             label={muscleLabel(m)}
             isActive={muscle === m}
-            onClick={() => setMuscle(muscle === m ? null : m)}
+            onClick={() => setFilter("musculo", muscle === m ? null : m)}
           />
         ))}
       </div>
 
-      <div className="-mx-4 mt-2 flex gap-2 overflow-x-auto px-4 pb-1">
+      <h2 className="mt-2 text-xs font-semibold text-muted">Equipamiento</h2>
+      <div className="-mx-4 mt-1 flex gap-2 overflow-x-auto px-4 pb-1">
         {EQUIPMENT_ORDER.map((eq) => (
           <Chip
             key={eq}
             label={equipmentLabel(eq)}
             isActive={equipment === eq}
-            onClick={() => setEquipment(equipment === eq ? null : eq)}
+            onClick={() => setFilter("equipo", equipment === eq ? null : eq)}
           />
         ))}
       </div>
@@ -151,9 +176,9 @@ export function ExercisesPage() {
           <button
             type="button"
             onClick={() => {
-              setQuery("");
-              setMuscle(null);
-              setEquipment(null);
+              const next = new URLSearchParams(params);
+              for (const key of ["q", "musculo", "equipo"]) next.delete(key);
+              setParams(next, { replace: true, state: location.state });
             }}
             className="text-sm font-medium text-accent"
           >
@@ -169,7 +194,9 @@ export function ExercisesPage() {
               key={e.id}
               exercise={e}
               onSelect={isPicking ? () => pick(e.id) : undefined}
-              disabled={addExercise.isPending}
+              disabled={addExercise.isPending || (isPicking && !day)}
+              added={addedIDs.has(e.id)}
+              detailsTo={`/ejercicios/${e.id}?${params.toString()}`}
             />
           ))}
         </ul>

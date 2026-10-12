@@ -7,7 +7,7 @@ export function TextInput({
   return (
     <input
       className={[
-        "rounded-xl border border-line bg-surface px-4 py-3 text-sm placeholder:text-muted",
+        "min-h-11 rounded-xl border border-control bg-surface px-4 py-3 text-sm placeholder:text-muted",
         className,
       ].join(" ")}
       {...props}

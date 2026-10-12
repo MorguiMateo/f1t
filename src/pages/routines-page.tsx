@@ -6,6 +6,7 @@ import { PageHeader } from "../components/page-header";
 import { CardSkeleton, SkeletonGroup } from "../components/skeleton";
 import { ErrorNote } from "../components/status";
 import { TextInput } from "../components/text-input";
+import { RoutineNavigation } from "../features/routines/routine-navigation";
 import type { RoutineSummary } from "../features/routines/api";
 import { useActivateRoutine, useCreateRoutine, useRoutines } from "../features/routines/queries";
 
@@ -93,6 +94,7 @@ export function RoutinesPage() {
 
   return (
     <>
+      <RoutineNavigation />
       <PageHeader
         title="Rutinas"
         subtitle="Tus plantillas de entrenamiento por día"

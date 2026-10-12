@@ -1,8 +1,4 @@
-/**
- * Every bound below duplicates a schema check on purpose: the database
- * enforces it, this clamps before the write so a slip corrects itself in the
- * field instead of bouncing as a PostgREST 400.
- */
+/** Measurement validation preserves the user's value; it never invents a replacement. */
 
 import { fromDateKey, toDateKey } from "../../lib/heatmap";
 
@@ -11,9 +7,9 @@ export type Sex = "male" | "female";
 
 /** Ordered as a scale: down, steady, up. */
 export const GOALS: { value: Goal; label: string; hint: string }[] = [
-  { value: "lose", label: "Bajar", hint: "Déficit calórico" },
-  { value: "maintain", label: "Mantener", hint: "Sostener el peso actual" },
-  { value: "gain", label: "Subir", hint: "Superávit calórico" },
+  { value: "lose", label: "Bajar", hint: "Ajuste orientativo de −500 kcal" },
+  { value: "maintain", label: "Mantener", hint: "Sin ajuste de fórmula" },
+  { value: "gain", label: "Subir", hint: "Ajuste orientativo de +300 kcal" },
 ];
 
 /**
@@ -71,12 +67,11 @@ export function parseMeasure(
   const trimmed = raw.trim().replace(",", ".");
   if (trimmed === "") return null;
 
+  if (!/^\d+(?:\.\d+)?$/.test(trimmed)) return undefined;
+  if ((trimmed.split(".")[1]?.length ?? 0) > range.decimals) return undefined;
   const parsed = Number(trimmed);
-  if (!Number.isFinite(parsed)) return undefined;
-
-  const factor = 10 ** range.decimals;
-  const rounded = Math.round(parsed * factor) / factor;
-  return Math.min(range.max, Math.max(range.min, rounded));
+  if (!Number.isFinite(parsed) || parsed < range.min || parsed > range.max) return undefined;
+  return parsed;
 }
 
 /**
@@ -94,7 +89,7 @@ export function parseBirthDate(
   // `fromDateKey` parses to local midnight; `new Date(str)` would read the
   // string as UTC and shift the day for anyone west of Greenwich.
   const date = fromDateKey(trimmed);
-  if (Number.isNaN(date.getTime())) return undefined;
+  if (Number.isNaN(date.getTime()) || toDateKey(date) !== trimmed) return undefined;
   if (trimmed < MIN_BIRTH_DATE) return undefined;
   if (trimmed > toDateKey(now)) return undefined;
 

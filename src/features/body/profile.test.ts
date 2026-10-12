@@ -13,14 +13,17 @@ import {
 const NOW = new Date(2026, 8, 22); // 2026-09-22, local time.
 
 describe("parseMeasure", () => {
-  it("rounds to the decimals the column holds", () => {
-    expect(parseMeasure("178.6", HEIGHT_RANGE)).toBe(179);
-    expect(parseMeasure("81.34", WEIGHT_RANGE)).toBe(81.3);
+  it("rejects excess precision without rounding the measurement", () => {
+    expect(parseMeasure("178.6", HEIGHT_RANGE)).toBeUndefined();
+    expect(parseMeasure("81.34", WEIGHT_RANGE)).toBeUndefined();
+    expect(parseMeasure("178", HEIGHT_RANGE)).toBe(178);
   });
 
-  it("clamps instead of letting the database bounce the write", () => {
-    expect(parseMeasure("9", HEIGHT_RANGE)).toBe(HEIGHT_RANGE.min);
-    expect(parseMeasure("900", HEIGHT_RANGE)).toBe(HEIGHT_RANGE.max);
+  it("rejects out-of-range and non-decimal input without clamping", () => {
+    for (const raw of ["9", "900", "-80", "1e2", "0x64", "Infinity"]) {
+      expect(parseMeasure(raw, HEIGHT_RANGE)).toBeUndefined();
+    }
+    expect(parseMeasure("900", WEIGHT_RANGE)).toBeUndefined();
   });
 
   it("reads a comma as a decimal separator", () => {
@@ -40,6 +43,9 @@ describe("parseMeasure", () => {
 });
 
 describe("parseBirthDate", () => {
+  it("rejects a date that JavaScript would roll into another month", () => {
+    expect(parseBirthDate("2026-02-30", NOW)).toBeUndefined();
+  });
   it("accepts a date the column can store", () => {
     expect(parseBirthDate("1992-03-14", NOW)).toBe("1992-03-14");
   });

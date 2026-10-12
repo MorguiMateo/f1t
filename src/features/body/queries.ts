@@ -6,7 +6,11 @@ import {
   guardAuthMutation,
   runIfAuthQueryClientActive,
 } from "../auth/auth-query-client";
-import { fetchBodyProfile, saveBodyProfile } from "./api";
+import { fetchBodyProfile, fetchEnergySessionDays, saveBodyProfile } from "./api";
+import { energyReport, latestWeightOnDate } from "./energy";
+import { energySessionKeys } from "./energy-keys";
+import { fromDateKey } from "../../lib/heatmap";
+import type { ProfileFieldState } from "./profile-draft";
 import { profileSaveOptions, type ProfileField } from "./profile-cache";
 import {
   deleteWeightEntry,
@@ -28,11 +32,24 @@ export function useBodyProfile() {
 
 export function useSaveBodyProfile() {
   const queryClient = useQueryClient();
+  const [fieldStates, setFieldStates] = useState<Partial<Record<ProfileField, ProfileFieldState>>>({});
   const [failures, setFailures] = useState<Partial<Record<ProfileField, Error>>>({});
   const options = useMemo(
     () =>
       profileSaveOptions(queryClient, bodyKeys.profile(), saveBodyProfile, {
+        onStarted: (patch) => {
+          setFieldStates((previous) => {
+            const next = { ...previous };
+            for (const field of Object.keys(patch) as ProfileField[]) next[field] = { value: patch[field], status: "pending" };
+            return next;
+          });
+        },
         onFailed: (fields, error) => {
+          setFieldStates((previous) => {
+            const next = { ...previous };
+            for (const field of fields) if (next[field]) next[field] = { ...next[field]!, status: "failed" };
+            return next;
+          });
           if (!fields.length) return;
           setFailures((previous) => {
             const next = { ...previous };
@@ -40,7 +57,12 @@ export function useSaveBodyProfile() {
             return next;
           });
         },
-        onConfirmed: (fields) => {
+        onConfirmed: (fields, profile) => {
+          setFieldStates((previous) => {
+            const next = { ...previous };
+            for (const field of fields) next[field] = { value: profile[field], status: "saved" };
+            return next;
+          });
           if (!fields.length) return;
           setFailures((previous) => {
             const next = { ...previous };
@@ -51,7 +73,7 @@ export function useSaveBodyProfile() {
       }),
     [queryClient],
   );
-  return { ...useMutation(options), failures };
+  return { ...useMutation(options), failures, fieldStates };
 }
 
 export const weightKeys = {
@@ -64,6 +86,26 @@ export function useWeightEntries() {
     queryKey: weightKeys.entries(),
     queryFn: fetchWeightEntries,
   });
+}
+
+/** Shared by Perfil and the diary; a date's estimate uses only inputs known by that local day. */
+export function useEnergyReportForDate(date: string) {
+  const profile = useBodyProfile();
+  const weights = useWeightEntries();
+  const sessions = useQuery({
+    queryKey: energySessionKeys.onDate(date),
+    queryFn: () => fetchEnergySessionDays(date),
+  });
+  const error = profile.error ?? weights.error ?? sessions.error;
+  const isPending = profile.isPending || weights.isPending || sessions.isPending;
+  const report = !error && !isPending ? energyReport({
+    profile: profile.data ?? null,
+    latestWeightKg: latestWeightOnDate(weights.data ?? [], date),
+    sessionDays: sessions.data ?? [],
+    now: fromDateKey(date),
+  }) : null;
+  const sourceWeight = weights.data?.find((entry) => entry.measured_on <= date) ?? null;
+  return { report, isPending, error, sourceWeight };
 }
 
 /**

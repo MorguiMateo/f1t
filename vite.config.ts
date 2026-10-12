@@ -9,6 +9,8 @@ export default defineConfig({
     tailwindcss(),
     VitePWA({
       registerType: "autoUpdate",
+      // The bundled iOS app must load its own assets, never a cached PWA shell.
+      injectRegister: null,
       includeAssets: ["favicon.svg", "apple-touch-icon.png"],
       manifest: {
         name: "F1t — Entrenamiento",

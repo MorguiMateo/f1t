@@ -8,6 +8,7 @@ import { SkeletonGroup, SkeletonLine } from "../components/skeleton";
 import { ErrorNote } from "../components/status";
 import { TextInput } from "../components/text-input";
 import { RoutineCoverage } from "../features/routines/routine-coverage";
+import { RoutineNavigation } from "../features/routines/routine-navigation";
 import { exerciseIdsOf } from "../features/routines/coverage";
 import {
   useActivateRoutine,
@@ -110,9 +111,10 @@ export function RoutineDetailPage() {
     createDay.mutate(
       { routineId, weekday, label: trimmed },
       {
-        onSuccess: () => {
+        onSuccess: (day) => {
           setCreatingWeekday(null);
           setLabel("");
+          navigate(`/ejercicios?dia=${day.id}&rutina=${routineId}`);
         },
       },
     );
@@ -120,6 +122,7 @@ export function RoutineDetailPage() {
 
   return (
     <>
+      <RoutineNavigation />
       <PageHeader
         title={routine.name}
         subtitle={
@@ -193,7 +196,7 @@ export function RoutineDetailPage() {
                     <span className="mt-0.5 block text-muted">Descanso</span>
                   </span>
                   <Button size="sm" onClick={() => startCreating(weekday)}>
-                    Entrenar
+                    Agregar día
                   </Button>
                 </div>
               )}
@@ -206,7 +209,7 @@ export function RoutineDetailPage() {
                     submitDay(weekday);
                   }}
                 >
-                  <div className="flex gap-2">
+                  <div className="flex flex-col gap-2 sm:flex-row">
                     <TextInput
                       value={label}
                       onChange={(e) => setLabel(e.target.value)}
@@ -220,7 +223,7 @@ export function RoutineDetailPage() {
                       variant="primary"
                       disabled={!label.trim() || createDay.isPending}
                     >
-                      {createDay.isPending ? "…" : "Listo"}
+                      {createDay.isPending ? "Creando…" : "Crear y agregar ejercicios"}
                     </Button>
                   </div>
                   <div className="mt-2 flex flex-wrap gap-2">
@@ -264,6 +267,7 @@ export function RoutineDetailPage() {
       <RoutineCoverage
         exerciseIds={exerciseIds}
         title="Qué cubre la rutina"
+        weekly
       />
 
       <section className="mt-4 rounded-xl border border-line bg-surface p-4">

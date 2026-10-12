@@ -1,7 +1,7 @@
 import type { Session } from "@supabase/supabase-js";
-import { type ReactNode, useEffect, useState } from "react";
+import { type ReactNode, useCallback, useEffect, useState } from "react";
 import { supabase } from "../../lib/supabase";
-import { setWidgetDebugIdentity } from "../../lib/device";
+import { setReminderIdentity, setWidgetDebugIdentity } from "../../lib/device";
 import { setAuthQueryIdentity } from "./auth-query-client";
 import { AuthQueryScope } from "./auth-query-scope";
 import { SessionContext } from "./session";
@@ -10,6 +10,12 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
+  const [attempt, setAttempt] = useState(0);
+  const retrySession = useCallback(() => {
+    setError(null);
+    setIsLoading(true);
+    setAttempt((current) => current + 1);
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -22,6 +28,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         if (!active || receivedAuthEvent) return;
         setAuthQueryIdentity(data.session?.user.id ?? null);
         setWidgetDebugIdentity(data.session?.user.id ?? null);
+        setReminderIdentity(data.session?.user.id ?? null);
         setSession(data.session);
         setError(sessionError);
         setIsLoading(false);
@@ -39,6 +46,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       receivedAuthEvent = true;
       setAuthQueryIdentity(next?.user.id ?? null);
       setWidgetDebugIdentity(next?.user.id ?? null);
+      setReminderIdentity(next?.user.id ?? null);
       setSession(next);
       setError(null);
       setIsLoading(false);
@@ -48,10 +56,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       active = false;
       data.subscription.unsubscribe();
     };
-  }, []);
+  }, [attempt]);
 
   return (
-    <SessionContext.Provider value={{ session, isLoading, error }}>
+    <SessionContext.Provider value={{ session, isLoading, error, retrySession }}>
       {/* A new identity gets a new cache; old in-flight work only sees its old client. */}
       <AuthQueryScope key={session?.user.id ?? "signed-out"}>
         {children}

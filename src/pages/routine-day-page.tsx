@@ -1,4 +1,6 @@
+import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
+import { Button } from "../components/button";
 import { ConfirmButton } from "../components/confirm-button";
 import { EmptyState } from "../components/empty-state";
 import { PageHeader } from "../components/page-header";
@@ -8,12 +10,14 @@ import { ExerciseLineSkeleton } from "../features/routines/exercise-line-skeleto
 import { TextInput } from "../components/text-input";
 import { RoutineCoverage } from "../features/routines/routine-coverage";
 import { RoutineExerciseItem } from "../features/routines/routine-exercise-item";
+import { RoutineNavigation } from "../features/routines/routine-navigation";
 import {
   useDeleteDay,
   useRenameDay,
+  useMoveRoutineDay,
   useRoutineDetail,
 } from "../features/routines/queries";
-import { weekdayLabel } from "../features/routines/weekdays";
+import { WEEK_ORDER, weekdayLabel } from "../features/routines/weekdays";
 
 // Reads the whole routine and picks the day from it: that query is already
 // cached from the detail screen, so navigating here fires no request.
@@ -42,6 +46,9 @@ export function RoutineDayPage() {
   const { data: routine, isPending, error } = useRoutineDetail(routineId);
   const renameDay = useRenameDay();
   const deleteDay = useDeleteDay();
+  const moveDay = useMoveRoutineDay();
+  const [ordering, setOrdering] = useState(false);
+  const [destination, setDestination] = useState("");
 
   const day = routine?.days.find((d) => d.id === dayId) ?? null;
 
@@ -84,10 +91,12 @@ export function RoutineDayPage() {
 
   return (
     <>
+      <RoutineNavigation />
       <PageHeader
         title={day.label}
         subtitle={`${weekdayLabel(day.weekday)} · ${routine.name}`}
         onBack={() => navigate(-1)}
+        action={day.exercises.length > 1 ? <Button size="sm" onClick={() => setOrdering(!ordering)}>{ordering ? "Terminar orden" : "Ordenar"}</Button> : undefined}
       />
 
       {day.exercises.length ? (
@@ -98,6 +107,7 @@ export function RoutineDayPage() {
               item={item}
               previous={day.exercises[index - 1]}
               next={day.exercises[index + 1]}
+              ordering={ordering}
             />
           ))}
         </ul>
@@ -111,6 +121,7 @@ export function RoutineDayPage() {
       {/* Reuses the catalog in "pick" mode instead of maintaining a second search. */}
       <Link
         to={`/ejercicios?dia=${day.id}&rutina=${routine.id}`}
+        state={{ fromRoutineDay: true }}
         className="mt-3 block rounded-xl border border-accent bg-accent px-5 py-3 text-center text-sm font-medium text-accent-ink transition-opacity hover:opacity-90"
       >
         Agregar ejercicio
@@ -137,6 +148,23 @@ export function RoutineDayPage() {
             }}
           />
         </label>
+
+        <form className="mt-4" onSubmit={(event) => {
+          event.preventDefault();
+          if (destination === "") return;
+          moveDay.mutate({ dayId: day.id, routineId: routine.id, fromWeekday: day.weekday, weekday: Number(destination) }, { onSuccess: () => setDestination("") });
+        }}>
+          <label className="block text-sm"><span className="text-muted">Cambiar día de semana</span>
+            <select value={destination} onChange={(event) => setDestination(event.target.value)} className="mt-1 w-full rounded-lg border border-line bg-surface-2 px-3 py-2" disabled={moveDay.isPending}>
+              <option value="">Elegí un día libre</option>
+              {WEEK_ORDER.filter((weekday) => !routine.days.some((item) => item.weekday === weekday)).map((weekday) => <option key={weekday} value={weekday}>{weekdayLabel(weekday)}</option>)}
+            </select>
+          </label>
+          <p className="mt-1 text-xs text-muted">Conserva ejercicios, objetivos, notas y entrenamientos registrados. No reemplaza otros días.</p>
+          <Button type="submit" size="sm" className="mt-2" disabled={destination === "" || moveDay.isPending}>{moveDay.isPending ? "Cambiando…" : "Guardar día de semana"}</Button>
+          {moveDay.error ? <ErrorNote error={moveDay.error} title="No se pudo cambiar el día; actualizá la rutina y elegí un día libre" /> : null}
+          {moveDay.isSuccess ? <p role="status" className="mt-2 text-sm text-ok">Día de semana actualizado</p> : null}
+        </form>
 
         <div className="mt-4 flex items-center justify-between gap-3">
           <p className="text-sm text-muted">

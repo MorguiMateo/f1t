@@ -5,6 +5,7 @@ import {
   planExercise,
   planWorkout,
   progressLabel,
+  shouldRememberWeight,
   suggestFor,
   workoutTotals,
 } from "./plan";
@@ -17,6 +18,7 @@ function item(overrides: Partial<{
   exercise_id: string;
   target_sets: number | null;
   target_reps: string | null;
+  target_weight_kg: number | null;
 }> = {}) {
   return {
     id: "re-1",
@@ -137,6 +139,72 @@ describe("suggestFor", () => {
       reps: 8,
       weightKg: null,
     });
+  });
+});
+
+describe("routine target weight", () => {
+  it("prefills the routine weight on every row without marking anything done", () => {
+    const plan = planExercise({
+      item: item({ target_weight_kg: 62.5 }),
+      logged: [],
+      previous: [set(BENCH, 0, 9, 50)],
+    });
+    expect(plan.targetWeightKg).toBe(62.5);
+    expect(plan.doneCount).toBe(0);
+    expect(plan.sets.every((s) => s.done === null)).toBe(true);
+    for (const row of plan.sets) {
+      expect(suggestFor(row, plan.targetReps, plan.targetWeightKg).weightKg).toBe(62.5);
+    }
+    expect(workoutTotals([plan])).toEqual({
+      doneSets: 0,
+      plannedSets: 3,
+      volumeKg: 0,
+    });
+  });
+
+  it("treats 0 as a real weight, not as missing", () => {
+    const plan = planExercise({
+      item: item({ target_weight_kg: 0 }),
+      logged: [],
+      previous: [set(BENCH, 0, 9, 50)],
+    });
+    expect(suggestFor(plan.sets[0], plan.targetReps, plan.targetWeightKg).weightKg).toBe(0);
+  });
+
+  it("falls back to last session's weight when the routine has none", () => {
+    const plan = planExercise({
+      item: item({ target_weight_kg: null }),
+      logged: [],
+      previous: [set(BENCH, 0, 9, 50)],
+    });
+    expect(plan.targetWeightKg).toBeNull();
+    expect(suggestFor(plan.sets[0], plan.targetReps, plan.targetWeightKg).weightKg).toBe(50);
+  });
+
+  it("existing progress today wins over the routine weight", () => {
+    const plan = planExercise({
+      item: item({ target_weight_kg: 62.5 }),
+      logged: [set(BENCH, 0, 10, 70)],
+      previous: [],
+    });
+    expect(plan.doneCount).toBe(1);
+    expect(suggestFor(plan.sets[0], plan.targetReps, plan.targetWeightKg).weightKg).toBe(70);
+    expect(suggestFor(plan.sets[1], plan.targetReps, plan.targetWeightKg).weightKg).toBe(62.5);
+  });
+
+  it("never fills cleared values in an already-saved set", () => {
+    const plan = planExercise({ item: item({ target_weight_kg: 62.5 }), logged: [set(BENCH, 0, null, null)], previous: [set(BENCH, 0, 10, 50)] });
+    expect(suggestFor(plan.sets[0], plan.targetReps, plan.targetWeightKg)).toEqual({ reps: null, weightKg: null });
+  });
+
+  it("only learns a first weight and preserves explicit defaults", () => {
+    expect(shouldRememberWeight(null, 60)).toBe(true);
+    expect(shouldRememberWeight(undefined, 0)).toBe(true);
+    expect(shouldRememberWeight(60, 0)).toBe(false);
+    expect(shouldRememberWeight(0, 60)).toBe(false);
+    expect(shouldRememberWeight(60, 60)).toBe(false);
+    expect(shouldRememberWeight(60, null)).toBe(false);
+    expect(shouldRememberWeight(null, null)).toBe(false);
   });
 });
 

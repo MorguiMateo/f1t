@@ -7,9 +7,43 @@ import {
   bmr,
   calorieTarget,
   energyReport,
+  latestWeightOnDate,
 } from "./energy";
 
 const TODAY = new Date(2026, 8, 28);
+
+describe('historical energy inputs', () => {
+  it('never uses a weight measured after the diary date', () => {
+    const weights = [
+      { measured_on: '2026-09-29', weight_kg: 80 },
+      { measured_on: '2026-09-20', weight_kg: 79 },
+    ];
+    expect(latestWeightOnDate(weights, '2026-09-25')).toBe(79);
+    expect(latestWeightOnDate(weights, '2026-09-19')).toBeNull();
+    expect(latestWeightOnDate(weights, '2026-09-29')).toBe(80);
+  });
+});
+
+describe('food snapshot schema bound', () => {
+  it('allows the maximum target produced by permitted profile inputs', () => {
+    const now = new Date(2026, 8, 29);
+    const days = Array.from({ length: 28 }, (_, index) => ({
+      performed_on: toDateKey(new Date(2026, 8, 29 - index)),
+    }));
+    const report = energyReport({
+      profile: { height_cm: 260, birth_date: '2026-09-29', sex: 'male', goal: 'gain' },
+      latestWeightKg: 400,
+      sessionDays: days,
+      now,
+    });
+    expect(report.status).toBe('ready');
+    if (report.status === 'ready') {
+      expect(report.bmr).toBe(5630);
+      expect(report.tdee).toBe(10697);
+      expect(report.target.kcal).toBe(11000);
+    }
+  });
+});
 
 /** `count` consecutive session days ending today. */
 function sessions(count: number) {

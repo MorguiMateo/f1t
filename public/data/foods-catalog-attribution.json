@@ -1,0 +1,16 @@
+{
+  "catalogVersion": "2026-10-01.1",
+  "catalogSha256": "39c36ac0738671140cc8ff6c48c67a479efd933b012dadcdd50540151f47e644",
+  "attribution": "Datos de productos: Open Food Facts (ODbL 1.0)",
+  "sourceName": "Open Food Facts",
+  "sourceUrl": "https://world.openfoodfacts.org/",
+  "databaseLicense": "ODbL-1.0",
+  "databaseLicenseUrl": "https://opendatacommons.org/licenses/odbl/1-0/",
+  "contentsLicense": "DbCL-1.0",
+  "contentsLicenseUrl": "https://opendatacommons.org/licenses/dbcl/1-0/",
+  "derivedDatabase": "src/features/foods/catalog.json",
+  "downloadPath": "/data/foods-catalog.json",
+  "attributionDownloadPath": "/data/foods-catalog-attribution.json",
+  "imagesIncluded": false,
+  "note": "Solo fichas de productos curadas; no incluye datos privados ni imágenes. La etiqueta actual del envase prevalece."
+}

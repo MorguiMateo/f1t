@@ -1,6 +1,6 @@
 import { Link } from "react-router";
 import { getExercise } from "../exercises/catalog";
-import { targetLabel } from "./target";
+import { targetLabel, weightLabel } from "./target";
 import type { ReactNode } from "react";
 
 // Imports the catalog, so use it only from `lazy()` chunks.
@@ -8,15 +8,19 @@ export function ExerciseLine({
   exerciseId,
   targetSets = null,
   targetReps = null,
+  targetWeightKg = null,
   children,
 }: {
   exerciseId: string;
   targetSets?: number | null;
   targetReps?: string | null;
+  targetWeightKg?: number | null;
   children?: ReactNode;
 }) {
   const exercise = getExercise(exerciseId);
-  const target = targetLabel(targetSets, targetReps);
+  const target = [targetLabel(targetSets, targetReps), weightLabel(targetWeightKg)]
+    .filter(Boolean)
+    .join(" · ");
 
   return (
     <div className="flex items-center gap-3">

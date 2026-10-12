@@ -148,6 +148,17 @@ export async function deleteDay(dayId: string): Promise<void> {
   unwrap(await supabase.from("routine_days").delete().eq("id", dayId));
 }
 
+/** Keep the same day identity and targets; never overwrite an occupied weekday. */
+export async function moveRoutineDay(input: { dayId: string; routineId: string; fromWeekday: number; weekday: number }): Promise<RoutineDayRow> {
+  if (![input.fromWeekday, input.weekday].every((day) => Number.isInteger(day) && day >= 0 && day <= 6)) {
+    throw new Error("Elegí un día de la semana válido.");
+  }
+  return unwrapRow(await supabase.from("routine_days")
+    .update({ weekday: input.weekday })
+    .eq("id", input.dayId).eq("routine_id", input.routineId).eq("weekday", input.fromWeekday)
+    .select().single());
+}
+
 // The next position comes from the database because the exercise is picked on
 // the catalog screen, which doesn't have the day's list in hand.
 export async function addExerciseToDay(input: {
@@ -189,15 +200,37 @@ export async function updateRoutineExercise(input: {
   patch: {
     target_sets?: number | null;
     target_reps?: string | null;
+    target_weight_kg?: number | null;
     notes?: string | null;
   };
 }): Promise<void> {
-  unwrap(
+  unwrapRow(
     await supabase
       .from("routine_exercises")
       .update(input.patch)
-      .eq("id", input.id),
+      .eq("id", input.id)
+      .select("id")
+      .single(),
   );
+}
+
+/** Atomic first-weight learning: a stale workout must not replace an explicit default. */
+export async function rememberRoutineExerciseWeight(id: string, weightKg: number): Promise<boolean> {
+  const row = unwrap(
+    await supabase.from("routine_exercises")
+      .update({ target_weight_kg: weightKg })
+      .eq("id", id)
+      .is("target_weight_kg", null)
+      .select("id")
+      .maybeSingle(),
+  );
+  if (row) return true;
+  // No affected row can mean a concurrent edit, a removed exercise or an RLS
+  // denial. Only a confirmed existing default counts as a harmless no-op.
+  const existing = unwrapRow<Pick<RoutineExercise, "target_weight_kg">>(await supabase.from("routine_exercises")
+    .select("target_weight_kg").eq("id", id).maybeSingle());
+  if (existing?.target_weight_kg == null) throw new Error("No se pudo confirmar el peso de la rutina.");
+  return false;
 }
 
 export async function removeRoutineExercise(id: string): Promise<void> {

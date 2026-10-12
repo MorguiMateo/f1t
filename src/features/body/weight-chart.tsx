@@ -1,9 +1,10 @@
+import { chartSampleCount, hasWeightGaps } from "./weight-context";
 import { useMemo } from "react";
 import { Link } from "react-router";
 import { Skeleton, SkeletonGroup } from "../../components/skeleton";
 import { fromDateKey, toDateKey } from "../../lib/heatmap";
 import { useBodyProfile, useWeightEntries } from "./queries";
-import { formatKg } from "./weight";
+import { formatDelta, formatKg } from "./weight";
 import {
   buildWeightChart,
   CHART_HEIGHT,
@@ -66,7 +67,7 @@ function Drawing({ chart }: { chart: Chart }) {
       role="img"
       aria-label={describe(chart)}
     >
-      <g className="text-[9px]" aria-hidden="true">
+      <g className="text-[12px]" aria-hidden="true">
         {chart.yTicks.map((tick) => (
           <g key={tick.kg}>
             <line
@@ -135,7 +136,7 @@ function Drawing({ chart }: { chart: Chart }) {
       ))}
 
       <path
-        d={chart.trendPath}
+        d={chart.points.map((point, index) => `${index > 0 && !hasWeightGaps([chart.points[index - 1].date, point.date]) ? "L" : "M"}${point.x} ${point.trendY}`).join(" ")}
         fill="none"
         className="stroke-accent"
         strokeWidth={2}
@@ -166,7 +167,7 @@ export function WeightChart({ weeks }: { weeks?: number }) {
   if (isPending) {
     return (
       <SkeletonGroup className="rounded-xl border border-line bg-surface p-5">
-        <h2 className="font-semibold">Evolución</h2>
+        <h2 className="font-semibold">Evolución del peso</h2>
         <Skeleton className="mt-3 aspect-[2/1] w-full" />
       </SkeletonGroup>
     );
@@ -178,19 +179,8 @@ export function WeightChart({ weeks }: { weeks?: number }) {
   return (
     <section className="rounded-xl border border-line bg-surface p-5">
       <div className="flex items-baseline justify-between gap-3">
-        <h2 className="font-semibold">Evolución</h2>
-        <span className="flex items-center gap-3 text-xs text-muted">
-          <span className="flex items-center gap-1">
-            <span className="h-0.5 w-3 rounded bg-accent" />
-            Media {TREND_DAYS} días
-          </span>
-          {chart?.target ? (
-            <span className="flex items-center gap-1">
-              <span className="w-3 border-t border-dashed border-muted" />
-              Meta
-            </span>
-          ) : null}
-        </span>
+        <h2 className="font-semibold">Evolución del peso</h2>
+        {chart ? <span className="text-xs text-muted">{formatDay(chart.points.at(-1)!.date)}</span> : null}
       </div>
 
       {!chart ? (
@@ -199,25 +189,33 @@ export function WeightChart({ weeks }: { weeks?: number }) {
         </p>
       ) : (
         <>
+          <div className="mt-3 flex flex-wrap items-baseline justify-between gap-2">
+            <p className="text-2xl font-bold tnum">{formatKg(chart.points.at(-1)!.kg)} <span className="text-sm font-normal text-muted">kg</span></p>
+            {chart.points.length > 1 ? (
+              <p className="text-xs text-muted tnum">
+                {formatDelta(chart.points.at(-1)!.kg - chart.points[0].kg)} kg desde {formatDay(chart.points[0].date)}
+              </p>
+            ) : null}
+          </div>
+          <p className="mt-2 text-sm text-muted">{formatDay(chart.points[0].date)} – {formatDay(chart.points.at(-1)!.date)} · {chart.points.length} {chart.points.length === 1 ? "medición" : "mediciones"} en las últimas {weeks ?? 26} semanas</p>
+          <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-sm text-muted" aria-label="Leyenda del peso">
+            <span>● Peso registrado</span><span>━ Media {TREND_DAYS} días</span>{chart.target ? <span>┄ Meta {formatKg(chart.target.kg)} kg</span> : null}
+          </div>
           <Drawing chart={chart} />
-
-          {chart.points.length === 1 ? (
-            <p className="mt-2 text-xs text-muted">
-              Con un peso más ya se ve la curva.
-            </p>
-          ) : null}
-
-          {/* The target lives in Perfil; this is the way back, as the energy
-              card links here for a missing weight. `undefined` is a profile
-              still loading or failed, which shouldn't nag. */}
-          {profile !== undefined && target === null ? (
-            <Link
-              to="/perfil"
-              className="mt-2 inline-block text-xs font-medium text-accent"
-            >
-              Poné un peso objetivo para ver la meta
-            </Link>
-          ) : null}
+          <p className="mt-2 text-sm text-muted tnum">Media {TREND_DAYS} días · {formatKg(chart.points.at(-1)!.trend)} kg · {chartSampleCount(entries ?? [], chart.points.at(-1)!.date)} mediciones disponibles</p>
+          {chartSampleCount(entries ?? [], chart.points.at(-1)!.date) < 2 ? <p className="mt-2 text-sm text-muted">La media actual tiene una sola medición; todavía no permite distinguir una tendencia.</p> : null}
+          {hasWeightGaps(chart.points.map((point) => point.date)) ? <p className="mt-2 text-sm text-muted">Hay intervalos de más de 7 días sin registros. No se midió el peso entre los puntos.</p> : null}
+          <details className="mt-2">
+            <summary className="min-h-11 cursor-pointer content-center text-sm text-muted">Detalle de la curva</summary>
+            <p className="text-xs text-muted">Puntos: pesos registrados. Línea: promedio de los registros disponibles en {TREND_DAYS} días.</p>
+            {chart.target ? (
+              <p className="mt-2 text-xs text-muted tnum">Línea discontinua: meta {formatKg(chart.target.kg)} kg.</p>
+            ) : profile !== undefined && target === null ? (
+              <Link to="/perfil#objetivo-corporal" className="mt-2 inline-flex min-h-11 items-center text-sm font-medium text-accent">Definir meta en Perfil</Link>
+            ) : null}
+            <table className="mt-3 w-full text-left text-sm tnum"><caption className="text-left font-medium">Valores de la curva</caption><thead><tr><th scope="col" className="py-2">Fecha</th><th scope="col">Peso (kg)</th><th scope="col">Media (kg)</th></tr></thead><tbody>{chart.points.slice(-12).reverse().map((point) => <tr key={point.date}><th scope="row" className="py-2 font-normal">{fromDateKey(point.date).toLocaleDateString("es")}</th><td>{formatKg(point.kg)}</td><td>{formatKg(point.trend)}</td></tr>)}</tbody></table>
+            <p className="mt-2 text-sm text-muted">Últimas 12 mediciones de la curva; el historial completo está en Peso.</p>
+          </details>
         </>
       )}
     </section>

@@ -8,13 +8,22 @@
   --surface-2: #edeef2;
   --border: #dfe1e7;
   --border-strong: #c6c9d2;
+  --border-control: #858a96;
   --ink: #14161b;
   --ink-2: #3d424d;
   --muted: #6b7180;
-  --accent: #d93a12;
+  --accent: #c8310e;
   --accent-ink: #ffffff;
   --ok: #157a4e;
   --warn: #8a5c08;
+}
+
+@layer utilities {
+  /* Existing feature fields may still request border-line; controls need a
+     stronger boundary than decorative cards in both themes. */
+  :is(input, select, textarea, button).border-line {
+    border-color: var(--border-control);
+  }
 }
 
 @media (prefers-color-scheme: dark) {
@@ -24,6 +33,7 @@
     --surface-2: #1d2027;
     --border: #262a33;
     --border-strong: #39404d;
+    --border-control: #6f7787;
     --ink: #eff0f3;
     --ink-2: #c4c8d0;
     --muted: #878d9a;
@@ -40,6 +50,7 @@
   --surface-2: #1d2027;
   --border: #262a33;
   --border-strong: #39404d;
+  --border-control: #6f7787;
   --ink: #eff0f3;
   --ink-2: #c4c8d0;
   --muted: #878d9a;
@@ -56,6 +67,7 @@
   --color-surface-2: var(--surface-2);
   --color-line: var(--border);
   --color-line-strong: var(--border-strong);
+  --color-control: var(--border-control);
   --color-ink: var(--ink);
   --color-ink-2: var(--ink-2);
   --color-muted: var(--muted);
@@ -84,6 +96,26 @@
 
   .tnum {
     font-variant-numeric: tabular-nums;
+  }
+
+  /* Small visual labels can still have a full touch target. */
+  button {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  input:not([type="checkbox"]):not([type="radio"]), select, textarea {
+    min-height: 44px;
+    border-color: var(--border-control);
+  }
+
+  .confirmation-dialog::backdrop {
+    background: rgb(0 0 0 / 55%);
+  }
+
+  .confirmation-dialog {
+    max-height: calc(100dvh - 2rem);
+    overflow-y: auto;
   }
 
   :focus-visible {

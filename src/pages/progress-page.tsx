@@ -1,3 +1,6 @@
+import { useState } from "react";
+import { Link, useSearchParams } from "react-router";
+import { ExerciseProgress } from "../features/body/exercise-progress";
 import { EmptyState } from "../components/empty-state";
 import { PageHeader } from "../components/page-header";
 import { Skeleton, SkeletonGroup, SkeletonLine } from "../components/skeleton";
@@ -59,6 +62,19 @@ function ActivitySkeleton() {
 
 export function ProgressPage() {
   const { data: days, isPending, error } = useSessionDays();
+  const [params, setParams] = useSearchParams();
+  const section = params.get("seccion") === "cuerpo" ? "cuerpo" : "entrenamiento";
+  const [focusRequest, setFocusRequest] = useState(0);
+
+  function choose(next: string) {
+    const updated = new URLSearchParams(params);
+    updated.set("seccion", next); updated.delete("anotar");
+    setParams(updated, { replace: true });
+  }
+  function logWeight() {
+    const updated = new URLSearchParams(params); updated.set("seccion", "cuerpo"); updated.set("anotar", "1");
+    setParams(updated, { replace: true }); setFocusRequest((value) => value + 1);
+  }
 
   const streak = days ? currentStreak(days) : 0;
   const trained = days?.length ?? 0;
@@ -66,10 +82,14 @@ export function ProgressPage() {
 
   return (
     <>
-      <PageHeader
-        title="Progreso"
-        subtitle="Tu actividad, tu peso y tu evolución"
-      />
+      <PageHeader title="Progreso" subtitle="Entrenamiento y evolución corporal, por separado" />
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <div role="group" aria-label="Tipo de progreso" className="flex gap-2">
+          {[ ["entrenamiento", "Entrenamiento"], ["cuerpo", "Cuerpo"] ].map(([value, label]) => <button key={value} type="button" aria-pressed={section === value} onClick={() => choose(value)} className={`min-h-11 rounded-xl border px-4 py-3 text-sm font-medium ${section === value ? "border-accent bg-accent text-accent-ink" : "border-line bg-surface"}`}>{label}</button>)}
+        </div>
+        <button type="button" onClick={logWeight} className="min-h-11 rounded-xl border border-accent px-4 py-3 text-sm font-medium text-accent">Anotar peso</button>
+      </div>
+      <div hidden={section !== "entrenamiento"} className="space-y-4">
 
       {isPending ? <ActivitySkeleton /> : null}
       {error ? <ErrorNote error={error} /> : null}
@@ -78,20 +98,13 @@ export function ProgressPage() {
         // Scoped to the activity: the weight sections below still show.
         <EmptyState
           title="Todavía no entrenaste"
-          description="El calendario de actividad se llena solo a medida que registres entrenamientos."
+          description="Registrá tu primer entrenamiento desde Hoy."
         />
       ) : null}
 
       {days && days.length ? (
         <>
-          <section className="rounded-xl border border-line bg-surface p-4">
-            <h2 className="mb-3 text-sm font-semibold">
-              Últimas {WIDGET_WEEKS} semanas
-            </h2>
-            <Heatmap sessions={days} weeks={WIDGET_WEEKS} />
-          </section>
-
-          <div className="mt-3 flex gap-2">
+          <div className="flex gap-2">
             <Stat
               value={String(streak)}
               label={streak === 1 ? "día de racha" : "días de racha"}
@@ -102,15 +115,27 @@ export function ProgressPage() {
             />
             <Stat value={String(sets)} label="series" />
           </div>
+          <section className="mt-3 rounded-xl border border-line bg-surface p-4">
+            <h2 className="mb-3 flex justify-between gap-2 text-sm font-semibold">
+              Actividad
+              <span className="font-normal text-muted">{WIDGET_WEEKS} semanas</span>
+            </h2>
+            <Heatmap sessions={days} weeks={WIDGET_WEEKS} />
+          </section>
         </>
       ) : null}
 
-      {/* The weight sections stand on their own queries, so they show even
-          for an account that has never trained. The chart hides itself until
-          there is a first weight; the log is where that weight gets typed. */}
-      <div className="mt-4 space-y-4">
-        <WeightChart weeks={WIDGET_WEEKS} />
-        <WeightLog />
+      <ExerciseProgress selectedExercise={params.get("ejercicio") ?? ""} />
+      </div>
+      <div hidden={section !== "cuerpo"}>
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+          <h2 className="font-semibold">Evolución corporal</h2>
+          <Link to="/perfil#objetivo-corporal" className="inline-flex min-h-11 items-center text-sm font-medium text-accent">Ver o editar objetivo</Link>
+        </div>
+        <div className="grid items-start gap-4 lg:grid-cols-2">
+          <WeightLog focusRequest={section === "cuerpo" ? focusRequest + (params.get("anotar") === "1" ? 1 : 0) : 0} />
+          <WeightChart weeks={WIDGET_WEEKS} />
+        </div>
       </div>
     </>
   );

@@ -5,9 +5,11 @@ import { muscleCoverage } from "./coverage";
 export function RoutineCoverage({
   exerciseIds,
   title = "Cobertura muscular",
+  weekly = false,
 }: {
   exerciseIds: readonly string[];
   title?: string;
+  weekly?: boolean;
 }) {
   const coverage = muscleCoverage(exerciseIds);
 
@@ -34,14 +36,13 @@ export function RoutineCoverage({
             {labels(coverage.secondary)}
           </p>
         ) : null}
-        {coverage.missing.length ? (
+        {weekly && coverage.missing.length ? (
           <p className="text-warn">
-            <span className="text-muted">Sin trabajo: </span>
+            <span className="text-muted">No incluido en esta rutina: </span>
             {labels(coverage.missing)}
           </p>
-        ) : (
-          <p className="text-ok">No queda ningún grupo grande sin entrenar.</p>
-        )}
+        ) : null}
+        <p className="text-xs text-muted">Según los músculos del catálogo. No evalúa volumen, frecuencia ni suficiencia del entrenamiento.</p>
       </div>
     </section>
   );

@@ -148,6 +148,14 @@ export function calorieTarget(
 
 export type MissingField = "height" | "weight" | "sex" | "birthDate";
 
+/** Weight entries are newest-first; a past diary date must not borrow a future weigh-in. */
+export function latestWeightOnDate(
+  entries: readonly { measured_on: string; weight_kg: number }[],
+  date: string,
+): number | null {
+  return entries.find((entry) => entry.measured_on <= date)?.weight_kg ?? null;
+}
+
 export const MISSING_LABELS: Record<MissingField, string> = {
   height: "tu altura",
   weight: "un peso",

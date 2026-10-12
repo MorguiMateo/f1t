@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { PageHeader } from "../components/page-header";
 import { ErrorNote } from "../components/status";
 import { useUser } from "../features/auth/session";
+import { ReminderSettings } from "../features/activity/reminder-settings";
 import {
   BodyProfileForm,
   BodyProfileFormSkeleton,
@@ -11,11 +12,16 @@ import {
   EnergyCardSkeleton,
 } from "../features/body/energy-card";
 import { useBodyProfile } from "../features/body/queries";
+import { device, signOutAfterDeviceCleanup } from "../lib/device";
 import { supabase } from "../lib/supabase";
 
 export function ProfilePage() {
   const user = useUser();
   const { data: profile, isPending, error } = useBodyProfile();
+  useEffect(() => {
+    const target = window.location.hash.slice(1);
+    if (target && !isPending) document.getElementById(target)?.scrollIntoView({ block: "start" });
+  }, [isPending]);
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [signOutError, setSignOutError] = useState<Error | null>(null);
 
@@ -30,7 +36,9 @@ export function ProfilePage() {
     setIsSigningOut(true);
     setSignOutError(null);
     try {
-      const { error } = await supabase.auth.signOut();
+      // Do not let Supabase emit SIGNED_OUT (and unmount this page) while the
+      // widget payload or locally scheduled reminder still belongs to us.
+      const { error } = await signOutAfterDeviceCleanup(device, () => supabase.auth.signOut());
       if (error) setSignOutError(error);
       // On success, onAuthStateChange makes the guard show sign-in.
     } catch (reason) {
@@ -42,8 +50,35 @@ export function ProfilePage() {
 
   return (
     <>
-      <PageHeader title="Perfil" subtitle="Tu cuenta, tu cuerpo y tu objetivo" />
+      <PageHeader title="Perfil" subtitle="Tu objetivo, datos para estimaciones y preferencias" />
 
+
+      <div className="mt-4">
+        {isPending ? (
+          <>
+            <BodyProfileFormSkeleton />
+            <div className="mt-4">
+              <EnergyCardSkeleton />
+            </div>
+          </>
+        ) : null}
+        {error ? <ErrorNote error={error} /> : null}
+        {/* Keep controlled drafts mounted when a background refetch fails. */}
+        {!isPending && profile !== undefined ? (
+          <>
+            <BodyProfileForm profile={profile ?? null} />
+            {/* Reads the same profile cache the form writes on each blur, so
+                the numbers follow every saved field. */}
+            <div className="mt-4">
+              <EnergyCard />
+            </div>
+          </>
+        ) : null}
+      </div>
+
+      <section className="mt-4" aria-label="Preferencias de entrenamiento"><ReminderSettings /></section>
+      <section className="mt-6" aria-labelledby="account-heading">
+        <h2 id="account-heading" className="mb-3 font-semibold">Cuenta</h2>
       <div className="flex items-center gap-4 rounded-xl border border-line bg-surface p-5">
         {avatarUrl ? (
           <img
@@ -65,29 +100,6 @@ export function ProfilePage() {
         </div>
       </div>
 
-      <div className="mt-4">
-        {isPending ? (
-          <>
-            <BodyProfileFormSkeleton />
-            <div className="mt-4">
-              <EnergyCardSkeleton />
-            </div>
-          </>
-        ) : null}
-        {error ? <ErrorNote error={error} /> : null}
-        {/* Wait for the query: the inputs are uncontrolled, so a profile
-            arriving later would never reach them. Null means never filled in. */}
-        {!isPending && !error ? (
-          <>
-            <BodyProfileForm profile={profile ?? null} />
-            {/* Reads the same profile cache the form writes on each blur, so
-                the numbers follow every saved field. */}
-            <div className="mt-4">
-              <EnergyCard />
-            </div>
-          </>
-        ) : null}
-      </div>
 
       <button
         type="button"
@@ -97,6 +109,7 @@ export function ProfilePage() {
       >
         {isSigningOut ? "Cerrando sesión…" : "Cerrar sesión"}
       </button>
+      </section>
       {signOutError ? (
         <div className="mt-3">
           <ErrorNote error={signOutError} title="No se pudo cerrar sesión" />

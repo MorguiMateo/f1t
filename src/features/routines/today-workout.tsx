@@ -11,11 +11,6 @@ export function TodayWorkout({
   day: RoutineDay;
   routineId: string;
 }) {
-  const totalSets = day.exercises.reduce(
-    (total, e) => total + (e.target_sets ?? 0),
-    0,
-  );
-
   if (!day.exercises.length) {
     return (
       <div className="rounded-xl border border-dashed border-line-strong bg-surface/50 p-5 text-center">
@@ -35,33 +30,28 @@ export function TodayWorkout({
 
   return (
     <>
-      <div className="flex items-baseline justify-between gap-3">
-        <h2 className="text-lg font-semibold">{day.label}</h2>
-        <p className="shrink-0 text-sm text-muted tnum">
-          {day.exercises.length}{" "}
-          {day.exercises.length === 1 ? "ejercicio" : "ejercicios"}
-          {totalSets ? ` · ${totalSets} series` : ""}
-        </p>
-      </div>
-
-      <ul className="mt-3 flex flex-col gap-2">
-        {day.exercises.map((item) => (
-          <li
-            key={item.id}
-            className="rounded-xl border border-line bg-surface p-2.5"
-          >
-            <ExerciseLine
-              exerciseId={item.exercise_id}
-              targetSets={item.target_sets}
-              targetReps={item.target_reps}
-            />
-          </li>
-        ))}
-      </ul>
+      <details className="mt-3">
+        <summary className="flex min-h-11 cursor-pointer items-center text-sm font-medium text-muted">Ver ejercicios del plan</summary>
+        <ul className="mt-3 flex flex-col gap-2">
+          {day.exercises.map((item) => (
+            <li
+              key={item.id}
+              className="rounded-xl border border-line bg-surface p-2.5"
+            >
+              <ExerciseLine
+                exerciseId={item.exercise_id}
+                targetSets={item.target_sets}
+                targetReps={item.target_reps}
+                targetWeightKg={item.target_weight_kg}
+              />
+            </li>
+          ))}
+        </ul>
+      </details>
 
       <Link
         to={`/rutinas/${routineId}/dias/${day.id}`}
-        className="mt-3 block rounded-xl border border-line bg-surface px-5 py-3 text-center text-sm font-medium text-muted transition-colors hover:bg-surface-2 hover:text-ink"
+        className="mt-1 inline-flex min-h-11 items-center text-sm font-medium text-muted hover:text-ink"
       >
         Editar este día
       </Link>

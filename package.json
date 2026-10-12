@@ -10,15 +10,24 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
+    "ios:sync": "npm run ios:prepare",
+    "ios:open": "open ios/App/App.xcodeproj",
     "icons": "node scripts/gen-icons.mjs",
     "db:link": "supabase link --project-ref gvftdtumxnefgembkwkq",
     "db:push": "supabase db push",
     "db:new": "supabase migration new",
     "db:seed": "supabase db query --linked -f supabase/seed/exercises.sql",
     "db:status": "supabase migration list --linked",
-    "db:types": "supabase gen types typescript --linked --schema public > src/lib/database.types.ts"
+    "db:types": "supabase gen types typescript --linked --schema public > src/lib/database.types.ts",
+    "ios:prepare": "node scripts/ios-native-prepare.mjs",
+    "ios:build": "npm run ios:prepare && xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Debug -destination \"generic/platform=iOS Simulator\" CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=YES build",
+    "ios:test": "npm run ios:prepare && xcodebuild -project ios/App/App.xcodeproj -scheme App -destination \"platform=iOS Simulator,name=iPhone 18 Pro\" CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=YES test"
   },
   "dependencies": {
+    "@capacitor/app": "^8.1.1",
+    "@capacitor/browser": "^8.0.4",
+    "@capacitor/core": "^8.5.2",
+    "@capacitor/ios": "^8.5.2",
     "@supabase/supabase-js": "^2.115.0",
     "@tanstack/react-query": "^5.102.8",
     "react": "^19.2.8",
@@ -27,6 +36,7 @@
     "react-router": "^8.3.1"
   },
   "devDependencies": {
+    "@capacitor/cli": "^8.5.2",
     "@tailwindcss/vite": "^4.3.3",
     "@types/node": "^24.13.3",
     "@types/react": "^19.2.18",
@@ -40,5 +50,10 @@
     "vite": "^8.2.2",
     "vite-plugin-pwa": "^1.3.0",
     "vitest": "^5.0.0"
+  },
+  "overrides": {
+    "xcode": {
+      "uuid": "11.1.1"
+    }
   }
 }

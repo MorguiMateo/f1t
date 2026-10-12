@@ -12,6 +12,8 @@ export type ExercisePlan = {
   exerciseId: string;
   targetSets: number | null;
   targetReps: string | null;
+  /** Routine default; null means none chosen, 0 is a real weight. */
+  targetWeightKg: number | null;
   sets: PlannedSet[];
   doneCount: number;
 };
@@ -39,8 +41,13 @@ function rowCount(
   return allDone ? base + 1 : base;
 }
 
+type PlanItem = Pick<
+  RoutineExercise,
+  "id" | "exercise_id" | "target_sets" | "target_reps"
+> & { target_weight_kg?: number | null };
+
 export function planExercise(input: {
-  item: Pick<RoutineExercise, "id" | "exercise_id" | "target_sets" | "target_reps">;
+  item: PlanItem;
   /** Sets for every exercise; filtered here. */
   logged: readonly SessionSet[];
   previous: readonly SessionSet[];
@@ -65,16 +72,14 @@ export function planExercise(input: {
     exerciseId: item.exercise_id,
     targetSets: item.target_sets,
     targetReps: item.target_reps,
+    targetWeightKg: item.target_weight_kg ?? null,
     sets,
     doneCount: done.size,
   };
 }
 
 export function planWorkout(input: {
-  items: readonly Pick<
-    RoutineExercise,
-    "id" | "exercise_id" | "target_sets" | "target_reps"
-  >[];
+  items: readonly PlanItem[];
   logged: readonly SessionSet[];
   previous: readonly SessionSet[];
 }): ExercisePlan[] {
@@ -93,14 +98,29 @@ export function parseTargetReps(targetReps: string | null): number | null {
   return match ? Number(match[0]) : null;
 }
 
+/**
+ * Suggestions only fill inputs; they never create a logged set, so they can't
+ * count as done. Weight order: what was ticked today, the routine's explicit
+ * weight, then last session's weight for this set. `??` keeps a real 0.
+ */
 export function suggestFor(
   set: PlannedSet,
   targetReps: string | null,
+  targetWeightKg: number | null = null,
 ): { reps: number | null; weightKg: number | null } {
   return {
-    reps: set.done?.reps ?? set.previous?.reps ?? parseTargetReps(targetReps),
-    weightKg: set.done?.weight_kg ?? set.previous?.weight_kg ?? null,
+    reps: set.done ? set.done.reps : set.previous?.reps ?? parseTargetReps(targetReps),
+    weightKg:
+      set.done ? set.done.weight_kg : targetWeightKg ?? set.previous?.weight_kg ?? null,
   };
+}
+
+/** Learn only the first weight; explicit routine defaults (including 0) stay put. */
+export function shouldRememberWeight(
+  current: number | null | undefined,
+  logged: number | null,
+): logged is number {
+  return current == null && logged !== null;
 }
 
 export type WorkoutTotals = {

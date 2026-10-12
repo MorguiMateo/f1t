@@ -21,6 +21,7 @@ import {
   removeRoutineExercise,
   renameDay,
   renameRoutine,
+  moveRoutineDay,
   swapExercisePositions,
   updateRoutineExercise,
 } from "./api";
@@ -81,6 +82,7 @@ export const useActivateRoutine = () => useRoutineMutation(activateRoutine);
 export const useCreateDay = () => useRoutineMutation(createDay);
 export const useRenameDay = () => useRoutineMutation(renameDay);
 export const useDeleteDay = () => useRoutineMutation(deleteDay);
+export const useMoveRoutineDay = () => useRoutineMutation(moveRoutineDay);
 
 export const useAddExercise = () => useRoutineMutation(addExerciseToDay);
 export const useUpdateExercise = () => useRoutineMutation(updateRoutineExercise);

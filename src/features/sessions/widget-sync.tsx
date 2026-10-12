@@ -1,40 +1,78 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { device } from "../../lib/device";
+import { toDateKey } from "../../lib/heatmap";
 import { useUser } from "../auth/session";
-import { getExercise } from "../exercises/catalog";
-import type { RoutineDay } from "../routines/api";
+import { useActiveRoutine } from "../routines/queries";
 import { targetLabel } from "../routines/target";
 import { useSessionDays } from "./queries";
 import { buildWidgetPayload, WIDGET_EXERCISE_LIMIT } from "./widget";
 
-/**
- * Publishes widget state. A component, not a loose effect, because it needs
- * the catalog; mounted with `lazy()` so the catalog doesn't enter the initial chunk.
- */
-export function WidgetSync({ day }: { day: RoutineDay | null }) {
+/** Mounted by AppLayout, not Today: routine and set mutations invalidate these queries. */
+export function WidgetSync() {
   const userId = useUser()?.id;
   const { data: days } = useSessionDays();
+  const { data: routine } = useActiveRoutine();
+  const [date, setDate] = useState(() => new Date());
 
   useEffect(() => {
-    if (!days || !userId) return;
+    // Repair after local midnight or a suspended timer when returning to F1t.
+    let timer: ReturnType<typeof setTimeout>;
+    function refresh() {
+      const now = new Date();
+      setDate((previous) => toDateKey(previous) === toDateKey(now) ? previous : now);
+      clearTimeout(timer);
+      timer = setTimeout(refresh, new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1).getTime() - now.getTime() + 1000);
+    }
+    function onVisibilityChange() {
+      if (document.visibilityState === "visible") refresh();
+    }
+    refresh();
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () => {
+      clearTimeout(timer);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
+  }, []);
 
-    void device.syncWidget(
-      buildWidgetPayload({
-        days,
-        todayLabel: day?.label ?? null,
-        todayExercises: (day?.exercises ?? [])
-          .slice(0, WIDGET_EXERCISE_LIMIT)
-          .map((item) => ({
-            name: getExercise(item.exercise_id)?.name ?? item.exercise_id,
+  useEffect(() => {
+    // `null` is a valid no-routine response; undefined means still loading.
+    if (!days || routine === undefined || !userId) return;
+
+    const readyDays = days;
+    const readyUserId = userId;
+    let cancelled = false;
+    async function publish() {
+      // A rest-only routine needs no 200 KB catalog fetch. Keep that asset out
+      // of the initial bundle and load it only to resolve real exercise names.
+      const getExercise = routine?.days.some((day) => day.exercises.length)
+        ? (await import("../exercises/catalog")).getExercise
+        : null;
+      if (cancelled) return;
+      const routineWeek = Array.from({ length: 7 }, (_, weekday) => {
+        const day = routine?.days.find((item) => item.weekday === weekday);
+        return {
+          weekday,
+          label: day?.label ?? null,
+          exercises: (day?.exercises ?? []).slice(0, WIDGET_EXERCISE_LIMIT).map((item) => ({
+            name: getExercise?.(item.exercise_id)?.name ?? item.exercise_id,
             detail: targetLabel(item.target_sets, item.target_reps) ?? "",
           })),
-      }),
-      userId,
-    );
-    // `day` comes out of the React Query cache, so its identity only changes
-    // when the data changed. Writing the payload once too often is writing a
-    // localStorage key; writing it once too rarely is a stale widget.
-  }, [days, day, userId]);
+        };
+      });
+      const today = routineWeek[date.getDay()];
+      await device.syncWidget(buildWidgetPayload({
+        days: readyDays,
+        todayLabel: today.label,
+        todayExercises: today.exercises,
+        routineWeek,
+        now: date,
+      }), readyUserId);
+    }
+    void publish().catch((error: unknown) => {
+      console.error("Could not prepare shared widget data", error);
+    });
+    return () => { cancelled = true; };
+  }, [days, routine, userId, date]);
 
   return null;
 }

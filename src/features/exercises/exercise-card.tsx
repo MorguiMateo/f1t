@@ -9,11 +9,15 @@ export function ExerciseCard({
   exercise,
   onSelect,
   disabled,
+  added = false,
+  detailsTo,
 }: {
   exercise: Exercise;
   /** If provided, the card picks the exercise instead of opening its page. */
   onSelect?: () => void;
   disabled?: boolean;
+  added?: boolean;
+  detailsTo?: string;
 }) {
   const content = (
     <>
@@ -47,16 +51,22 @@ export function ExerciseCard({
         <button
           type="button"
           onClick={onSelect}
-          disabled={disabled}
+          disabled={disabled || added}
           className={CARD_CLASS}
         >
           {content}
         </button>
       ) : (
-        <Link to={`/ejercicios/${exercise.id}`} className={CARD_CLASS}>
+        <Link to={detailsTo ?? `/ejercicios/${exercise.id}`} state={{ fromExerciseCatalog: true }} className={CARD_CLASS}>
           {content}
         </Link>
       )}
+      {onSelect ? (
+        <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-2">
+          <span className="text-xs font-medium text-accent">{added ? "Ya está en el día" : "Agregar al día"}</span>
+          <Link to={detailsTo ?? `/ejercicios/${exercise.id}`} state={{ fromExercisePicker: true }} className="text-sm font-medium text-accent">Ver técnica y fotos</Link>
+        </div>
+      ) : null}
     </li>
   );
 }

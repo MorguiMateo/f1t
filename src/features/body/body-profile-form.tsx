@@ -1,281 +1,110 @@
-import type { FocusEvent, ReactNode } from "react";
+import { useId, useState, type ChangeEvent, type ReactNode } from "react";
 import { Skeleton, SkeletonGroup, SkeletonLine } from "../../components/skeleton";
-import { ErrorNote } from "../../components/status";
 import type { BodyProfile, BodyProfilePatch } from "./api";
 import { useSaveBodyProfile } from "./queries";
-import { shouldCommitProfileField, type ProfileField } from "./profile-cache";
-import {
-  ageOn,
-  GOALS,
-  HEIGHT_RANGE,
-  MIN_BIRTH_DATE,
-  parseBirthDate,
-  parseMeasure,
-  SEXES,
-  toGoal,
-  toSex,
-  WEIGHT_RANGE,
-} from "./profile";
+import { canonicalProfileValue as canonical, resolveProfileDraft, type LocalProfileDraft } from "./profile-draft";
+import type { ProfileField } from "./profile-cache";
+import { ageOn, GOALS, HEIGHT_RANGE, MIN_BIRTH_DATE, parseBirthDate, parseMeasure, SEXES, toGoal, toSex, WEIGHT_RANGE } from "./profile";
+import { toDateKey } from "../../lib/heatmap";
 
-/**
- * Saves field by field on blur with no save button: the target weight is
- * revisited often, and a button risks leaving a form that looks saved and
- * isn't. Inputs are uncontrolled, which only works because the page holds the
- * form back until the profile loads (`defaultValue` is read once).
- */
-
-function Field({
-  label,
-  hint,
-  children,
-}: {
-  label: string;
-  hint?: string;
-  children: ReactNode;
-}) {
-  return (
-    <label className="block">
-      <span className="flex items-baseline justify-between gap-2">
-        <span className="text-sm font-medium">{label}</span>
-        {hint ? <span className="text-xs text-muted tnum">{hint}</span> : null}
-      </span>
-      {children}
-    </label>
-  );
-}
-
-const INPUT_CLASS =
-  "mt-1.5 w-full rounded-xl border border-line bg-surface-2 px-4 py-3 text-sm placeholder:text-muted tnum";
-
-const PROFILE_FIELD_LABELS: Record<ProfileField, string> = {
-  height_cm: "la altura",
-  birth_date: "la fecha de nacimiento",
-  sex: "el sexo",
-  goal: "el objetivo",
-  target_weight_kg: "el peso objetivo",
+const INPUT_CLASS = "mt-1.5 w-full rounded-xl border border-line bg-surface-2 px-4 py-3 text-sm placeholder:text-muted tnum";
+const LABELS: Record<ProfileField, string> = {
+  height_cm: "Altura", birth_date: "Fecha de nacimiento", sex: "Sexo para la fórmula", goal: "Objetivo", target_weight_kg: "Peso objetivo",
 };
-
-function Choice<T extends string>({
-  legend,
-  options,
-  value,
-  onSelect,
-  disabled,
-  retrySelected,
-}: {
-  legend: string;
-  options: readonly { value: T; label: string; hint?: string }[];
-  value: T | null;
-  onSelect: (value: T | null) => void;
-  disabled: boolean;
-  retrySelected?: boolean;
-}) {
-  return (
-    <fieldset disabled={disabled}>
-      <legend className="text-sm font-medium">{legend}</legend>
-      <div className="mt-1.5 flex gap-2">
-        {options.map((option) => {
-          const isOn = option.value === value;
-          return (
-            <button
-              key={option.value}
-              type="button"
-              aria-pressed={isOn}
-              // Tapping the selected option clears it, the only way to unset
-              // the optional sex after an accidental tap.
-              onClick={() =>
-                onSelect(isOn && !retrySelected ? null : option.value)
-              }
-              className={[
-                "flex-1 rounded-xl border px-3 py-2.5 text-sm font-medium transition-colors disabled:opacity-50",
-                isOn
-                  ? "border-accent bg-accent text-accent-ink"
-                  : "border-line bg-surface-2 text-ink hover:bg-surface",
-              ].join(" ")}
-            >
-              <span className="block">{option.label}</span>
-              {option.hint ? (
-                <span
-                  className={[
-                    "mt-0.5 block text-[11px] font-normal",
-                    isOn ? "opacity-80" : "text-muted",
-                  ].join(" ")}
-                >
-                  {option.hint}
-                </span>
-              ) : null}
-            </button>
-          );
-        })}
-      </div>
-    </fieldset>
-  );
+type Drafts = Record<ProfileField, string>;
+type LocalDraft = LocalProfileDraft;
+function values(profile: BodyProfile | null): Drafts {
+  return { height_cm: profile?.height_cm?.toString() ?? "", birth_date: profile?.birth_date ?? "", sex: toSex(profile?.sex) ?? "", goal: toGoal(profile?.goal), target_weight_kg: profile?.target_weight_kg?.toString() ?? "" };
 }
 
 export function BodyProfileFormSkeleton() {
-  const field = (input: string, count = 1) => (
-    <div>
-      <SkeletonLine className="w-24 text-sm font-medium" />
-      <div className="mt-1.5 flex gap-2">
-        {Array.from({ length: count }, (_, index) => (
-          <Skeleton key={index} className={`${input} flex-1 rounded-xl`} />
-        ))}
-      </div>
-    </div>
-  );
-
-  return (
-    <SkeletonGroup className="rounded-xl border border-line bg-surface p-5">
-      <h2 className="font-semibold">Datos corporales</h2>
-      <div className="mt-4 space-y-4">
-        {field("h-11.5")}
-        {field("h-11.5")}
-        {field("h-10.5", 2)}
-        {field("h-15", 3)}
-        {field("h-11.5")}
-      </div>
-    </SkeletonGroup>
-  );
+  return <SkeletonGroup className="rounded-xl border border-line bg-surface p-5">
+    <h2 className="font-semibold">Datos para estimaciones</h2>
+    {[0, 1, 2, 3, 4].map((index) => <div key={index} className="mt-4"><SkeletonLine className="w-32 text-sm" /><Skeleton className="mt-2 h-12 w-full rounded-xl" /></div>)}
+  </SkeletonGroup>;
 }
 
+/** Drafts live independently from the optimistic query cache and survive failed writes/refetches. */
 export function BodyProfileForm({ profile }: { profile: BodyProfile | null }) {
   const save = useSaveBodyProfile();
-  const failures = Object.entries(save.failures) as [ProfileField, Error][];
-
-  const goal = toGoal(profile?.goal);
-  const sex = toSex(profile?.sex);
-  const age = ageOn(profile?.birth_date ?? null);
-
-  function commit(patch: BodyProfilePatch) {
-    save.mutate(patch);
+  const id = useId();
+  const [local, setLocal] = useState<Partial<Record<ProfileField, LocalDraft>>>({});
+  const [validation, setValidation] = useState<Partial<Record<ProfileField, string>>>({});
+  const stored = values(profile);
+  function parsedDraft(field: ProfileField, raw: string) {
+    return field === "height_cm" || field === "target_weight_kg" ? parseMeasure(raw, field === "height_cm" ? HEIGHT_RANGE : WEIGHT_RANGE) : raw || null;
   }
-
-  // Non-number reverts to stored value; error message wouldn't add information.
-  function saveMeasure(
-    event: FocusEvent<HTMLInputElement>,
-    field: "height_cm" | "target_weight_kg",
-    range: typeof HEIGHT_RANGE | typeof WEIGHT_RANGE,
-    current: number | null,
-    apply: (value: number | null) => BodyProfilePatch,
-  ) {
-    const parsed = parseMeasure(event.target.value, range);
-
-    if (parsed === undefined) {
-      event.target.value = current?.toString() ?? "";
-      return;
+  const drafts = { ...stored };
+  const statuses: Record<ProfileField, "Guardado" | "Guardando…" | "Sin guardar"> = { height_cm: "Guardado", birth_date: "Guardado", sex: "Guardado", goal: "Guardado", target_weight_kg: "Guardado" };
+  for (const field of Object.keys(stored) as ProfileField[]) {
+    const entry = local[field];
+    const resolved = resolveProfileDraft(stored[field], entry, save.fieldStates[field], entry ? parsedDraft(field, entry.raw) : undefined);
+    drafts[field] = resolved.raw; statuses[field] = resolved.status;
+  }
+  function change(field: ProfileField, value: string) {
+    setLocal((previous) => ({ ...previous, [field]: { raw: value, acknowledged: save.fieldStates[field]?.status === "saved" ? canonical(save.fieldStates[field]?.value) : previous[field]?.acknowledged ?? stored[field] } }));
+    setValidation((previous) => ({ ...previous, [field]: undefined }));
+  }
+  function commit(field: ProfileField, raw = drafts[field]) {
+    let value: string | number | null | undefined = raw || null;
+    if (field === "height_cm" || field === "target_weight_kg") {
+      value = parseMeasure(raw, field === "height_cm" ? HEIGHT_RANGE : WEIGHT_RANGE);
+      if (value === undefined) {
+        setValidation((previous) => ({ ...previous, [field]: field === "height_cm" ? "Ingresá entre 80 y 260 cm, sin decimales, o dejá el campo vacío." : "Ingresá entre 20 y 400 kg, hasta un decimal, o dejá el campo vacío. Podés usar coma o punto." })); return;
+      }
+    } else if (field === "birth_date") {
+      value = parseBirthDate(raw);
+      if (value === undefined) { setValidation((previous) => ({ ...previous, [field]: "Elegí una fecha válida entre 1900 y hoy." })); return; }
     }
-
-    // Shown back so 900 visibly becomes 260 instead of silently stored.
-    event.target.value = parsed?.toString() ?? "";
-    if (!shouldCommitProfileField(field, parsed, current, save.failures)) return;
-    commit(apply(parsed));
+    setValidation((previous) => ({ ...previous, [field]: undefined }));
+    const state = save.fieldStates[field];
+    if (state?.status === "pending" && canonical(state.value) === canonical(value)) return;
+    const acknowledged = state?.status === "saved" ? canonical(state.value) : local[field]?.acknowledged ?? stored[field];
+    if ((!state || state.status === "saved") && canonical(value) === acknowledged) return;
+    save.mutate({ [field]: value } as BodyProfilePatch);
   }
-
-  function saveBirthDate(event: FocusEvent<HTMLInputElement>) {
-    const parsed = parseBirthDate(event.target.value);
-    const current = profile?.birth_date ?? null;
-
-    if (parsed === undefined) {
-      event.target.value = current ?? "";
-      return;
-    }
-    if (!shouldCommitProfileField("birth_date", parsed, current, save.failures)) return;
-    commit({ birth_date: parsed });
+  function status(field: ProfileField) { return validation[field] ? "Sin guardar" : statuses[field]; }
+  function field(field: ProfileField, hint: string, children: ReactNode) {
+    const error = validation[field] ?? save.failures[field]?.message;
+    return <div>
+      <div className="flex flex-wrap items-baseline justify-between gap-2">{field === "sex" || field === "goal" ? <p className="text-sm font-medium">{LABELS[field]}</p> : <label htmlFor={`${id}-${field}`} className="text-sm font-medium">{LABELS[field]}</label>}<span role="status" className="text-xs text-muted">{status(field)}</span></div>
+      <p id={`${id}-${field}-help`} className="mt-1 text-xs text-muted">{hint}</p>
+      {children}
+      {error ? <p id={`${id}-${field}-error`} role="alert" className="mt-2 text-sm text-warn">{error}</p> : null}
+      {save.failures[field] ? <button type="button" onClick={() => commit(field)} className="mt-1 min-h-11 text-sm font-medium text-accent">Reintentar guardado de {LABELS[field].toLowerCase()}</button> : null}
+    </div>;
   }
-
-  return (
-    <section className="rounded-xl border border-line bg-surface p-5">
-      <div className="flex items-baseline justify-between gap-3">
-        <h2 className="font-semibold">Datos corporales</h2>
-        {/* With no save button, this is the only write confirmation. */}
-        <span aria-live="polite" className="text-xs text-muted">
-          {save.isPending ? "Guardando…" : null}
-        </span>
+  function inputProps(field: ProfileField) {
+    return { id: `${id}-${field}`, value: drafts[field], onChange: (event: ChangeEvent<HTMLInputElement>) => change(field, event.target.value), onBlur: () => commit(field), "aria-invalid": Boolean(validation[field] || save.failures[field]), "aria-describedby": `${id}-${field}-help${validation[field] || save.failures[field] ? ` ${id}-${field}-error` : ""}`, className: INPUT_CLASS };
+  }
+  function choices(field: "sex" | "goal", options: readonly { value: string; label: string; hint?: string }[]) {
+    return <fieldset aria-describedby={`${id}-${field}-help${save.failures[field] ? ` ${id}-${field}-error` : ""}`}>
+      <legend className="sr-only">{LABELS[field]}</legend>
+      <div id={`${id}-${field}`} className="mt-2 grid gap-2 sm:grid-cols-3">
+        {options.map((option) => <button key={option.value} type="button" aria-pressed={drafts[field] === option.value} onClick={() => { change(field, option.value); commit(field, option.value); }} className={`min-h-11 rounded-xl border px-3 py-3 text-sm ${drafts[field] === option.value ? "border-accent bg-accent text-accent-ink" : "border-line bg-surface-2"}`}><span className="block font-medium">{option.label}</span>{option.hint ? <span className="mt-1 block text-xs">{option.hint}</span> : null}</button>)}
       </div>
-
+      {field === "sex" && drafts.sex ? <button type="button" onClick={() => { change("sex", ""); commit("sex", ""); }} className="mt-1 min-h-11 text-sm text-muted">Quitar sexo de la fórmula</button> : null}
+    </fieldset>;
+  }
+  const age = ageOn(drafts.birth_date || null);
+  return <div className="grid items-start gap-4 lg:grid-cols-2">
+    <section id="datos-corporales" className="rounded-xl border border-line bg-surface p-5">
+      <h2 className="font-semibold">Datos para estimaciones</h2>
+      <p className="mt-2 text-sm text-muted">Son opcionales para usar F1t. Altura, fecha de nacimiento, sexo para la fórmula y un peso registrado permiten estimar el gasto.</p>
       <div className="mt-4 space-y-4">
-        <Field label="Altura" hint="cm">
-          <input
-            // Not `type="number"`: it reports invalid text like "1.7.8" as "",
-            // indistinguishable from a cleared field, which would wipe the height.
-            type="text"
-            inputMode="numeric"
-            defaultValue={profile?.height_cm ?? ""}
-            onBlur={(event) =>
-              saveMeasure(event, "height_cm", HEIGHT_RANGE, profile?.height_cm ?? null, (v) => ({
-                height_cm: v,
-              }))
-            }
-            placeholder="178"
-            className={INPUT_CLASS}
-          />
-        </Field>
-
-        <Field
-          label="Fecha de nacimiento"
-          hint={age === null ? undefined : `${age} años`}
-        >
-          <input
-            type="date"
-            min={MIN_BIRTH_DATE}
-            defaultValue={profile?.birth_date ?? ""}
-            onBlur={saveBirthDate}
-            className={INPUT_CLASS}
-          />
-        </Field>
-
-        <Choice
-          legend="Sexo"
-          options={SEXES}
-          value={sex}
-          disabled={save.isPending}
-          retrySelected={Boolean(save.failures.sex)}
-          onSelect={(value) => commit({ sex: value })}
-        />
-
-        <Choice
-          legend="Objetivo"
-          options={GOALS}
-          value={goal}
-          disabled={save.isPending}
-          retrySelected={Boolean(save.failures.goal)}
-          // `goal` is `not null`: clearing falls back to the column default.
-          onSelect={(value) => commit({ goal: value ?? "maintain" })}
-        />
-
-        <Field label="Peso objetivo" hint="kg, opcional">
-          <input
-            // Also, `type="number"` rejects the comma of a Spanish keypad, so
-            // "81,5" would arrive empty and clear the target.
-            type="text"
-            inputMode="decimal"
-            defaultValue={profile?.target_weight_kg ?? ""}
-            onBlur={(event) =>
-              saveMeasure(
-                event,
-                "target_weight_kg",
-                WEIGHT_RANGE,
-                profile?.target_weight_kg ?? null,
-                (v) => ({ target_weight_kg: v }),
-              )
-            }
-            placeholder="75"
-            className={INPUT_CLASS}
-          />
-        </Field>
+        {field("height_cm", "Opcional · centímetros (cm), 80–260, sin decimales. Vacío elimina el dato.", <input {...inputProps("height_cm")} type="text" inputMode="numeric" placeholder="Ej.: 178" />)}
+        {field("birth_date", `Opcional${age === null ? "" : ` · ${age} años`}. Se usa para calcular la edad. Vacío elimina el dato.`, <input {...inputProps("birth_date")} type="date" min={MIN_BIRTH_DATE} max={toDateKey(new Date())} />)}
+        {field("sex", "Opcional; solo se usa para estimar el gasto energético.", choices("sex", SEXES))}
       </div>
-
-      {failures.map(([field, error]) => (
-        <div key={field} className="mt-4">
-          <ErrorNote
-            error={error}
-            title={`No se pudo guardar ${PROFILE_FIELD_LABELS[field]}`}
-          />
-          <p className="mt-1 text-xs text-muted">
-            El valor que ves puede no estar guardado. Volvé a editar ese campo para reintentar.
-          </p>
-        </div>
-      ))}
+      <p className="mt-4 text-xs text-muted">Los números y fechas se guardan al salir del campo; las opciones, al elegirlas. La estimación usa los datos guardados.</p>
     </section>
-  );
+    <section id="objetivo-corporal" className="rounded-xl border border-line bg-surface p-5">
+      <h2 className="font-semibold">Objetivo corporal</h2>
+      <p className="mt-2 text-sm text-muted">La meta de peso es una referencia para tu curva. No cambia por sí sola la estimación de calorías.</p>
+      <div className="mt-4 space-y-4">
+        {field("goal", "Ajuste orientativo de la fórmula, no una recomendación de alimentación.", choices("goal", GOALS))}
+        {field("target_weight_kg", "Opcional · kilogramos (kg), 20–400, hasta 1 decimal. Vacío elimina la meta.", <input {...inputProps("target_weight_kg")} type="text" inputMode="decimal" placeholder="Ej.: 75,5" />)}
+      </div>
+    </section>
+  </div>;
 }

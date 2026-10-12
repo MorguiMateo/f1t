@@ -8,8 +8,7 @@ explica hacia dónde va. Si una decisión de acá cambia, se edita acá.
 
 ## 1. Qué es la app
 
-Fitness personal, un solo usuario por cuenta. Tres funcionalidades, más una
-cuarta a futuro:
+Fitness personal, un solo usuario por cuenta. Cuatro funcionalidades:
 
 1. **Calendario de actividad** tipo GitHub — un cuadrito por día, marca los días
    que fuiste al gym, con intensidad según el volumen entrenado.
@@ -18,12 +17,12 @@ cuarta a futuro:
    (primarios y secundarios). Las rutinas se organizan por día de la semana.
 3. **Seguimiento corporal** — peso, altura, edad y objetivo (bajar, subir o
    mantener). Gráfico de evolución del peso.
-4. **Plan de comidas** — a futuro, cuelga del objetivo de la fase 3.
+4. **Plan de comidas** — implementado sobre el objetivo de la Fase 5; distribución pendiente.
 
-Y una restricción que atraviesa todo: **la app se va a envolver en Capacitor
+Y una restricción que atraviesa todo: **la app se envuelve en Capacitor
 para tener widgets nativos de iOS en SwiftUI** (calendario y rutina de hoy en la
-pantalla de inicio). Eso ya condiciona el código de hoy, no es un "después
-vemos" — ver §5.
+pantalla de inicio). La implementación existe; su aceptación en dispositivo
+sigue pendiente — ver §5.
 
 ---
 
@@ -580,10 +579,10 @@ olvido:
   el struct no declara, así que la web puede empezar a mandar `weight`
   cuando quiera sin romper un widget que no lo conoce. Lo que sí rompe es
   renombrar o sacar un campo, y eso sí sigue siendo tocar los dos lados.
-- Hay además un costo que no se ve en el tipo. `WidgetSync` vive en Hoy,
-  y el peso se anota en Progreso: para que el widget no mostrara un peso
-  viejo habría que moverlo a `AppLayout`, y el catálogo pasaría a bajar en
-  cualquier pestaña.
+- Hay además un costo que no se ve en el tipo. `WidgetSync` se movió de Hoy
+  a `AppLayout` para mantener la rutina sincronizada, pero el peso se anota en
+  Progreso. Agregar peso exigiría otra query/invalidador y un consumidor real
+  en el widget; no se añade al payload por anticipación.
 
 Si algún día hay un widget de peso, el bloque natural es
 `weight: { currentKg, targetKg, goal } | null`, con `latestWeight()` y
@@ -606,102 +605,176 @@ que ajustar eran los bordes:
   peso meta, lleva a Perfil. Solo con el perfil cargado: si falló, no
   insiste.
 
-**Qué expone la Fase 5 para la Fase 7:**
+**Integración de la Fase 5 con la Fase 7 (estado actual):**
 
 - **`energyReport()`** (`src/features/body/energy.ts`) es el punto de
   entrada. `target.kcal` es la cifra contra la que se cierra el día de
   comidas, `tdee` el gasto estimado y `goal` el sentido de la meta. Es pura:
   recibe el perfil, el último peso y los días entrenados.
-- **La composición vive hoy dentro de `EnergyCard`**: las tres queries
-  (`useBodyProfile`, `useWeightEntries`, `useSessionDays`) y la llamada. La
-  7.3 va a necesitar lo mismo fuera de Perfil, así que ahí se extrae un
-  `useEnergyReport()` en `body/queries.ts` en vez de copiarla. No se extrae
-  antes porque todavía tiene un solo consumidor.
-- **Para la 7.4** —¿el objetivo se ajusta con la evolución real?— la señal
-  es la media móvil de `withTrend()` en `weight-trend.ts`, no el último
-  peso. `energyReport()` usa el último peso crudo, y para el BMR no importa
-  (±1 kg de balanza son ±10 kcal), pero para decidir si el peso baja o no, sí.
-- Las tres queries usan las mismas claves que Perfil y Progreso y ninguna
-  vive en un chunk `lazy()`: si la Fase 7 las lee, comparte la caché con
-  esas pantallas en vez de sumar requests.
+- **La composición se comparte** mediante `useEnergyReportForDate()` en
+  `body/queries.ts`: Perfil y `/comidas` usan perfil, pesos y sesiones para
+  obtener un objetivo relativo a la fecha local consultada; no duplican la
+  fórmula de `energyReport()`.
+- **No hay ajuste automático por evolución real del peso.** La media móvil
+  de `withTrend()` en `weight-trend.ts` no interviene en el objetivo.
+  `energyReport()` usa el último peso válido hasta la fecha consultada; el
+  objetivo/TDEE se fijan al primer registro del día.
+- Las queries de perfil y peso comparten claves con Perfil/Progreso; las
+  sesiones para energía usan una clave por fecha, no el total de 26 semanas
+  del heatmap. La ruta `/comidas` es `lazy()`.
 
 El chunk inicial pasó de 515,1 KB a **515,9 KB (149,8 KB gzip)**.
 
-### Fase 6 — Capacitor y widget de iOS
+### Fase 6 — Capacitor y widget de iOS ⚠️ código implementado; aceptación pendiente
 
-El motivo por el que `device.ts` y `heatmap.ts` existen desde el día uno.
+**Estado al 2026-10-01:** 6.1–6.5 tienen implementación en el árbol de trabajo,
+pero **ninguna subfase está aceptada en producto iOS**. Xcode 27 está instalado
+y seleccionado. Los builds genéricos de iOS Simulator **sin firma** de `App` y
+`WidgetExtension` pasaron en Debug y Release. No hay runtime de Simulator
+(`simctl` lista cero runtimes/dispositivos); iOS 26 requiere una descarga de
+~7,99 GB con espacio libre escaso (~11 GB reportados). Tampoco hay Apple
+Developer Team: no se pudieron ejecutar app/widgets, firmar App Groups, probar
+OAuth real ni pasos físicos.
+La [checklist de publicación](docs/ios-release-checklist.md) es la puerta de
+aceptación; tests TypeScript/build web no la reemplazan.
 
-**Ninguna pantalla de la web cambia en esta fase.** Si alguna tiene que
-cambiar, es que algo se hizo mal en las fases anteriores — y esa es la prueba
-que la fase corre, no un deseo.
+Los IDs `com.f1t.app`, `com.f1t.app.widget` y `group.com.f1t.app` son
+**placeholders sin titularidad/provisión comprobadas**. Reclamar IDs propios y
+habilitar el mismo App Group para app y extensión antes de firmar. En Supabase
+ya se verificó la allowlist remota con `f1t://auth/callback`, orígenes locales
+y dominios Vercel, conservando entradas previas, `site_url` y el proveedor
+Google habilitado. **La configuración no equivale a una prueba OAuth real.**
+El icono y splash nativos siguen siendo los del template.
 
-Partida en sub-fases por un motivo distinto al de la Fase 5: acá cada paso
-puede fallar por razones que no son código propio —certificados, App Groups,
-el simulador— y conviene que cada una termine en algo verificable antes de
-que la siguiente agregue variables.
+#### 6.1 — La cáscara ☑ código; ☐ simulador/serie real
 
-#### 6.1 — La cáscara
+`ios/` contiene el host Capacitor 8 con Swift Package Manager (**iOS 17+**), configuración
+de safe areas/scroll, service worker omitido en WebView y OAuth Google nativo
+con navegador del sistema, deep link y canje PKCE. Falta ejecutar app firmada,
+iniciar sesión y registrar/verificar una serie persistida en Simulator o iPhone.
 
-`npx cap add ios` sobre el build estático, la app corriendo dentro del
-WebView, safe areas y rebote del scroll. Termina cuando la web de hoy se abre
-en el simulador y se puede registrar una serie. Sin widget todavía.
+#### 6.2 — `DeviceBridge` nativo ☑ código; ☐ App Group firmado
 
-#### 6.2 — `DeviceBridge` nativo
+`device.ts` selecciona plataforma; `F1tWidgetPlugin` valida el payload,
+escribe `widget-payload.json` atómicamente en el App Group y recarga WidgetKit.
+`WidgetSync` vive en `AppLayout`, no solo en Hoy, y la limpieza de logout
+serializa la eliminación de datos privados. Hay que confirmar lectura/escritura
+del JSON en el contenedor compartido bajo perfiles reales; la copia web en
+localStorage es solo diagnóstica.
 
-La implementación que hoy es no-op. Un plugin de Capacitor que escribe el
-`WidgetPayload` al App Group compartido entre la app y la extensión, y
-`device.ts` eligiendo implementación por `Capacitor.getPlatform()`. Termina
-cuando el JSON que hoy va a localStorage aparece en el contenedor compartido.
+#### 6.3 — Widget mediano: heatmap ☑ código; ☐ visual iOS 26
 
-#### 6.3 — Widget mediano: el heatmap
+La extensión SwiftUI lee 26 semanas × 7 niveles y usa opacidad para 0–4.
+Falta instalar/agregar el widget y comparar niveles, vacío, logout y aspecto
+en modos **Clear y Tint** en iOS 26, no solo el render web.
 
-El `Heatmap` en SwiftUI leyendo el mismo array de `buildLevels()`, 26 semanas.
-Acá se cobra el invariante §5.4: la intensidad por opacidad y no por tono,
-probada en los modos Clear y Tint de iOS 26.
+#### 6.4 — Widget grande: rutina de hoy ☑ código; ☐ visual/cambio de día
 
-#### 6.4 — Widget grande: la rutina de hoy
+Lee `todayLabel`/`todayExercises` y el `routineWeek` v2 del mismo payload;
+WidgetKit precarga entradas para cambio de día local sin abrir la app.
+Falta probar rutina activa, descanso, cambios de rutina, límite de ejercicios,
+medianoche local y limpieza al cerrar sesión.
 
-`todayLabel` y `todayExercises` del mismo payload. Es el consumidor que
-justifica que `targetLabel()` viva en su propio módulo desde la Fase 3.
+#### 6.5 — Recordatorios y pasos ☑ código; ☐ dispositivo físico
 
-#### 6.5 — Recordatorios y pasos
+`F1tActivityPlugin` usa `UNUserNotificationCenter` y `CMPedometer`, con
+recordatorios en Perfil y pasos en Hoy solo en iOS. Falta verificar permiso,
+programación, cancelación, cierre de sesión y notificación con app cerrada; la
+lectura de pasos y permisos de Movimiento y condición física debe probarse en
+**iPhone físico**, no inferirse del Simulator.
 
-`UNUserNotificationCenter` para los recordatorios que la web no puede agendar,
-`CMPedometer` para los pasos. Van al final porque son las dos únicas cosas de
-`DeviceBridge` que no tienen consumidor en pantalla todavía: primero hay que
-decidir dónde se ven.
+### Fase 7 — Plan de comidas ⚠️ código implementado; distribución pendiente
 
-### Fase 7 — Plan de comidas (futuro)
+Se apoya en `energyReport()` de 5.4. El catálogo curado va en el bundle; el
+diario privado usa Supabase. La selección de fuente y las condiciones legales
+están detalladas en [docs/food-data-decision.md](docs/food-data-decision.md).
+El frontend web está desplegado en Vercel **como producción privada protegida**,
+no disponible anónimamente. La CLI autoapuntó el primer despliegue a
+producción y `ssoProtection` (`deploymentType=all`) se habilitó antes del
+estado Ready. El alias `https://f1t-pied.vercel.app` figura Ready, pero `/`,
+`/comidas` y `/data/foods-catalog.json` devuelven 302 a Vercel Authentication
+sin sesión; **todos los URLs de deployment** están protegidos, no hay preview
+pública. `vercel.json` explicita Vite/`npm run build`/`dist`; Vercel tiene
+`VITE_SUPABASE_URL` y `VITE_SUPABASE_ANON_KEY` en todos los entornos.
+`.vercelignore` excluye `.env`, proyecto nativo y snapshots de la subida.
+Validación local: **220 tests Vitest, 4 Node, build y lint pasan**; la
+automatización del navegador integrado falló y OAuth/CRUD real siguen sin
+verificar.
 
-Cuelga del objetivo calórico de la Fase 5.4. Todavía sin investigar, pero el
-criterio ya está fijado por §2: preferir dataset descargable sobre API en
-vivo.
+#### 7.1 — Elegir la fuente ✅ decisión documentada
 
-#### 7.1 — Elegir la fuente
+Se eligió **Open Food Facts (OFF)** para el primer recorte de productos
+etiquetados para Argentina frente a USDA FDC, no por superioridad nutricional
+sino por identificación local. La fuente tiene licencia ODbL/DbCL: la
+publicación del recorte descargable, atribución y separación del diario privado
+**requieren revisión legal/compliance antes de distribución pública**. No se
+asume exención por tamaño ni se incorporan imágenes OFF.
 
-Open Food Facts y USDA FoodData Central, comparadas con la misma tabla de §2:
-cantidad, licencia, peso del dump, si hay productos de acá. Termina en una
-decisión escrita, no en código.
+#### 7.2 — Catálogo curado ☑ código/datos; ☐ auditoría externa/legal
 
-#### 7.2 — Catálogo curado
+Versión `2026-10-01.1`: **43 productos** de 81 candidatos consultados, todos
+con `en:argentina` en la ficha OFF. Se revisaron identidad/campos, país,
+base y coherencia kcal/kJ/macros, pero **no se verificaron independientemente
+las etiquetas actuales ni la disponibilidad comercial**. Es menor que el
+objetivo inicial de ~80–120; no se completó con calorías conjeturadas.
+El código `7790895000782` se retiró: OFF daba 42 kcal/100 ml, mientras la
+[ficha actual de Coca-Cola Argentina](https://www.coca-cola.com/ar/es/brands/coca-cola/original)
+da 30 kcal/100 ml para Sabor Original;
+no se pudo confirmar la etiqueta vigente de ese código exacto.
+`whitelist.json` fija revisión, fecha, hash SHA-256, kcal/100, unidad y nota.
+`scripts/foods/snapshots/` fija solo respuestas seleccionadas. El importador
+sin red genera `src/features/foods/catalog.json` y copias abiertas descargables
+bajo `public/data/`, con atribución ODbL, sin fotos ni datos personales. El
+JSON independiente contiene URLs de fuente, licencias ODbL/DbCL y atribución;
+el acceso HTTP anónimo está bloqueado por Vercel Authentication.
 
-Mismo patrón que `fetch-exercises.mjs`: un script de una sola corrida, una
-lista blanca versionada a mano y un JSON que viaja en el bundle. Los
-alimentos son muchos más que 165 ejercicios, así que la sub-fase es sobre
-todo decidir el recorte.
+`node scripts/food-import.mjs --check` valida hashes/derivados sin escribir;
+`node scripts/food-fetch.mjs --refresh` deja nuevas respuestas en `staged/`
+para revisión; `node scripts/food-promote.mjs` promueve una ficha con versión
+mayor. El fetch usa User-Agent identificable y pausa de 4,5 s por solicitud
+(<15 lecturas de producto/min/IP). Ver [procedimiento](scripts/foods/README.md).
 
-#### 7.3 — Registro de comidas
+#### 7.3 — Registro de comidas ☑ código/SQL/hosting privado; ☐ CRUD real verificado
 
-Qué se comió hoy, contra el objetivo calórico de 5.4. La unidad de medida
-—porciones, gramos, unidades— es la decisión que hace o rompe la pantalla.
+La ruta `/comidas` permite búsqueda offline, registro por fecha local y
+cantidad positiva en g/ml (hasta 5.000 con dos decimales), edición de cantidad
+y borrado. Cada entrada guarda snapshot de producto, versión y kcal/100; las
+kcal son columna generada, por lo que editar cantidad recalcula solo esa
+entrada. No hay porciones implícitas, conversión ml→g ni escáner universal.
+`food_days`/`food_entries` tienen RLS de lectura; las escrituras pasan por RPC
+con comprobación de propietario. La migración
+`supabase/migrations/20260929155045_food_diary.sql` figura **local = remote**
+en `npm run db:status` del Supabase vinculado: se aplicó allí el
+2026-09-29 y se verificó el estado ese día. El hosting privado actual **no**
+demuestra que el diario se haya probado end-to-end ni lo vuelve público.
 
-#### 7.4 — Cierre contra el objetivo
+#### 7.4 — Cierre contra el objetivo ☑ código; ☐ aceptación con datos reales
 
-Las calorías del día junto al gasto estimado, y qué pasa cuando las dos cifras
-no coinciden: hay que decidir si el objetivo se ajusta solo con la evolución
-real del peso o se queda quieto.
+`/comidas` compara kcal ingeridas con `energyReport().target.kcal` para la
+fecha local y muestra TDEE estimado sin volver a compensar el ejercicio. Al
+primer registro se fija objetivo/TDEE en `food_days`; si no es calculable se
+fija un par nulo y se permite registrar. Ante fallo de la consulta energética,
+el usuario debe confirmar expresamente registrar sin objetivo. Borrar la
+última comida **no** borra el snapshot del día; cambios futuros de peso,
+perfil, sesiones o catálogo no reescriben el historial. No hay autoajuste del
+objetivo por tendencia del peso.
+
+**Tipos Supabase:** tras el push, el generador produce tipos diferentes de
+`src/lib/database.types.ts` y pierde la nulabilidad de argumentos RPC como
+`p_target_kcal` y `p_tdee_kcal`. El script `npm run db:types` redirige sobre
+ese archivo: **generar a un temporal y revisar el diff**, no sobrescribirlo
+ciegamente.
 
 ---
+
+**Seguridad de dependencias (2026-10-01):** `npm ci` y `npm audit` reportaron
+0 vulnerabilidades tras parches compatibles y un override limitado a
+`xcode → uuid@11.1.1`, sin degradar Capacitor. Pasaron 220 tests Vitest,
+10 tests Node, lint, build, `ios:sync` y build Simulator unsigned Release.
+Se redesplegó el frontend protegido: Ready; `/`, `/comidas` y el catálogo
+continúan devolviendo 302 al visitante anónimo. Persisten la aceptación real
+y las puertas externas descritas arriba. Ver
+[decisión de dependencias y avisos residuales](docs/dependency-security.md).
 
 ## 5. Invariantes
 

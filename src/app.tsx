@@ -1,14 +1,21 @@
 import { lazy } from "react";
-import { Route, Routes } from "react-router";
+import { type RouteObject, useRoutes } from "react-router";
 import { AppLayout } from "./components/app-layout";
 import { RequireAuth } from "./features/auth/require-auth";
-import { ProfilePage } from "./pages/profile-page";
-import { ProgressPage } from "./pages/progress-page";
-import { RoutinesPage } from "./pages/routines-page";
 import { TodayPage } from "./pages/today-page";
+import { RouteFailure, UnknownDestination } from "./components/route-fallback";
 
 // Keep the catalog and body-highlighter out of the initial chunk. The service
 // worker precaches lazy chunks for offline use; `AppLayout` owns Suspense.
+const ProfilePage = lazy(() =>
+  import("./pages/profile-page").then((m) => ({ default: m.ProfilePage })),
+);
+const ProgressPage = lazy(() =>
+  import("./pages/progress-page").then((m) => ({ default: m.ProgressPage })),
+);
+const RoutinesPage = lazy(() =>
+  import("./pages/routines-page").then((m) => ({ default: m.RoutinesPage })),
+);
 const ExercisesPage = lazy(() =>
   import("./pages/exercises-page").then((m) => ({ default: m.ExercisesPage })),
 );
@@ -30,30 +37,39 @@ const RoutineDayPage = lazy(() =>
 const WorkoutPage = lazy(() =>
   import("./pages/workout-page").then((m) => ({ default: m.WorkoutPage })),
 );
+const FoodDiaryPage = lazy(() =>
+  import("./features/foods/food-diary-page").then((m) => ({ default: m.FoodDiaryPage })),
+);
 
+/** Shared definitions: production uses a data router so every exit can be blocked. */
+// eslint-disable-next-line react/only-export-components -- Bootstrap and legacy App previews share one route tree.
+export const appRoutes: RouteObject[] = [{
+  id: "app",
+  path: "/",
+  element: <RequireAuth />,
+  errorElement: <RouteFailure />,
+  children: [{
+    id: "shell",
+    element: <AppLayout />,
+    children: [
+      { id: "today", index: true, element: <TodayPage /> },
+      // Its own screen so the back gesture leaves the workout; `?dia=` selects a day.
+      { id: "workout", path: "entrenar", element: <WorkoutPage /> },
+      { id: "foods", path: "comidas", element: <FoodDiaryPage /> },
+      { id: "routines", path: "rutinas", element: <RoutinesPage /> },
+      { id: "routine", path: "rutinas/:routineId", element: <RoutineDetailPage /> },
+      { id: "routine-day", path: "rutinas/:routineId/dias/:dayId", element: <RoutineDayPage /> },
+      // Not a sixth tab: the catalog belongs to Rutinas.
+      { id: "exercises", path: "ejercicios", element: <ExercisesPage /> },
+      { id: "exercise", path: "ejercicios/:id", element: <ExerciseDetailPage /> },
+      { id: "progress", path: "progreso", element: <ProgressPage /> },
+      { id: "profile", path: "perfil", element: <ProfilePage /> },
+      { id: "not-found", path: "*", element: <UnknownDestination /> },
+    ],
+  }],
+}];
+
+/** Keep the component export for existing MemoryRouter previews/tests. */
 export default function App() {
-  return (
-    <Routes>
-      <Route element={<RequireAuth />}>
-        <Route element={<AppLayout />}>
-          <Route index element={<TodayPage />} />
-          {/* Its own screen, not a block in Today, so the back gesture
-              leaves the workout. `?dia=` trains a day other than today's. */}
-          <Route path="entrenar" element={<WorkoutPage />} />
-          <Route path="rutinas" element={<RoutinesPage />} />
-          <Route path="rutinas/:routineId" element={<RoutineDetailPage />} />
-          {/* Its own URL so "back" from the catalog lands on this day. */}
-          <Route
-            path="rutinas/:routineId/dias/:dayId"
-            element={<RoutineDayPage />}
-          />
-          {/* Not a tab: reached from Routines, keeping the nav at four. */}
-          <Route path="ejercicios" element={<ExercisesPage />} />
-          <Route path="ejercicios/:id" element={<ExerciseDetailPage />} />
-          <Route path="progreso" element={<ProgressPage />} />
-          <Route path="perfil" element={<ProfilePage />} />
-        </Route>
-      </Route>
-    </Routes>
-  );
+  return useRoutes(appRoutes);
 }

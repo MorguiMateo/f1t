@@ -10,7 +10,8 @@ export type ProfileField = keyof BodyProfilePatch;
 
 export type ProfileSaveFeedback = {
   onFailed?: (fields: readonly ProfileField[], error: Error) => void;
-  onConfirmed?: (fields: readonly ProfileField[]) => void;
+  onConfirmed?: (fields: readonly ProfileField[], profile: BodyProfile) => void;
+  onStarted?: (patch: BodyProfilePatch) => void;
 };
 
 /** A failed optimistic write may still equal the cache when its refetch fails. */
@@ -78,6 +79,7 @@ export function profileSaveOptions(
     onMutate: async (patch: BodyProfilePatch) => {
       if (!isAuthQueryClientActive(queryClient)) return undefined;
       const id = overlay.begin(patch);
+      feedback.onStarted?.(patch);
       await queryClient.cancelQueries({ queryKey });
       runIfAuthQueryClientActive(queryClient, () =>
         queryClient.setQueryData<BodyProfile | null>(queryKey, (current) =>
@@ -90,7 +92,7 @@ export function profileSaveOptions(
       if (id !== undefined) overlay.settle(id);
       runIfAuthQueryClientActive(queryClient, () => {
         queryClient.setQueryData(queryKey, overlay.apply(profile));
-        feedback.onConfirmed?.(overlay.latestFields(id, patch));
+        feedback.onConfirmed?.(overlay.latestFields(id, patch), profile);
         // A successful later upsert returns the final row even if an earlier one failed.
         failed = false;
       });

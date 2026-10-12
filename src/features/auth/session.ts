@@ -7,6 +7,7 @@ export type SessionState = {
   session: Session | null;
   isLoading: boolean;
   error: Error | null;
+  retrySession?: () => void;
 };
 
 export const SessionContext = createContext<SessionState | null>(null);

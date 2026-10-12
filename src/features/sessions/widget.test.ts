@@ -72,4 +72,34 @@ describe("buildWidgetPayload", () => {
     });
     expect(JSON.parse(JSON.stringify(payload))).toEqual(payload);
   });
+
+  it("incluye una semana recurrente para que mañana funcione sin abrir la app", () => {
+    const longList = Array.from({ length: 8 }, (_, index) => ({
+      name: `Ejercicio ${index}`,
+      detail: "3 × 8",
+      ignored: "not serialized",
+    }));
+    const routineWeek = Array.from({ length: 7 }, (_, weekday) => ({
+      weekday,
+      label: weekday === 1 ? "Empuje" : null,
+      exercises: weekday === 1 ? longList : [],
+    }));
+    const payload = buildWidgetPayload({
+      days: [],
+      todayLabel: null,
+      todayExercises: [],
+      routineWeek,
+      now: NOW,
+    });
+    expect(payload.schemaVersion).toBe(2);
+    expect(payload.routineWeek).toHaveLength(7);
+    expect(payload.routineWeek?.[1]).toEqual({
+      weekday: 1,
+      label: "Empuje",
+      exercises: longList.slice(0, WIDGET_EXERCISE_LIMIT).map(({ name, detail }) => ({ name, detail })),
+    });
+    expect(payload.routineWeek?.[2]).toEqual({ weekday: 2, label: null, exercises: [] });
+    expect(payload.todayLabel).toBeNull();
+    expect(JSON.parse(JSON.stringify(payload))).toEqual(payload);
+  });
 });

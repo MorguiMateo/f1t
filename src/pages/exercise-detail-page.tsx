@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useNavigate, useParams } from "react-router";
+import { Link, useLocation, useNavigate, useParams, useSearchParams } from "react-router";
 import { EmptyState } from "../components/empty-state";
 import { PageHeader } from "../components/page-header";
 import { ImageLightbox } from "../features/exercises/image-lightbox";
@@ -33,6 +33,13 @@ function Fact({ label, value }: { label: string; value: string }) {
 export function ExerciseDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
+  const [params] = useSearchParams();
+  const isPicking = params.has("dia") && params.has("rutina");
+  function returnToCatalog() {
+    if (location.state?.fromExercisePicker || location.state?.fromExerciseCatalog) navigate(-1);
+    else navigate(`/ejercicios${params.size ? `?${params.toString()}` : ""}`, { replace: true });
+  }
   const exercise = id ? getExercise(id) : undefined;
   const [zoomed, setZoomed] = useState<number | null>(null);
 
@@ -59,7 +66,9 @@ export function ExerciseDetailPage() {
         title={exercise.name}
         subtitle={exercise.primaryMuscles.map(muscleLabel).join(" · ")}
         onBack={() => navigate(-1)}
+        backTo={`/ejercicios${params.size ? `?${params.toString()}` : ""}`}
       />
+      <Link to={`/progreso?ejercicio=${encodeURIComponent(exercise.id)}`} className="mb-3 inline-block text-sm font-medium text-accent">Ver evolución</Link>
 
       {/* Start and end of the movement: one alone says nothing. */}
       <div className="grid grid-cols-2 gap-2">
@@ -139,12 +148,13 @@ export function ExerciseDetailPage() {
         </section>
       ) : null}
 
-      <Link
-        to="/ejercicios"
+      <button
+        type="button"
+        onClick={returnToCatalog}
         className="mt-4 block rounded-xl border border-line bg-surface px-5 py-3 text-center text-sm font-medium text-muted transition-colors hover:bg-surface-2 hover:text-ink"
       >
-        Volver al catálogo
-      </Link>
+        {isPicking ? "Volver a elegir ejercicios" : "Volver al catálogo"}
+      </button>
     </>
   );
 }

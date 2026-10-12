@@ -5,16 +5,14 @@ import {
   SkeletonLine,
 } from "../../components/skeleton";
 import { ErrorNote } from "../../components/status";
-import { useSessionDays } from "../sessions/queries";
+import { fromDateKey, toDateKey } from "../../lib/heatmap";
 import {
   ACTIVITY_WINDOW_DAYS,
-  BMI_CATEGORY_LABELS,
-  energyReport,
   MISSING_LABELS,
 } from "./energy";
+import { formatKg } from "./weight";
 import { GOAL_LABELS } from "./profile";
-import { useBodyProfile, useWeightEntries } from "./queries";
-import { latestWeight } from "./weight";
+import { useEnergyReportForDate } from "./queries";
 
 /**
  * BMI, resting and daily burn, and the calorie target. Every number comes
@@ -56,7 +54,7 @@ function Figure({
           <span className="ml-0.5 text-xs font-normal text-muted">{unit}</span>
         ) : null}
       </p>
-      <p className="mt-0.5 truncate text-xs text-muted">{label}</p>
+      <p className="mt-0.5 text-sm text-muted">{label}</p>
     </div>
   );
 }
@@ -69,10 +67,10 @@ function Figure({
 export function EnergyCardSkeleton() {
   return (
     <SkeletonGroup className="rounded-xl border border-line bg-surface p-5">
-      <h2 className="font-semibold">Calorías</h2>
+      <h2 className="font-semibold">Estimación de calorías</h2>
       <SkeletonLine className="mt-3 w-40 text-3xl" />
       <SkeletonLine className="mt-1 w-28 text-xs" />
-      <div className="mt-4 flex gap-2">
+      <div className="mt-4 grid grid-cols-3 gap-2">
         {[0, 1, 2].map((index) => (
           // The figure's own box and padding, pulsing as a whole: a bar in
           // `bg-surface-2` would vanish against the box's `bg-surface-2`.
@@ -88,22 +86,14 @@ export function EnergyCardSkeleton() {
 }
 
 export function EnergyCard() {
-  const { data: profile } = useBodyProfile();
-  const weights = useWeightEntries();
-  const sessions = useSessionDays();
+  const { report, isPending, error, sourceWeight } = useEnergyReportForDate(toDateKey(new Date()));
 
-  if (weights.isPending || sessions.isPending) {
+  if (isPending) {
     return <EnergyCardSkeleton />;
   }
 
-  const error = weights.error ?? sessions.error;
   if (error) return <ErrorNote error={error} />;
-
-  const report = energyReport({
-    profile: profile ?? null,
-    latestWeightKg: latestWeight(weights.data ?? []),
-    sessionDays: sessions.data ?? [],
-  });
+  if (!report) return <EnergyCardSkeleton />;
 
   if (report.status === "missing") {
     const missing = LIST_FORMATTER.format(
@@ -111,13 +101,13 @@ export function EnergyCard() {
     );
     return (
       <section className="rounded-xl border border-dashed border-line p-5 text-muted">
-        <h2 className="font-semibold">Calorías</h2>
+        <h2 className="font-semibold">Estimación de calorías</h2>
         <p className="mt-2 text-sm">
-          Para calcular tu gasto y tu objetivo diario falta {missing}.
+          Para obtener una referencia diaria calculada falta {missing}.
         </p>
         {report.missing.includes("weight") ? (
           <Link
-            to="/progreso"
+            to="/progreso?seccion=cuerpo&anotar=1#peso"
             className="mt-2 inline-block text-sm font-medium text-accent"
           >
             Anotar un peso
@@ -129,9 +119,10 @@ export function EnergyCard() {
             <span className="font-semibold text-ink tnum">
               {formatDecimal(report.bmi.value)}
             </span>{" "}
-            · {BMI_CATEGORY_LABELS[report.bmi.category]}
+            kg/m² (peso / altura²)
           </p>
         ) : null}
+        <p className="mt-3 text-sm text-muted">Los datos son opcionales para usar F1t. El IMC no describe la composición corporal; la estimación usa los datos guardados.</p>
       </section>
     );
   }
@@ -141,9 +132,10 @@ export function EnergyCard() {
 
   return (
     <section className="rounded-xl border border-line bg-surface p-5">
-      <h2 className="font-semibold">Calorías</h2>
+      <h2 className="font-semibold">Estimación de calorías</h2>
 
-      <p className="mt-3 text-3xl font-bold tnum">
+      <p className="mt-3 text-sm text-muted">Referencia diaria calculada · redondeada a 50 kcal</p>
+      <p className="mt-1 text-3xl font-bold tnum">
         {KCAL_FORMATTER.format(target.kcal)}
         <span className="ml-1 text-base font-normal text-muted">kcal/día</span>
       </p>
@@ -152,33 +144,37 @@ export function EnergyCard() {
       </p>
       {target.clamped ? (
         <p className="mt-1 text-xs text-muted">
-          Subido a tu metabolismo basal: comer menos que eso no es un déficit
-          sano.
+          La fórmula limita esta referencia al gasto en reposo estimado. Ese límite no determina cuánto necesitás comer.
         </p>
       ) : null}
 
-      <div className="mt-4 flex gap-2">
+      <details className="mt-4">
+        <summary className="min-h-11 cursor-pointer content-center text-sm font-medium">Cómo se calcula · IMC y gasto estimado</summary>
+      <div className="mt-2 grid gap-2 sm:grid-cols-3">
         <Figure
           value={formatDecimal(report.bmi.value)}
-          label={`IMC · ${BMI_CATEGORY_LABELS[report.bmi.category]}`}
+          unit="kg/m²"
+          label="IMC (peso / altura²)"
         />
         <Figure
           value={KCAL_FORMATTER.format(report.bmr)}
-          unit="kcal"
-          label="En reposo"
+          unit="kcal/día"
+          label="Reposo estimado"
         />
         <Figure
           value={KCAL_FORMATTER.format(report.tdee)}
-          unit="kcal"
-          label="Gasto diario"
+          unit="kcal/día"
+          label="Gasto diario estimado"
         />
       </div>
 
       <p className="mt-3 text-xs text-muted">
-        {perWeek} {activity.daysPerWeek === 1 ? "entrenamiento" : "entrenamientos"}
-        /semana en las últimas {ACTIVITY_WINDOW_DAYS / 7} semanas · actividad{" "}
-        {activity.label}
+        {perWeek} días con series por semana en los últimos {ACTIVITY_WINDOW_DAYS} días · factor de actividad {activity.factor}
       </p>
+      <p className="mt-2 text-sm text-muted">El factor usa entrenamientos registrados, no mide tu actividad cotidiana. El IMC no describe la composición corporal.</p>
+      </details>
+      {sourceWeight ? <p className="mt-3 text-sm text-muted">Calculado con {formatKg(sourceWeight.weight_kg)} kg del {fromDateKey(sourceWeight.measured_on).toLocaleDateString("es", { day: "numeric", month: "short", year: "numeric" })}. <Link className="inline-flex min-h-11 items-center font-medium text-accent" to="/progreso?seccion=cuerpo&anotar=1#peso">Actualizar peso</Link></p> : null}
+      <p className="mt-2 text-sm text-muted">Valores orientativos calculados con tus datos guardados; no son una recomendación de alimentación ni reemplazan asesoramiento profesional.</p>
     </section>
   );
 }

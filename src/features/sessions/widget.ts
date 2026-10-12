@@ -16,6 +16,11 @@ export function buildWidgetPayload(input: {
   days: readonly HeatmapSession[];
   todayLabel: string | null;
   todayExercises: readonly { name: string; detail: string }[];
+  routineWeek?: readonly {
+    weekday: number;
+    label: string | null;
+    exercises: readonly { name: string; detail: string }[];
+  }[];
   now?: Date;
 }): WidgetPayload {
   const now = input.now ?? new Date();
@@ -27,5 +32,15 @@ export function buildWidgetPayload(input: {
       ({ name, detail }) => ({ name, detail }),
     ),
     streak: currentStreak(input.days, now),
+    ...(input.routineWeek ? {
+      schemaVersion: 2 as const,
+      routineWeek: input.routineWeek.map(({ weekday, label, exercises }) => ({
+        weekday,
+        label,
+        exercises: exercises.slice(0, WIDGET_EXERCISE_LIMIT).map(
+          ({ name, detail }) => ({ name, detail }),
+        ),
+      })),
+    } : {}),
   };
 }

@@ -14,6 +14,42 @@ export type Database = {
   }
   public: {
     Tables: {
+      food_days: {
+        Row: { user_id: string; logged_on: string; target_kcal: number | null; tdee_kcal: number | null; created_at: string }
+        Insert: { user_id?: string; logged_on: string; target_kcal?: number | null; tdee_kcal?: number | null; created_at?: string }
+        Update: { user_id?: string; logged_on?: string; target_kcal?: number | null; tdee_kcal?: number | null; created_at?: string }
+        Relationships: []
+      }
+      food_entries: {
+        Row: {
+          id: string; user_id: string; logged_on: string; created_at: string
+          catalog_version: string; source: string; source_code: string; source_revision: number
+          source_url: string; source_retrieved_at: string; source_response_sha256: string
+          reviewed_at: string; food_name: string; brand: string; basis_unit: string
+          quantity: number; energy_kcal_per_100: number; kcal: number
+        }
+        Insert: {
+          id?: string; user_id?: string; logged_on: string; created_at?: string
+          catalog_version: string; source?: string; source_code: string; source_revision: number
+          source_url: string; source_retrieved_at: string; source_response_sha256: string
+          reviewed_at: string; food_name: string; brand: string; basis_unit: string
+          quantity: number; energy_kcal_per_100: number; kcal?: never
+        }
+        Update: {
+          id?: string; user_id?: string; logged_on?: string; created_at?: string
+          catalog_version?: string; source?: string; source_code?: string; source_revision?: number
+          source_url?: string; source_retrieved_at?: string; source_response_sha256?: string
+          reviewed_at?: string; food_name?: string; brand?: string; basis_unit?: string
+          quantity?: number; energy_kcal_per_100?: number; kcal?: never
+        }
+        Relationships: [{
+          foreignKeyName: "food_entries_day_fk"
+          columns: ["user_id", "logged_on"]
+          isOneToOne: false
+          referencedRelation: "food_days"
+          referencedColumns: ["user_id", "logged_on"]
+        }]
+      }
       body_profile: {
         Row: {
           birth_date: string | null
@@ -127,6 +163,7 @@ export type Database = {
           routine_day_id: string
           target_reps: string | null
           target_sets: number | null
+          target_weight_kg: number | null
           user_id: string
         }
         Insert: {
@@ -137,6 +174,7 @@ export type Database = {
           routine_day_id: string
           target_reps?: string | null
           target_sets?: number | null
+          target_weight_kg?: number | null
           user_id?: string
         }
         Update: {
@@ -147,6 +185,7 @@ export type Database = {
           routine_day_id?: string
           target_reps?: string | null
           target_sets?: number | null
+          target_weight_kg?: number | null
           user_id?: string
         }
         Relationships: [
@@ -299,6 +338,21 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      log_food_entry: {
+        Args: {
+          p_logged_on: string; p_target_kcal: number | null; p_tdee_kcal: number | null
+          p_catalog_version: string; p_source_code: string; p_source_revision: number
+          p_source_url: string; p_source_retrieved_at: string; p_source_response_sha256: string
+          p_reviewed_at: string; p_food_name: string; p_brand: string; p_basis_unit: string
+          p_quantity: number; p_energy_kcal_per_100: number
+        }
+        Returns: Database["public"]["Tables"]["food_entries"]["Row"]
+      }
+      set_food_entry_quantity: {
+        Args: { p_id: string; p_quantity: number }
+        Returns: Database["public"]["Tables"]["food_entries"]["Row"]
+      }
+      delete_food_entry: { Args: { p_id: string }; Returns: undefined }
       activate_routine: {
         Args: { p_routine_id: string }
         Returns: undefined
