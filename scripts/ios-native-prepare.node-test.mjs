@@ -24,11 +24,10 @@ test('native preparation writes unquoted comment-safe config using local env pre
   const root = mkdtempSync(join(tmpdir(), 'fit-native-prepare-'));
   const key = 'sb_publishable_public_test_key';
   try {
-    for (const dir of ['scripts', 'ios', 'public/data', 'public/exercises', 'src/features/exercises']) mkdirSync(join(root, dir), { recursive: true });
+    for (const dir of ['scripts', 'ios', 'public/exercises', 'src/features/exercises']) mkdirSync(join(root, dir), { recursive: true });
     for (const name of ['ios-native-config.mjs', 'ios-native-prepare.mjs']) cpSync(`scripts/${name}`, join(root, 'scripts', name));
     writeFileSync(join(root, '.env'), 'VITE_SUPABASE_URL=https://old.example\nVITE_SUPABASE_ANON_KEY=sb_secret_rejected_if_used\n');
     writeFileSync(join(root, '.env.local'), `VITE_SUPABASE_URL="https://example.supabase.co/"\nVITE_SUPABASE_ANON_KEY='${key}'\n`);
-    for (const name of ['foods-catalog.json', 'foods-catalog-attribution.json']) writeFileSync(join(root, 'public/data', name), '[]');
     writeFileSync(join(root, 'src/features/exercises/catalog.json'), '[]');
     const env = { ...process.env };
     delete env.VITE_SUPABASE_URL; delete env.VITE_SUPABASE_ANON_KEY;

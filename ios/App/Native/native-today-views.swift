@@ -47,7 +47,6 @@ struct NativeTodayView: View {
                 } else {
                     NativeTodayRoutine(date: now)
                 }
-                NativeTodayFoodSummary(date: now).padding(.top, 16)
                 NativeStepsView().padding(.top, 16)
             }
             .navigationDestination(for: NativeRoutineRoute.self) { NativeRoutineDestination(route: $0) }
@@ -70,40 +69,7 @@ enum NativeTodaySelection {
     }
 }
 
-struct NativeTodayFoodSummary: View {
-    @EnvironmentObject private var store: NativeStore
-    @Environment(\.fitSelectTab) private var selectTab
-    let date: Date
-    var body: some View {
-        let owner = store.auth.session?.user.id
-        let key = NativeDate.key(date)
-        let entries = store.foodEntries.filter { $0.user_id == owner && $0.logged_on == key }
-        let snapshot = store.foodDays.first { $0.user_id == owner && $0.logged_on == key }
-        let foodState = store.domainState(.foods)
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Comidas de hoy").font(.fit(.base, .semibold))
-            if foodState.loaded {
-                Text("\(FitFormat.number(entries.reduce(0) { $0 + $1.kcal }, fraction: 1)) kcal registradas")
-                    .font(.fit(.base, .semibold)).monospacedDigit()
-                if let target = snapshot?.target_kcal {
-                    Text("Objetivo de hoy: \(FitFormat.number(target)) kcal").font(.fit(.sm)).foregroundStyle(FitColor.muted)
-                } else {
-                    Text(snapshot == nil ? "El objetivo se fija al registrar la primera comida." : "Este día se registró sin objetivo calculable.")
-                        .font(.fit(.sm)).foregroundStyle(FitColor.muted)
-                }
-                if foodState.usingCachedData || foodState.error != nil {
-                    Text("Últimos registros disponibles").font(.fit(.xs)).foregroundStyle(FitColor.muted)
-                }
-            } else if foodState.error != nil {
-                Text("No se pudieron consultar las comidas.").font(.fit(.sm)).foregroundStyle(FitColor.muted)
-                Button("Reintentar") { Task { await store.refresh(force: true) } }.fitLink().disabled(foodState.loading)
-            } else {
-                Text("Consultando registros…").font(.fit(.sm)).foregroundStyle(FitColor.muted)
-            }
-            Button(entries.isEmpty ? "Registrar comida" : "Ver o registrar comidas") { selectTab(.foods) }.fitLink()
-        }.fitCard()
-    }
-}
+
 
 struct NativeTodayRoutine: View {
     @EnvironmentObject var store: NativeStore

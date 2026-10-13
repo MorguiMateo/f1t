@@ -13,7 +13,6 @@ import {
   runIfAuthQueryClientActive,
 } from "../auth/auth-query-client";
 import { heatmapStart } from "../../lib/heatmap";
-import { energySessionKeys } from "../body/energy-keys";
 import { routineKeys } from "../routines/queries";
 import {
   deleteSession,
@@ -47,14 +46,12 @@ export async function invalidateSessionViews(
     // Deleting an older session can change the next workout's suggestion.
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: sessionKeys.all }),
-      queryClient.invalidateQueries({ queryKey: energySessionKeys.all }),
     ]);
     return;
   }
   await Promise.all([
     queryClient.invalidateQueries({ queryKey: sessionKeys.allDays() }),
     queryClient.invalidateQueries({ queryKey: sessionKeys.allDates() }),
-    queryClient.invalidateQueries({ queryKey: energySessionKeys.all }),
   ]);
 }
 

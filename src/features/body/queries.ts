@@ -6,10 +6,7 @@ import {
   guardAuthMutation,
   runIfAuthQueryClientActive,
 } from "../auth/auth-query-client";
-import { fetchBodyProfile, fetchEnergySessionDays, saveBodyProfile } from "./api";
-import { energyReport, latestWeightOnDate } from "./energy";
-import { energySessionKeys } from "./energy-keys";
-import { fromDateKey } from "../../lib/heatmap";
+import { fetchBodyProfile, saveBodyProfile } from "./api";
 import type { ProfileFieldState } from "./profile-draft";
 import { profileSaveOptions, type ProfileField } from "./profile-cache";
 import {
@@ -86,26 +83,6 @@ export function useWeightEntries() {
     queryKey: weightKeys.entries(),
     queryFn: fetchWeightEntries,
   });
-}
-
-/** Shared by Perfil and the diary; a date's estimate uses only inputs known by that local day. */
-export function useEnergyReportForDate(date: string) {
-  const profile = useBodyProfile();
-  const weights = useWeightEntries();
-  const sessions = useQuery({
-    queryKey: energySessionKeys.onDate(date),
-    queryFn: () => fetchEnergySessionDays(date),
-  });
-  const error = profile.error ?? weights.error ?? sessions.error;
-  const isPending = profile.isPending || weights.isPending || sessions.isPending;
-  const report = !error && !isPending ? energyReport({
-    profile: profile.data ?? null,
-    latestWeightKg: latestWeightOnDate(weights.data ?? [], date),
-    sessionDays: sessions.data ?? [],
-    now: fromDateKey(date),
-  }) : null;
-  const sourceWeight = weights.data?.find((entry) => entry.measured_on <= date) ?? null;
-  return { report, isPending, error, sourceWeight };
 }
 
 /**

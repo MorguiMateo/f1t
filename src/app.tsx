@@ -37,10 +37,6 @@ const RoutineDayPage = lazy(() =>
 const WorkoutPage = lazy(() =>
   import("./pages/workout-page").then((m) => ({ default: m.WorkoutPage })),
 );
-const FoodDiaryPage = lazy(() =>
-  import("./features/foods/food-diary-page").then((m) => ({ default: m.FoodDiaryPage })),
-);
-
 /** Shared definitions: production uses a data router so every exit can be blocked. */
 // eslint-disable-next-line react/only-export-components -- Bootstrap and legacy App previews share one route tree.
 export const appRoutes: RouteObject[] = [{
@@ -55,11 +51,10 @@ export const appRoutes: RouteObject[] = [{
       { id: "today", index: true, element: <TodayPage /> },
       // Its own screen so the back gesture leaves the workout; `?dia=` selects a day.
       { id: "workout", path: "entrenar", element: <WorkoutPage /> },
-      { id: "foods", path: "comidas", element: <FoodDiaryPage /> },
       { id: "routines", path: "rutinas", element: <RoutinesPage /> },
       { id: "routine", path: "rutinas/:routineId", element: <RoutineDetailPage /> },
       { id: "routine-day", path: "rutinas/:routineId/dias/:dayId", element: <RoutineDayPage /> },
-      // Not a sixth tab: the catalog belongs to Rutinas.
+      // Not a separate tab: the catalog belongs to Rutinas.
       { id: "exercises", path: "ejercicios", element: <ExercisesPage /> },
       { id: "exercise", path: "ejercicios/:id", element: <ExerciseDetailPage /> },
       { id: "progress", path: "progreso", element: <ProgressPage /> },

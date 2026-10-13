@@ -36,7 +36,7 @@ describe("auth recovery screen", () => {
     mock.retry?.();
     expect(mock.state.retrySession).toHaveBeenCalledTimes(1);
     expect(html).toContain("<main");
-    expect(html).toContain("tus comidas");
+    expect(html).toContain("tu progreso");
     expect(html).toContain("F1t no guarda tu contraseña");
   });
   it("announces session restoration as busy within a main landmark", () => {

@@ -49,8 +49,6 @@ struct NativeKeysetPlan {
         switch table {
         case "sessions": columns = ["performed_on", "id"]; descending = true
         case "weight_entries": columns = ["measured_on", "id"]; descending = true
-        case "food_entries": columns = ["created_at", "id"]; descending = false
-        case "food_days": columns = ["logged_on"]; descending = false
         case "body_profile": columns = ["user_id"]; descending = false
         case "routines", "routine_days", "routine_exercises", "session_sets", "exercises": columns = ["id"]; descending = false
         default: throw NativeFailure.message("La tabla no tiene un cursor de paginación definido.")

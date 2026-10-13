@@ -252,31 +252,3 @@ enum FitCatalogSearch {
         }
     }
 }
-
-enum FitFoodSearch {
-    private static func normalize(_ text: String) -> String {
-        FitLabels.normalize(text).replacingOccurrences(of: "[^a-z0-9]+", with: " ", options: .regularExpression).trimmingCharacters(in: .whitespaces)
-    }
-    /// Same ranking as the web: exact code, name prefix, name contains, then the rest.
-    static func search(_ foods: [NativeFood], query: String, limit: Int = 30) -> [NativeFood] {
-        let words = normalize(query).split(separator: " ").map(String.init)
-        guard !words.isEmpty else { return Array(foods.prefix(limit)) }
-        let joined = words.joined(separator: " "), code = query.trimmingCharacters(in: .whitespaces)
-        func score(_ food: NativeFood, _ name: String) -> Int {
-            food.sourceCode == code ? 0 : name.hasPrefix(joined) ? 1 : name.contains(words[0]) ? 2 : 3
-        }
-        return foods.compactMap { food -> (NativeFood, String, Int)? in
-            let terms = normalize(([food.name, food.brand] + food.aliases + [food.sourceCode]).joined(separator: " "))
-            guard words.allSatisfy({ terms.contains($0) }) else { return nil }
-            let name = normalize(food.name)
-            return (food, name, score(food, name))
-        }
-        .sorted { a, b in
-            if a.2 != b.2 { return a.2 < b.2 }
-            let order = a.0.name.compare(b.0.name, locale: FitFormat.locale)
-            return order != .orderedSame ? order == .orderedAscending : a.0.sourceCode < b.0.sourceCode
-        }
-        .prefix(limit)
-        .map(\.0)
-    }
-}

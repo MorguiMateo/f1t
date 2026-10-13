@@ -8,7 +8,7 @@ struct NativeAccountEvent {
 }
 
 enum NativeDataDomain: String, CaseIterable, Codable {
-    case training, body, foods
+    case training, body
 }
 
 struct NativeDomainState {
@@ -22,14 +22,12 @@ struct NativeDomainState {
 private enum NativeDomainRead {
     case training([NativeRoutine], [NativeRoutineDay], [NativeRoutineExercise], [NativeWorkoutSession], [NativeSet])
     case body([NativeWeight], NativeBodyProfile?)
-    case foods([NativeFoodEntry], [NativeFoodDay])
     case failed(NativeDataDomain, Error)
 
     var domain: NativeDataDomain {
         switch self {
         case .training: return .training
         case .body: return .body
-        case .foods: return .foods
         case .failed(let domain, _): return domain
         }
     }
@@ -49,8 +47,6 @@ final class NativeStore: ObservableObject {
     @Published var sets: [NativeSet] = []
     @Published var weights: [NativeWeight] = []
     @Published var profile: NativeBodyProfile?
-    @Published var foodEntries: [NativeFoodEntry] = []
-    @Published var foodDays: [NativeFoodDay] = []
     @Published var loading = false
     @Published var busy = false
     @Published var error: String?
@@ -64,7 +60,6 @@ final class NativeStore: ObservableObject {
         domainStates[domain] ?? NativeDomainState()
     }
     var bodyLoaded: Bool { domainState(.body).loaded }
-    var foodsLoaded: Bool { domainState(.foods).loaded }
     @Published var workoutSyncRevision: UInt64 = 0
     @Published var workoutPendingCount = 0
     @Published var workoutSyncing = false
@@ -150,7 +145,7 @@ final class NativeStore: ObservableObject {
     private func resetData() {
         loaded = false; usingCachedData = false; snapshotSavedAt = nil
         domainStates = [:]
-        routines = []; days = []; routineExercises = []; sessions = []; sets = []; weights = []; profile = nil; foodEntries = []; foodDays = []
+        routines = []; days = []; routineExercises = []; sessions = []; sets = []; weights = []; profile = nil
     }
     private func cancelRefresh() {
         refreshID = nil; authorizationFailure = nil; refreshTask?.cancel(); refreshTask = nil; loading = false; refreshing = false
@@ -275,7 +270,7 @@ final class NativeStore: ObservableObject {
             if let authorizationFailure { throw authorizationFailure }
             guard !confirmed.isEmpty, let partial = snapshotForRefresh(owner: owner, trainingRead: trainingRead) else { return }
             // An incomplete cohort may retain available domains and the previous
-            // food history. Only the confirmed training GET can retire older ACKs;
+            // body history. Only the confirmed training GET can retire older ACKs;
             // pending writes/newer ACKs win and no complete account GET is claimed.
             let snapshot: NativeDataSnapshot
             if confirmed.count == NativeDataDomain.allCases.count {
@@ -337,14 +332,6 @@ final class NativeStore: ObservableObject {
                 try requireCurrentRefresh(owner: owner, revision: revision, generation: generation, requestID: requestID)
                 guard values.0.allSatisfy({ $0.user_id == owner }), values.1.allSatisfy({ $0.user_id == owner }) else { throw foreignDataFailure() }
                 return .body(values.0, values.1.first)
-            case .foods:
-                async let f: [NativeFoodEntry] = fetchForRefresh("food_entries", owner: owner, revision: revision, generation: generation, requestID: requestID,
-                    query: [URLQueryItem(name: "order", value: "created_at.asc,id.asc")])
-                async let fd: [NativeFoodDay] = fetchForRefresh("food_days", owner: owner, revision: revision, generation: generation, requestID: requestID)
-                let values = try await (f, fd)
-                try requireCurrentRefresh(owner: owner, revision: revision, generation: generation, requestID: requestID)
-                guard values.0.allSatisfy({ $0.user_id == owner }), values.1.allSatisfy({ $0.user_id == owner }) else { throw foreignDataFailure() }
-                return .foods(values.0, values.1)
             }
         } catch { return .failed(domain, error) }
     }
@@ -381,7 +368,6 @@ final class NativeStore: ObservableObject {
             loaded = true; loading = false; usingCachedData = false; error = nil
             applyWorkoutOverlay(notify: false)
         case .body(let w, let p): weights = w; profile = p
-        case .foods(let f, let fd): foodEntries = f; foodDays = fd
         case .failed: return
         }
         domainStates[result.domain] = NativeDomainState(loaded: true, lastUpdatedAt: Date())
@@ -394,8 +380,7 @@ final class NativeStore: ObservableObject {
         // Persist the actual GET, not an already-overlaid UI projection. Otherwise
         // retiring an older ACK would leave its obsolete row inside the snapshot.
         return NativeDataSnapshot(ownerID: owner, savedAt: base.savedAt, routines: r, days: d, routineExercises: e,
-            sessions: s, sets: ss, weights: base.weights, profile: base.profile, foodEntries: base.foodEntries,
-            foodDays: base.foodDays, domainSavedAt: base.domainSavedAt, completeRefresh: false)
+            sessions: s, sets: ss, weights: base.weights, profile: base.profile, domainSavedAt: base.domainSavedAt, completeRefresh: false)
     }
 
     private func restoreTrainingProjection(_ read: NativeDomainRead?) {
@@ -417,7 +402,6 @@ final class NativeStore: ObservableObject {
     private func publish(_ snapshot: NativeDataSnapshot, cached: Bool) {
         routines = snapshot.routines; days = snapshot.days; routineExercises = snapshot.routineExercises
         sessions = snapshot.sessions; sets = snapshot.sets; weights = snapshot.weights; profile = snapshot.profile
-        foodEntries = snapshot.foodEntries; foodDays = snapshot.foodDays
         for domain in NativeDataDomain.allCases {
             let date = snapshot.updatedAt(for: domain)
             domainStates[domain] = NativeDomainState(loaded: date != nil, usingCachedData: cached && date != nil, lastUpdatedAt: date)
@@ -437,7 +421,7 @@ final class NativeStore: ObservableObject {
         }
     }
     /// Invoke synchronously after publishing identity-checked server acknowledgements
-    /// (profile/weight/food/routine insert, update or deletion), before scheduling GETs.
+    /// (profile/weight/routine insert, update or deletion), before scheduling GETs.
     /// A remote success is never presented as a failed remote write when disk fails.
     func acknowledgeConfirmedMutation(action: NativeWorkoutAction) throws {
         try action.check(in: auth)
@@ -448,7 +432,7 @@ final class NativeStore: ObservableObject {
         do {
             try workoutRepository.invalidateSnapshot(owner: owner)
             guard let snapshot = currentWorkoutSnapshot(owner: owner) else {
-                // The returned row is known, but it cannot make nine unloaded
+                // The returned row is known, but it cannot make seven unloaded
                 // domains a complete account snapshot. Keep the old copy fenced.
                 NotificationCenter.default.post(name: Notification.Name("nativeDataRefreshed"), object: self)
                 return
@@ -539,7 +523,7 @@ final class NativeStore: ObservableObject {
 }
 
 
-/// A complete account snapshot keeps `loaded` honest for workout, food and body screens.
+/// A complete account snapshot keeps `loaded` honest for workout and body screens.
 /// Authentication/session models and the bundled public exercise catalog are deliberately excluded.
 struct NativeDataSnapshot: Codable {
     static let currentVersion = 1
@@ -554,8 +538,6 @@ struct NativeDataSnapshot: Codable {
     let sets: [NativeSet]
     let weights: [NativeWeight]
     let profile: NativeBodyProfile?
-    let foodEntries: [NativeFoodEntry]
-    let foodDays: [NativeFoodDay]
     // Optional for compatibility with complete v1 snapshots. Missing domains are
     // unknown, not confirmed empty. Their previous arrays/timestamps are retained.
     var domainSavedAt: [String: Date]? = nil
@@ -570,8 +552,7 @@ struct NativeDataSnapshot: Codable {
     }
     func confirmed(at date: Date) -> Self {
         Self(ownerID: ownerID, savedAt: date, routines: routines, days: days, routineExercises: routineExercises,
-             sessions: sessions, sets: sets, weights: weights, profile: profile, foodEntries: foodEntries,
-             foodDays: foodDays, domainSavedAt: Dictionary(uniqueKeysWithValues: NativeDataDomain.allCases.map { ($0.rawValue, date) }), completeRefresh: true)
+             sessions: sessions, sets: sets, weights: weights, profile: profile, domainSavedAt: Dictionary(uniqueKeysWithValues: NativeDataDomain.allCases.map { ($0.rawValue, date) }), completeRefresh: true)
     }
 
     static func isFresh(_ date: Date, now: Date = Date()) -> Bool {
@@ -580,16 +561,16 @@ struct NativeDataSnapshot: Codable {
     }
     func isValid(for owner: String, now: Date = Date()) -> Bool {
         Self.isFresh(savedAt, now: now) && isOwned(by: owner)
-            && (domainSavedAt?.values.allSatisfy { Self.isFresh($0, now: now) } ?? true)
+            && (domainSavedAt?.filter { NativeDataDomain(rawValue: $0.key) != nil }.values.allSatisfy { Self.isFresh($0, now: now) } ?? true)
     }
     func isOwned(by owner: String) -> Bool {
         schemaVersion == Self.currentVersion && ownerID == owner
-            && (domainSavedAt?.allSatisfy { NativeDataDomain(rawValue: $0.key) != nil && $0.value.timeIntervalSince1970.isFinite } ?? true)
+            // Retired domains in older snapshots are ignored, while current account rows remain ownership-checked.
+            && (domainSavedAt?.allSatisfy { $0.value.timeIntervalSince1970.isFinite } ?? true)
             && routines.allSatisfy { $0.user_id == owner } && days.allSatisfy { $0.user_id == owner }
             && routineExercises.allSatisfy { $0.user_id == owner } && sessions.allSatisfy { $0.user_id == owner }
             && sets.allSatisfy { $0.user_id == owner } && weights.allSatisfy { $0.user_id == owner }
-            && (profile == nil || profile?.user_id == owner) && foodEntries.allSatisfy { $0.user_id == owner }
-            && foodDays.allSatisfy { $0.user_id == owner }
+            && (profile == nil || profile?.user_id == owner)
     }
 }
 

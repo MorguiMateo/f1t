@@ -15,7 +15,7 @@ function lastMatch(path: string) { return matchRoutes(appRoutes, path)?.at(-1)?.
 
 describe("production data router routes", () => {
   it.each([
-    ["/", "today"], ["/entrenar?dia=day-1", "workout"], ["/comidas", "foods"],
+    ["/", "today"], ["/entrenar?dia=day-1", "workout"],
     ["/rutinas", "routines"], ["/rutinas/r", "routine"], ["/rutinas/r/dias/d", "routine-day"],
     ["/ejercicios?rutina=r&dia=d&q=press", "exercises"], ["/ejercicios/press", "exercise"],
     ["/progreso?seccion=cuerpo&accion=anotar", "progress"], ["/perfil?seccion=objetivos", "profile"],
@@ -39,7 +39,7 @@ describe("production data router routes", () => {
   it("retains the default App export for MemoryRouter previews and tests", () => {
     const html = renderToStaticMarkup(<MemoryRouter><App /></MemoryRouter>);
     expect(html).toContain("Hoy</h1>");
-    expect([...html.matchAll(/<a\b/g)]).toHaveLength(5);
+    expect([...html.matchAll(/<a\b/g)]).toHaveLength(4);
   });
 
   it.each(["tab", "back", "forward", "direct-entry fallback"])("blocks a real data-router %s exit until the caller explicitly proceeds", async (exit) => {
@@ -51,7 +51,7 @@ describe("production data router routes", () => {
     try {
       router.getBlocker("workout", () => true);
       const leave = () => exit === "back" ? router.navigate(-1) : exit === "forward" ? router.navigate(1)
-        : router.navigate(direct ? "/" : "/comidas", { replace: direct });
+        : router.navigate(direct ? "/" : "/progreso", { replace: direct });
       await leave();
       expect(router.state.location.pathname).toBe("/entrenar");
       let blocker = router.state.blockers.get("workout")!;
@@ -61,7 +61,7 @@ describe("production data router routes", () => {
       await leave();
       blocker = router.state.blockers.get("workout")!;
       if (blocker.state === "blocked") blocker.proceed();
-      await vi.waitFor(() => expect(router.state.location.pathname).toBe(exit === "forward" ? "/perfil" : exit === "tab" ? "/comidas" : "/"));
+      await vi.waitFor(() => expect(router.state.location.pathname).toBe(exit === "forward" ? "/perfil" : exit === "tab" ? "/progreso" : "/"));
     } finally { router.dispose(); }
   });
 

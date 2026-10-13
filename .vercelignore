@@ -1,8 +1,6 @@
 # Only the static web application is built on Vercel.
 ios/
 docs/
-scripts/foods/snapshots/
-scripts/foods/staged/
 .env
 .env.*
 !.env.example

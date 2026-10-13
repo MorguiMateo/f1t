@@ -10,7 +10,7 @@ import assert from 'node:assert/strict'
 test('native Today preserves session identity and reminder scheduling truth', () => {
   const today = readFileSync(new URL('../ios/App/Native/native-today-views.swift', import.meta.url), 'utf8')
   const device = readFileSync(new URL('../ios/App/Native/native-device.swift', import.meta.url), 'utf8')
-  const todayRules = today.slice(today.indexOf('enum NativeTodaySelection {'), today.indexOf('struct NativeTodayFoodSummary:'))
+  const todayRules = today.slice(today.indexOf('enum NativeTodaySelection {'), today.indexOf('struct NativeTodayRoutine:'))
   const reminderRules = device.slice(device.indexOf('enum NativeReminderState:'), device.indexOf('@MainActor'))
   const directory = mkdtempSync(join(tmpdir(), 'f1t-today-ux-'))
   try {

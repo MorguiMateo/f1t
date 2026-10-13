@@ -6,7 +6,6 @@
 import type { Tables, TablesUpdate } from "../../lib/database.types";
 import { unwrap, unwrapRow } from "../../lib/postgrest";
 import { supabase } from "../../lib/supabase";
-import { fromDateKey, toDateKey } from "../../lib/heatmap";
 
 export type BodyProfile = Tables<"body_profile">;
 
@@ -37,13 +36,4 @@ export async function saveBodyProfile(
       .select()
       .single(),
   );
-}
-
-/** Only the 28 local calendar days energyReport considers, even for old diary dates. */
-export async function fetchEnergySessionDays(date: string): Promise<{ performed_on: string }[]> {
-  const day = fromDateKey(date);
-  const start = toDateKey(new Date(day.getFullYear(), day.getMonth(), day.getDate() - 27));
-  return unwrap(await supabase.from("sessions").select("performed_on")
-    .gte("performed_on", start).lte("performed_on", date)
-    .gt("set_count", 0)) ?? [];
 }

@@ -21,8 +21,6 @@
 		B61100000000000000000003 /* native-body-views.swift in Sources */ = {isa = PBXBuildFile; fileRef = B61000000000000000000003 /* native-body-views.swift */; };
 		B61100000000000000000004 /* native-date.swift in Sources */ = {isa = PBXBuildFile; fileRef = B61000000000000000000004 /* native-date.swift */; };
 		B61100000000000000000005 /* native-device.swift in Sources */ = {isa = PBXBuildFile; fileRef = B61000000000000000000005 /* native-device.swift */; };
-		B61100000000000000000006 /* native-energy.swift in Sources */ = {isa = PBXBuildFile; fileRef = B61000000000000000000006 /* native-energy.swift */; };
-		B61100000000000000000007 /* native-food-views.swift in Sources */ = {isa = PBXBuildFile; fileRef = B61000000000000000000007 /* native-food-views.swift */; };
 		B61100000000000000000008 /* native-models.swift in Sources */ = {isa = PBXBuildFile; fileRef = B61000000000000000000008 /* native-models.swift */; };
 		B61100000000000000000009 /* native-routine-views.swift in Sources */ = {isa = PBXBuildFile; fileRef = B61000000000000000000009 /* native-routine-views.swift */; };
 		B6110000000000000000000A /* native-store.swift in Sources */ = {isa = PBXBuildFile; fileRef = B6100000000000000000000A /* native-store.swift */; };
@@ -48,7 +46,6 @@
 		3694386B0C125E7DE4297CFE /* native-workout-shortcuts.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9D89AAE29F21C70A38F1C909 /* native-workout-shortcuts.swift */; };
 		5AC6E87624CB3066964B92B9 /* native-alarm-live-activity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 98C51A8627AF164A081CBCDC /* native-alarm-live-activity.swift */; };
 		8D7F94F87FEB1FD3CC51617C /* native-alarm-live-activity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 98C51A8627AF164A081CBCDC /* native-alarm-live-activity.swift */; };
-		9776EB1893FA2135B6A8D6D1 /* native-food-preferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0380CA3E0A8E68176BC7675 /* native-food-preferences.swift */; };
 		D13F1974044B9E4627CBBB47 /* native-exercise-instructions-es.swift in Sources */ = {isa = PBXBuildFile; fileRef = AF9DFFC5C40B98EBA8B24993 /* native-exercise-instructions-es.swift */; };
 		95FE0AF3741E01204C6ED3BF /* native-workout-persistence.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0117F036C2366B9C385F5905 /* native-workout-persistence.swift */; };
 		6F7E24CCCC45970A12BB09DC /* native-active-workout.swift in Sources */ = {isa = PBXBuildFile; fileRef = 754878D65EE6C07D3628FBFC /* native-active-workout.swift */; };
@@ -117,8 +114,6 @@
 		B61000000000000000000003 /* native-body-views.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "native-body-views.swift"; sourceTree = "<group>"; };
 		B61000000000000000000004 /* native-date.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "native-date.swift"; sourceTree = "<group>"; };
 		B61000000000000000000005 /* native-device.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "native-device.swift"; sourceTree = "<group>"; };
-		B61000000000000000000006 /* native-energy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "native-energy.swift"; sourceTree = "<group>"; };
-		B61000000000000000000007 /* native-food-views.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "native-food-views.swift"; sourceTree = "<group>"; };
 		B61000000000000000000008 /* native-models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "native-models.swift"; sourceTree = "<group>"; };
 		B61000000000000000000009 /* native-routine-views.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "native-routine-views.swift"; sourceTree = "<group>"; };
 		B6100000000000000000000A /* native-store.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "native-store.swift"; sourceTree = "<group>"; };
@@ -143,7 +138,6 @@
 		2828F438B2C2BCE4B30B4321 /* native-alarm-provider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = native-alarm-provider.swift; sourceTree = "<group>"; };
 		9D89AAE29F21C70A38F1C909 /* native-workout-shortcuts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = native-workout-shortcuts.swift; sourceTree = "<group>"; };
 		98C51A8627AF164A081CBCDC /* native-alarm-live-activity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = native-alarm-live-activity.swift; sourceTree = "<group>"; };
-		E0380CA3E0A8E68176BC7675 /* native-food-preferences.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = native-food-preferences.swift; sourceTree = "<group>"; };
 		AF9DFFC5C40B98EBA8B24993 /* native-exercise-instructions-es.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = native-exercise-instructions-es.swift; sourceTree = "<group>"; };
 		0117F036C2366B9C385F5905 /* native-workout-persistence.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = native-workout-persistence.swift; sourceTree = "<group>"; };
 		754878D65EE6C07D3628FBFC /* native-active-workout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = native-active-workout.swift; sourceTree = "<group>"; };
@@ -259,7 +253,6 @@
 				754878D65EE6C07D3628FBFC /* native-active-workout.swift */,
 				0117F036C2366B9C385F5905 /* native-workout-persistence.swift */,
 				AF9DFFC5C40B98EBA8B24993 /* native-exercise-instructions-es.swift */,
-				E0380CA3E0A8E68176BC7675 /* native-food-preferences.swift */,
 				B61000000000000000000000 /* native-api.swift */,
 				B61000000000000000000001 /* native-app.swift */,
 				B61000000000000000000002 /* native-auth.swift */,
@@ -267,8 +260,6 @@
 				B61000000000000000000003 /* native-body-views.swift */,
 				B61000000000000000000004 /* native-date.swift */,
 				B61000000000000000000005 /* native-device.swift */,
-				B61000000000000000000006 /* native-energy.swift */,
-				B61000000000000000000007 /* native-food-views.swift */,
 				B61000000000000000000008 /* native-models.swift */,
 				B61000000000000000000009 /* native-routine-views.swift */,
 				B6100000000000000000000A /* native-store.swift */,
@@ -466,7 +457,6 @@
 				6F7E24CCCC45970A12BB09DC /* native-active-workout.swift in Sources */,
 				95FE0AF3741E01204C6ED3BF /* native-workout-persistence.swift in Sources */,
 				D13F1974044B9E4627CBBB47 /* native-exercise-instructions-es.swift in Sources */,
-				9776EB1893FA2135B6A8D6D1 /* native-food-preferences.swift in Sources */,
 				5AC6E87624CB3066964B92B9 /* native-alarm-live-activity.swift in Sources */,
 				3694386B0C125E7DE4297CFE /* native-workout-shortcuts.swift in Sources */,
 				7DAF6618EA8DEE3EF2B24A51 /* native-alarm-provider.swift in Sources */,
@@ -478,8 +468,6 @@
 				B61100000000000000000003 /* native-body-views.swift in Sources */,
 				B61100000000000000000004 /* native-date.swift in Sources */,
 				B61100000000000000000005 /* native-device.swift in Sources */,
-				B61100000000000000000006 /* native-energy.swift in Sources */,
-				B61100000000000000000007 /* native-food-views.swift in Sources */,
 				B61100000000000000000008 /* native-models.swift in Sources */,
 				B61100000000000000000009 /* native-routine-views.swift in Sources */,
 				B6110000000000000000000A /* native-store.swift in Sources */,

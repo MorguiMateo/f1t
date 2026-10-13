@@ -7,14 +7,13 @@ export type Sex = "male" | "female";
 
 /** Ordered as a scale: down, steady, up. */
 export const GOALS: { value: Goal; label: string; hint: string }[] = [
-  { value: "lose", label: "Bajar", hint: "Ajuste orientativo de −500 kcal" },
-  { value: "maintain", label: "Mantener", hint: "Sin ajuste de fórmula" },
-  { value: "gain", label: "Subir", hint: "Ajuste orientativo de +300 kcal" },
+  { value: "lose", label: "Bajar", hint: "Bajar de peso" },
+  { value: "maintain", label: "Mantener", hint: "Mantener el peso" },
+  { value: "gain", label: "Subir", hint: "Subir de peso" },
 ];
 
 /**
- * Only the values Mifflin-St Jeor has a coefficient for, the field's sole
- * reason to exist. Optional: the rest of the profile works without it.
+ * Optional profile information; the rest of the profile works without it.
  */
 export const SEXES: { value: Sex; label: string }[] = [
   { value: "female", label: "Mujer" },

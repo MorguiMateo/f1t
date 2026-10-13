@@ -104,7 +104,7 @@ describe("native Google OAuth", () => {
   it("does not touch web destination storage in native OAuth", async () => {
     vi.stubGlobal("window", { get sessionStorage() { throw new Error("must not read native storage"); } });
     try {
-      await startGoogleSignIn("/comidas?fecha=2026-10-01");
+      await startGoogleSignIn("/progreso?seccion=entrenamiento");
       expect(mocks.signInWithOAuth).toHaveBeenCalledWith({ provider: "google", options: { redirectTo: "f1t://auth/callback", skipBrowserRedirect: true } });
       expect(mocks.open).toHaveBeenCalled();
     } finally { vi.unstubAllGlobals(); }

@@ -69,8 +69,6 @@ enum NativeProgressRoute {
 struct NativeProgressView: View {
     @EnvironmentObject var store: NativeStore
     @State private var openDate: String?
-    @State private var showAll = false
-    @State private var selectedDate = Date()
     @State private var now = Date()
     @State private var section = Section.training
     @State private var weightFocusRequest = 0
@@ -95,18 +93,17 @@ struct NativeProgressView: View {
                     if !store.domainState(.training).loaded {
                         NativePendingContent(count: 3)
                     } else {
-                    consistency.padding(.top, 16)
                     if trained.isEmpty {
                         FitEmptyState(title: "Sin entrenamientos", description: "Registrá el primero desde Hoy.").padding(.top, 16)
                     }
-                    NativeExerciseProgressCard(requestedExercise: requestedExercise, requestID: exerciseRequest).padding(.top, 16)
                     if !trained.isEmpty {
                         VStack(alignment: .leading, spacing: 12) {
                             Text("Actividad · 26 semanas").font(.fit(.base, .semibold))
                             FitHeatmap(sessions: store.sessions) { openDate = $0 }
                         }.fitCard().padding(.top, 16)
                     }
-                    calendarList.padding(.top, 16)
+                    consistency.padding(.top, 16)
+                    NativeExerciseProgressCard(requestedExercise: requestedExercise, requestID: exerciseRequest).padding(.top, 16)
                     }
                   }
                   .frame(height: section == .training ? nil : 0, alignment: .top).clipped()
@@ -205,55 +202,6 @@ struct NativeProgressView: View {
         }.fitCard()
     }
 
-    private var calendarList: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Entrenamientos").font(.fit(.base, .semibold)).accessibilityAddTraits(.isHeader)
-            DisclosureGroup {
-                FitDateField(date: $selectedDate, range: Date.distantPast...now, label: "Fecha del entrenamiento")
-                Button("Abrir entrenamiento") { openDate = NativeDate.key(selectedDate) }
-                    .buttonStyle(FitButtonStyle(fullWidth: true))
-                    .accessibilityHint("Abre la fecha elegida para registrar o corregir series, incluso sin actividad previa.")
-            } label: {
-                Text("Buscar una fecha").font(.fit(.sm)).fitMinimumHitArea()
-            }
-            if !store.sessions.isEmpty {
-                DisclosureGroup {
-                    history
-                } label: {
-                    Text("Historial · \(store.sessions.count)").font(.fit(.sm)).fitMinimumHitArea()
-                }
-            }
-        }.fitCard()
-    }
-
-    /// Accessible chronological alternative to the decorative heatmap. The date
-    /// picker above also opens untrained dates; every row announces its actual date.
-    private var history: some View {
-        let rows = store.sessions.sorted {
-            $0.performed_on == $1.performed_on ? $0.id > $1.id : $0.performed_on > $1.performed_on
-        }
-        let visible = showAll ? rows : Array(rows.prefix(8))
-        return LazyVStack(alignment: .leading, spacing: 12) {
-            ForEach(visible) { row in
-                Button { openDate = row.performed_on } label: {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(FitFormat.fieldDay(NativeDate.parse(row.performed_on) ?? now)).font(.fit(.base, .medium))
-                        let day = store.days.first { $0.id == row.routine_day_id }
-                        Text("\(day?.label ?? "Entrenamiento") · \(FitFormat.sets(row.set_count))")
-                            .font(.fit(.sm)).foregroundStyle(FitColor.muted)
-                    }.frame(maxWidth: .infinity, alignment: .leading).fitMinimumHitArea().padding(.vertical, 6)
-                }
-                .buttonStyle(FitRowButtonStyle())
-                .accessibilityHint("Abre las series de esta fecha para revisarlas o corregirlas.")
-                Rectangle().fill(FitColor.line).frame(height: 1).accessibilityHidden(true)
-            }
-            if rows.count > visible.count {
-                Button("Ver todos (\(rows.count))") { showAll = true }.fitLink()
-            } else if showAll && rows.count > 8 {
-                Button("Ver últimos 8") { showAll = false }.fitLink()
-            }
-        }
-    }
 }
 
 private struct NativeExerciseProgressCard: View {
@@ -378,46 +326,40 @@ private struct NativeExerciseProgressCard: View {
 struct FitHeatmap: View {
     let sessions: [NativeWorkoutSession]
     let onSelect: (String) -> Void
-    @State private var gridWidth: CGFloat = 0
     private static let opacity: [Double] = [0, 0.26, 0.48, 0.72, 1]
     private static let rowLabels = ["Lun", "", "Mié", "", "Vie", "", ""]
 
     var body: some View {
         let cells = NativeDate.heatmap(sessions)
         let today = NativeDate.key()
-        let cell = max((gridWidth - 25 * 2) / 26, 0)
         let trained = cells.filter { $0.level > 0 }.count
         VStack(alignment: .trailing, spacing: 8) {
-            HStack(alignment: .top, spacing: 6) {
+            FitHeatmapLayout {
                 VStack(alignment: .leading, spacing: 2) {
-                    Color.clear.frame(height: 12)
                     ForEach(0..<7, id: \.self) { row in
-                        Text(Self.rowLabels[row]).font(.fit(.micro)).foregroundStyle(FitColor.muted).frame(height: cell)
+                        Text(Self.rowLabels[row]).font(.fit(.micro)).foregroundStyle(FitColor.muted)
+                            .frame(maxHeight: .infinity)
+                    }
+                }.fixedSize(horizontal: true, vertical: false)
+                HStack(spacing: 2) {
+                    ForEach(0..<26, id: \.self) { week in
+                        Color.clear.frame(height: 8).frame(maxWidth: .infinity).overlay(alignment: .leading) {
+                            if let label = monthLabel(cells, week) { Text(label).font(.fit(.micro)).foregroundStyle(FitColor.muted).fixedSize() }
+                        }
                     }
                 }
-                .fixedSize(horizontal: true, vertical: false)
-                VStack(alignment: .leading, spacing: 4) {
-                    HStack(spacing: 2) {
-                        ForEach(0..<26, id: \.self) { week in
-                            Color.clear.frame(height: 8).frame(maxWidth: .infinity).overlay(alignment: .leading) {
-                                if let label = monthLabel(cells, week) { Text(label).font(.fit(.micro)).foregroundStyle(FitColor.muted).fixedSize() }
+                HStack(spacing: 2) {
+                    ForEach(0..<26, id: \.self) { week in
+                        VStack(spacing: 2) {
+                            ForEach(0..<7, id: \.self) { day in
+                                let item = cells[week * 7 + day]
+                                RoundedRectangle(cornerRadius: 2)
+                                    .fill(color(item.level, future: item.key > today))
+                                    .aspectRatio(1, contentMode: .fit)
+                                    .onTapGesture { if item.key <= today { onSelect(item.key) } }
                             }
                         }
                     }
-                    HStack(spacing: 2) {
-                        ForEach(0..<26, id: \.self) { week in
-                            VStack(spacing: 2) {
-                                ForEach(0..<7, id: \.self) { day in
-                                    let item = cells[week * 7 + day]
-                                    RoundedRectangle(cornerRadius: 2)
-                                        .fill(color(item.level, future: item.key > today))
-                                        .aspectRatio(1, contentMode: .fit)
-                                        .onTapGesture { if item.key <= today { onSelect(item.key) } }
-                                }
-                            }
-                        }
-                    }
-                    .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { gridWidth = $0 }
                 }
             }
             .accessibilityElement(children: .ignore)
@@ -445,5 +387,28 @@ struct FitHeatmap: View {
         if week == 0 { return label }
         guard let before = NativeDate.parse(cells[(week - 1) * 7].key) else { return label }
         return FitFormat.month(before) == label ? nil : label
+    }
+}
+
+/// Pure measurement: never write @State from geometry. Progress retains inactive
+/// sections at zero height; the old width -> row height -> width feedback kept
+/// SwiftUI relaying out the hidden heatmap indefinitely when Cuerpo was opened.
+private struct FitHeatmapLayout: Layout {
+    private func dimensions(_ proposal: ProposedViewSize, _ subviews: Subviews) -> (width: CGFloat, labels: CGFloat, grid: CGFloat, height: CGFloat) {
+        let labels = subviews[0].sizeThatFits(.unspecified).width
+        let width = max(proposal.width ?? 343, labels + 6 + 50)
+        let grid = width - labels - 6
+        let cell = max((grid - 50) / 26, 0)
+        return (width, labels, grid, 7 * cell + 12)
+    }
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let d = dimensions(proposal, subviews)
+        return CGSize(width: d.width, height: d.height + 12)
+    }
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        let d = dimensions(ProposedViewSize(width: bounds.width, height: nil), subviews)
+        subviews[0].place(at: CGPoint(x: bounds.minX, y: bounds.minY + 12), proposal: ProposedViewSize(width: d.labels, height: d.height))
+        subviews[1].place(at: CGPoint(x: bounds.minX + d.labels + 6, y: bounds.minY), proposal: ProposedViewSize(width: d.grid, height: 8))
+        subviews[2].place(at: CGPoint(x: bounds.minX + d.labels + 6, y: bounds.minY + 12), proposal: ProposedViewSize(width: d.grid, height: d.height))
     }
 }

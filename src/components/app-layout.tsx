@@ -11,7 +11,7 @@ const WidgetSync = lazy(() =>
 
 export function AppLayout() {
   const { pathname } = useLocation();
-  const wide = /^\/(rutinas|ejercicios|progreso|perfil|comidas)\/?$/.test(pathname);
+  const wide = /^\/(rutinas|ejercicios|progreso|perfil)\/?$/.test(pathname);
   return (
     <div className="flex min-h-dvh flex-col bg-ground">
       {/* pb-28: room for the fixed nav plus the home indicator. */}

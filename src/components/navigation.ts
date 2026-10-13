@@ -1,6 +1,6 @@
-export type AppSection = "/" | "/rutinas" | "/comidas" | "/progreso" | "/perfil";
+export type AppSection = "/" | "/rutinas" | "/progreso" | "/perfil";
 
-const APP_PATH = /^(?:\/|\/entrenar|\/comidas|\/progreso|\/perfil|\/rutinas(?:\/[A-Za-z0-9_-]+(?:\/dias\/[A-Za-z0-9_-]+)?)?|\/ejercicios(?:\/[A-Za-z0-9_-]+)?)\/?$/;
+const APP_PATH = /^(?:\/|\/entrenar|\/progreso|\/perfil|\/rutinas(?:\/[A-Za-z0-9_-]+(?:\/dias\/[A-Za-z0-9_-]+)?)?|\/ejercicios(?:\/[A-Za-z0-9_-]+)?)\/?$/;
 const AUTH_KEYS = /^(?:code|error(?:_description|_code)?|access_token|refresh_token|id_token|token_type|expires_in|expires_at)$/i;
 
 /** Only destinations implemented by this app; never an external redirect or auth callback. */
@@ -21,7 +21,7 @@ export function sectionForDestination(pathname: string, state?: unknown): AppSec
     const section = state && typeof state === "object" && "section" in state ? state.section : null;
     return section === "/progreso" || section === "/rutinas" ? section : "/";
   }
-  if (path === "/comidas" || path === "/progreso" || path === "/perfil") return path;
+  if (path === "/progreso" || path === "/perfil") return path;
   return "/";
 }
 

@@ -5,8 +5,7 @@ import { PageHeader } from "../components/page-header";
 import { SkeletonGroup, SkeletonLine } from "../components/skeleton";
 import { ErrorNote } from "../components/status";
 import { StepsToday } from "../features/activity/steps-today";
-import { useFoodDay } from "../features/foods/queries";
-import { useLocalToday } from "../features/foods/local-today";
+import { useLocalToday } from "../lib/local-today";
 import { fromDateKey } from "../lib/heatmap";
 import { useActiveRoutine } from "../features/routines/queries";
 import { nextTrainingDay, todayWeekday, whenLabel } from "../features/routines/weekdays";
@@ -27,32 +26,7 @@ function TodayWorkoutSkeleton() {
 }
 
 const FORMATTER = new Intl.DateTimeFormat("es", { weekday: "long", day: "numeric", month: "long" });
-const KCAL = new Intl.NumberFormat("es-AR", { maximumFractionDigits: 1 });
 const PRIMARY = "mt-4 block min-h-12 rounded-xl border border-accent bg-accent px-5 py-3 text-center text-sm font-medium text-accent-ink transition-opacity hover:opacity-90";
-
-export function TodayFoodSummary({ date }: { date: string }) {
-  const { data, isPending, error, refetch, isFetching } = useFoodDay(date);
-  // Only saved entry calories and this date's stored snapshot; never recompute energy here.
-  const intake = data?.entries.reduce((total, entry) => total + entry.kcal, 0) ?? 0;
-  return (
-    <section className="mt-4 rounded-xl border border-line bg-surface p-5" aria-label="Comidas de hoy">
-      <h2 className="font-semibold">Comidas de hoy</h2>
-      {isPending ? <p className="mt-2 text-sm text-muted">Consultando registros…</p> : data ? <>
-        <p className="mt-2 font-semibold tnum">{KCAL.format(intake)} kcal registradas</p>
-        <p className="mt-1 text-sm text-muted">{data.day?.target_kcal != null
-          ? `Objetivo de hoy: ${KCAL.format(data.day.target_kcal)} kcal`
-          : data.day ? "Este día se registró sin objetivo calculable."
-            : "El objetivo se fija al registrar la primera comida."}</p>
-        {error ? <p className="mt-2 text-xs text-muted">Últimos registros disponibles; no se pudieron actualizar.</p> : null}
-      </> : null}
-      {error && !data ? <>
-        <p className="mt-2 text-sm text-muted">No se pudieron consultar las comidas.</p>
-        <button type="button" className="mt-1 min-h-11 text-sm text-accent disabled:opacity-50" disabled={isFetching} onClick={() => { void refetch(); }}>Reintentar</button>
-      </> : null}
-      <Link to="/comidas" className="mt-2 inline-flex min-h-11 items-center text-sm font-medium text-accent">{data?.entries.length ? "Ver o registrar comidas" : "Registrar comida"}</Link>
-    </section>
-  );
-}
 
 export function TodayPage() {
   const todayKey = useLocalToday();
@@ -102,7 +76,6 @@ export function TodayPage() {
         )}
         {routineQuery.error || sessionQuery.error ? <p className="mt-2 text-xs text-muted">Mostrando los últimos datos disponibles. No se pudieron actualizar.</p> : null}
       </>}
-      <TodayFoodSummary date={todayKey} />
       <StepsToday />
     </>
   );

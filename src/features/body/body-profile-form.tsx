@@ -9,7 +9,7 @@ import { toDateKey } from "../../lib/heatmap";
 
 const INPUT_CLASS = "mt-1.5 w-full rounded-xl border border-line bg-surface-2 px-4 py-3 text-sm placeholder:text-muted tnum";
 const LABELS: Record<ProfileField, string> = {
-  height_cm: "Altura", birth_date: "Fecha de nacimiento", sex: "Sexo para la fórmula", goal: "Objetivo", target_weight_kg: "Peso objetivo",
+  height_cm: "Altura", birth_date: "Fecha de nacimiento", sex: "Sexo", goal: "Objetivo", target_weight_kg: "Peso objetivo",
 };
 type Drafts = Record<ProfileField, string>;
 type LocalDraft = LocalProfileDraft;
@@ -19,7 +19,7 @@ function values(profile: BodyProfile | null): Drafts {
 
 export function BodyProfileFormSkeleton() {
   return <SkeletonGroup className="rounded-xl border border-line bg-surface p-5">
-    <h2 className="font-semibold">Datos para estimaciones</h2>
+    <h2 className="font-semibold">Datos corporales</h2>
     {[0, 1, 2, 3, 4].map((index) => <div key={index} className="mt-4"><SkeletonLine className="w-32 text-sm" /><Skeleton className="mt-2 h-12 w-full rounded-xl" /></div>)}
   </SkeletonGroup>;
 }
@@ -83,26 +83,26 @@ export function BodyProfileForm({ profile }: { profile: BodyProfile | null }) {
       <div id={`${id}-${field}`} className="mt-2 grid gap-2 sm:grid-cols-3">
         {options.map((option) => <button key={option.value} type="button" aria-pressed={drafts[field] === option.value} onClick={() => { change(field, option.value); commit(field, option.value); }} className={`min-h-11 rounded-xl border px-3 py-3 text-sm ${drafts[field] === option.value ? "border-accent bg-accent text-accent-ink" : "border-line bg-surface-2"}`}><span className="block font-medium">{option.label}</span>{option.hint ? <span className="mt-1 block text-xs">{option.hint}</span> : null}</button>)}
       </div>
-      {field === "sex" && drafts.sex ? <button type="button" onClick={() => { change("sex", ""); commit("sex", ""); }} className="mt-1 min-h-11 text-sm text-muted">Quitar sexo de la fórmula</button> : null}
+      {field === "sex" && drafts.sex ? <button type="button" onClick={() => { change("sex", ""); commit("sex", ""); }} className="mt-1 min-h-11 text-sm text-muted">Quitar sexo</button> : null}
     </fieldset>;
   }
   const age = ageOn(drafts.birth_date || null);
   return <div className="grid items-start gap-4 lg:grid-cols-2">
     <section id="datos-corporales" className="rounded-xl border border-line bg-surface p-5">
-      <h2 className="font-semibold">Datos para estimaciones</h2>
-      <p className="mt-2 text-sm text-muted">Son opcionales para usar F1t. Altura, fecha de nacimiento, sexo para la fórmula y un peso registrado permiten estimar el gasto.</p>
+      <h2 className="font-semibold">Datos corporales</h2>
+      <p className="mt-2 text-sm text-muted">Son opcionales para usar F1t. Podés guardar tu altura, fecha de nacimiento y sexo.</p>
       <div className="mt-4 space-y-4">
         {field("height_cm", "Opcional · centímetros (cm), 80–260, sin decimales. Vacío elimina el dato.", <input {...inputProps("height_cm")} type="text" inputMode="numeric" placeholder="Ej.: 178" />)}
         {field("birth_date", `Opcional${age === null ? "" : ` · ${age} años`}. Se usa para calcular la edad. Vacío elimina el dato.`, <input {...inputProps("birth_date")} type="date" min={MIN_BIRTH_DATE} max={toDateKey(new Date())} />)}
-        {field("sex", "Opcional; solo se usa para estimar el gasto energético.", choices("sex", SEXES))}
+        {field("sex", "Opcional; podés quitar el dato cuando quieras.", choices("sex", SEXES))}
       </div>
-      <p className="mt-4 text-xs text-muted">Los números y fechas se guardan al salir del campo; las opciones, al elegirlas. La estimación usa los datos guardados.</p>
+      <p className="mt-4 text-xs text-muted">Los números y fechas se guardan al salir del campo; las opciones, al elegirlas.</p>
     </section>
     <section id="objetivo-corporal" className="rounded-xl border border-line bg-surface p-5">
       <h2 className="font-semibold">Objetivo corporal</h2>
-      <p className="mt-2 text-sm text-muted">La meta de peso es una referencia para tu curva. No cambia por sí sola la estimación de calorías.</p>
+      <p className="mt-2 text-sm text-muted">La meta de peso es una referencia para tu curva.</p>
       <div className="mt-4 space-y-4">
-        {field("goal", "Ajuste orientativo de la fórmula, no una recomendación de alimentación.", choices("goal", GOALS))}
+        {field("goal", "Elegí si querés bajar, mantener o subir de peso.", choices("goal", GOALS))}
         {field("target_weight_kg", "Opcional · kilogramos (kg), 20–400, hasta 1 decimal. Vacío elimina la meta.", <input {...inputProps("target_weight_kg")} type="text" inputMode="decimal" placeholder="Ej.: 75,5" />)}
       </div>
     </section>

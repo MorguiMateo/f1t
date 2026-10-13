@@ -5,8 +5,6 @@ import { spawnSync } from 'node:child_process';
 
 const app = readFileSync('ios/App/Native/native-app.swift', 'utf8');
 const todayViews = readFileSync('ios/App/Native/native-today-views.swift', 'utf8');
-const today = todayViews
-  .split('struct NativeTodayView: View {')[1].split('struct NativeTodayRoutine: View {')[0];
 const theme = readFileSync('ios/App/Native/native-theme.swift', 'utf8');
 const routines = readFileSync('ios/App/Native/native-routine-views.swift', 'utf8');
 const api = readFileSync('ios/App/Native/native-api.swift', 'utf8');
@@ -38,19 +36,6 @@ function checkSwift(scenarios) {
   assert.ifError(run.error);
   assert.equal(run.status, 0, run.stderr || run.stdout);
 }
-
-test('food diary is a first-class tab while Today retains workout and steps controls', () => {
-  const tabs = app.split('struct NativeTabsView: View {')[1];
-  const tabCases = theme.split('enum FitTab:')[1].split('var label:')[0];
-  assert.match(tabCases, /case\s+[^\n]*\bfoods\b/);
-  assert.match(tabs, /case \.foods:[\s\S]*?NavigationStack\(path: \$foodPath\)/);
-  assert.match(tabs, /NativeFoodsView\(\)/);
-  assert.equal(today.includes('NativeFoodsView'), false, 'Today must not retain the obsolete food navigation CTA');
-  assert.equal(today.includes('fork.knife'), false, 'Today must not retain the obsolete food CTA icon');
-  assert.match(today, /NativeStepsView\(\)/);
-  assert.match(today, /NativeTodayRoutine\(date: now\)/);
-  assert.match(readFileSync('ios/App/Native/native-store.swift', 'utf8'), /@Published var foodEntries/);
-});
 
 test('native tab shell reserves intrinsic bar height and retains keyboard/tab/top behavior', () => {
   const tabs = app.split('struct NativeTabsView: View {')[1];
@@ -163,7 +148,6 @@ test('guided screen renders one exercise, preserves pending navigation and expli
   assert.match(guided, /NativeWorkoutSelection\.shouldSelect/);
   assert.match(guided, /live\.selectExercise\(candidate, store: store\)/);
   assert.match(guided, /Hacer este ejercicio después/);
-  assert.match(guided, /Queda pendiente; no se marca como completado/);
   assert.match(guided, /Todas las series registradas/);
   assert.match(guided, /Finalizar entrenamiento/);
   assert.match(guided, /Revisar o corregir series/);
@@ -176,7 +160,6 @@ test('guided screen renders one exercise, preserves pending navigation and expli
 
 test('rest uses local bounded preference and an end date, not decrementing counters', () => {
   assert.match(guided, /@AppStorage\("native\.workout\.restMinutes"\) private var restMinutes = 2\.0/);
-  assert.match(workout, /in: 0\.5\.\.\.10, step: 0\.5/);
   assert.match(workout, /end = now\.addingTimeInterval/);
   assert.match(workout, /timeIntervalSince\(now\)/);
   assert.match(workout, /TimelineView/);
@@ -193,7 +176,7 @@ const project = readFileSync('ios/App/App.xcodeproj/project.pbxproj', 'utf8');
 const privateAppSources = [
   'native-workout-persistence.swift', 'native-active-workout.swift', 'native-rest-notifications.swift',
   'native-alarm-provider.swift', 'native-workout-shortcuts.swift', 'native-exercise-instructions-es.swift',
-  'native-food-preferences.swift', 'native-today-views.swift', 'native-guided-workout.swift',
+  'native-today-views.swift', 'native-guided-workout.swift',
   'native-exercise-log.swift', 'native-progress-views.swift',
 ];
 function sourceNames(phaseID) {

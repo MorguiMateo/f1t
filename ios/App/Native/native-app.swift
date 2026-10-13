@@ -205,7 +205,6 @@ struct NativeSignInView: View {
 }
 
 /// Value-based links let the shell return to the diary without remounting it.
-enum NativeFoodRoute: Hashable { case attribution }
 
 /// Navigation-only state. Account changes recreate it through NativeAuthGate's
 /// user identity; selecting a tab never invalidates a mounted page's identity.
@@ -231,7 +230,6 @@ struct NativeTabsView: View {
     @ObservedObject var store: NativeStore
     @ObservedObject var auth: NativeAuth
     @State private var navigation = FitTabNavigationState()
-    @State private var foodPath = NavigationPath()
     @State private var keyboardVisible = false
     @ObservedObject private var router = NativeWorkoutRouter.shared
     private var selection: FitTab { navigation.selection }
@@ -339,12 +337,6 @@ struct NativeTabsView: View {
         switch tab {
         case .today: NativeTodayView()
         case .routines: NativeRoutinesView()
-        case .foods:
-            NavigationStack(path: $foodPath) {
-                NativeFoodsView()
-                    .navigationDestination(for: NativeFoodRoute.self) { _ in NativeAttributionView() }
-            }
-                .fitTabRoot { foodPath = NavigationPath() }
         case .progress: NativeProgressView()
         case .profile: NativeProfileView()
         }

@@ -3,10 +3,9 @@ import { MemoryRouter } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { TodayPage } from "./today-page";
 
-const mocks = vi.hoisted(() => ({ session: null as null | { routine_day_id: string | null; sets: { exercise_id: string; set_index: number }[] }, sessionPending: false, sessionError: null as Error | null, food: null as null | { day: { target_kcal: number | null } | null; entries: { kcal: number }[] } }));
-vi.mock("../features/foods/local-today", () => ({ useLocalToday: () => "2026-10-10" }));
+const mocks = vi.hoisted(() => ({ session: null as null | { routine_day_id: string | null; sets: { exercise_id: string; set_index: number }[] }, sessionPending: false, sessionError: null as Error | null }));
+vi.mock("../lib/local-today", () => ({ useLocalToday: () => "2026-10-10" }));
 vi.mock("../features/activity/steps-today", () => ({ StepsToday: () => <div>Pasos de hoy</div> }));
-vi.mock("../features/foods/queries", () => ({ useFoodDay: () => ({ data: mocks.food, isPending: false, error: null, isFetching: false, refetch: vi.fn() }) }));
 vi.mock("../features/routines/queries", () => ({ useActiveRoutine: () => ({ data: { id: "routine", days: [
   { id: "recorded", weekday: 1, label: "Piernas", exercises: [{ id: "item", exercise_id: "legs", target_sets: 2 }] },
   { id: "scheduled", weekday: 6, label: "Empuje", exercises: [{ id: "item2", exercise_id: "push", target_sets: 2 }] },
@@ -15,15 +14,14 @@ vi.mock("../features/sessions/queries", () => ({ useSessionForDate: () => ({ dat
 
 describe("Today adaptive workout entry", () => {
   const render = () => renderToStaticMarkup(<MemoryRouter><TodayPage /></MemoryRouter>);
-  beforeEach(() => { mocks.session = null; mocks.sessionPending = false; mocks.sessionError = null; mocks.food = null; });
+  beforeEach(() => { mocks.session = null; mocks.sessionPending = false; mocks.sessionError = null; });
   it("routes continuation explicitly to the recorded day", () => {
     mocks.session = { routine_day_id: "recorded", sets: [{ exercise_id: "legs", set_index: 0 }] };
     const html = render();
     expect(html).toContain('href="/entrenar?dia=recorded"');
     expect(html).toContain("Retomar entrenamiento");
     expect(html).not.toContain('href="/entrenar?dia=scheduled"');
-    expect(html.indexOf("Retomar entrenamiento")).toBeLessThan(html.indexOf("Comidas de hoy"));
-    expect(html.indexOf("Comidas de hoy")).toBeLessThan(html.indexOf("Pasos de hoy"));
+    expect(html.indexOf("Retomar entrenamiento")).toBeLessThan(html.indexOf("Pasos de hoy"));
   });
   it("offers review only after the planned sets are explicitly registered", () => {
     mocks.session = { routine_day_id: "recorded", sets: [{ exercise_id: "legs", set_index: 0 }, { exercise_id: "legs", set_index: 1 }] };
@@ -41,13 +39,5 @@ describe("Today adaptive workout entry", () => {
     mocks.session = { routine_day_id: "deleted", sets: [{ exercise_id: "legs", set_index: 0 }] };
     expect(render()).toContain("Revisar registros");
     expect(render()).not.toContain('href="/entrenar');
-  });
-  it("reads the saved calorie target and preserves a stored null target", () => {
-    mocks.food = { day: { target_kcal: 1875 }, entries: [{ kcal: 123 }, { kcal: 77 }] };
-    expect(render()).toContain("200 kcal registradas");
-    expect(render()).toContain("1.875 kcal");
-    mocks.food.day!.target_kcal = null;
-    expect(render()).toContain("Este día se registró sin objetivo calculable.");
-    expect(render()).not.toContain("1.875 kcal");
   });
 });

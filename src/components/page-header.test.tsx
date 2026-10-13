@@ -36,7 +36,7 @@ describe("header and navigation back behavior", () => {
   it("opens exploratory catalog with an explicit return to its owner, without adding back to root tabs", () => {
     const catalog = renderToStaticMarkup(<MemoryRouter initialEntries={["/ejercicios"]}><PageHeader title="Ejercicios" /></MemoryRouter>);
     expect(catalog).toContain('aria-label="Volver"');
-    for (const path of ["/", "/comidas", "/rutinas", "/progreso", "/perfil"]) {
+    for (const path of ["/", "/progreso", "/rutinas", "/progreso", "/perfil"]) {
       expect(renderToStaticMarkup(<MemoryRouter initialEntries={[path]}><PageHeader title="Sección" /></MemoryRouter>)).not.toContain('aria-label="Volver"');
     }
   });

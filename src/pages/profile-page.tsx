@@ -7,10 +7,6 @@ import {
   BodyProfileForm,
   BodyProfileFormSkeleton,
 } from "../features/body/body-profile-form";
-import {
-  EnergyCard,
-  EnergyCardSkeleton,
-} from "../features/body/energy-card";
 import { useBodyProfile } from "../features/body/queries";
 import { device, signOutAfterDeviceCleanup } from "../lib/device";
 import { supabase } from "../lib/supabase";
@@ -50,16 +46,13 @@ export function ProfilePage() {
 
   return (
     <>
-      <PageHeader title="Perfil" subtitle="Tu objetivo, datos para estimaciones y preferencias" />
+      <PageHeader title="Perfil" subtitle="Tu objetivo, datos corporales y preferencias" />
 
 
       <div className="mt-4">
         {isPending ? (
           <>
             <BodyProfileFormSkeleton />
-            <div className="mt-4">
-              <EnergyCardSkeleton />
-            </div>
           </>
         ) : null}
         {error ? <ErrorNote error={error} /> : null}
@@ -67,11 +60,6 @@ export function ProfilePage() {
         {!isPending && profile !== undefined ? (
           <>
             <BodyProfileForm profile={profile ?? null} />
-            {/* Reads the same profile cache the form writes on each blur, so
-                the numbers follow every saved field. */}
-            <div className="mt-4">
-              <EnergyCard />
-            </div>
           </>
         ) : null}
       </div>

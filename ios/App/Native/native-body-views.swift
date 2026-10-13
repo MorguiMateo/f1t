@@ -135,11 +135,10 @@ struct NativeProfileView: View {
         NavigationStack(path: $profilePath) {
             ScrollViewReader { proxy in
               FitPage {
-                FitPageHeader(title: "Perfil", subtitle: "Tu objetivo, datos para estimaciones y preferencias")
+                FitPageHeader(title: "Perfil", subtitle: "Tu objetivo, datos corporales y preferencias")
                 if bodyState.loaded {
                     NativeBodyLoadNote().padding(.top, 16)
                     NativeBodyProfileCard(onPendingChanges: { bodyHasDraft = $0 }).padding(.top, 16)
-                    NativeEnergyCardView().padding(.top, 16)
                 } else if bodyState.loading {
                     FitCardsSkeleton(count: 2).padding(.top, 16)
                 } else if bodyState.error != nil {
@@ -320,12 +319,12 @@ struct NativeBodyProfileCard: View {
         case height = "height_cm", birth = "birth_date", sex, goal, target = "target_weight_kg"
     }
     private static let minBirth = NativeDate.parse("1900-01-01")!
-    private static let goals = [("lose", "Bajar", "Ajuste de −500 kcal"), ("maintain", "Mantener", "Sin ajuste"), ("gain", "Subir", "Ajuste de +300 kcal")]
+    private static let goals = [("lose", "Bajar", "Bajar de peso"), ("maintain", "Mantener", "Mantener el peso"), ("gain", "Subir", "Subir de peso")]
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("Datos para estimaciones").font(.fit(.base, .semibold)).accessibilityAddTraits(.isHeader)
-            Text("Son opcionales para usar F1t. Para estimar el gasto necesitás altura, fecha de nacimiento, sexo para la fórmula y un peso registrado.").font(.fit(.sm)).foregroundStyle(FitColor.muted)
+            Text("Datos corporales").font(.fit(.base, .semibold)).accessibilityAddTraits(.isHeader)
+            Text("Son opcionales para usar F1t. Podés guardar tu altura, fecha de nacimiento y sexo.").font(.fit(.sm)).foregroundStyle(FitColor.muted)
             field(.height, label: "Altura", hint: "Centímetros (cm) · 80–260, sin decimales") {
                 TextField("", text: binding(.height), prompt: fitPrompt("Ej.: 178"))
                     .fitNumericInput(allowsDecimal: false).focused($focus, equals: .height).fitField(fill: FitColor.surface2)
@@ -338,7 +337,7 @@ struct NativeBodyProfileCard: View {
                     VStack(alignment: .leading, spacing: 8) { birthPicker; removeBirth }
                 }
             }
-            field(.sex, label: "Sexo para la fórmula", hint: "Opcional; solo se usa para estimar el gasto") {
+            field(.sex, label: "Sexo", hint: "Opcional; podés quitar el dato cuando quieras") {
                 choice(options: [("female", "Mujer", nil), ("male", "Hombre", nil)], value: draft(.sex)) { value in
                     change(.sex, value: value); commit(.sex)
                 }
@@ -349,8 +348,8 @@ struct NativeBodyProfileCard: View {
             }
             Divider().padding(.vertical, 4)
             Text("Objetivo corporal").font(.fit(.base, .semibold)).accessibilityAddTraits(.isHeader).id("native-body-target")
-            Text("La meta de peso es una referencia para la curva; no cambia por sí sola la estimación de calorías.").font(.fit(.sm)).foregroundStyle(FitColor.muted)
-            field(.goal, label: "Objetivo", hint: "Ajuste orientativo de la estimación") {
+            Text("La meta de peso es una referencia para la curva.").font(.fit(.sm)).foregroundStyle(FitColor.muted)
+            field(.goal, label: "Objetivo", hint: "Bajar, mantener o subir de peso") {
                 choice(options: Self.goals.map { ($0.0, $0.1, Optional($0.2)) }, value: draft(.goal)) { value in
                     change(.goal, value: value); commit(.goal)
                 }
@@ -361,7 +360,7 @@ struct NativeBodyProfileCard: View {
                     .accessibilityLabel("Peso objetivo en kilogramos")
                     .accessibilityHint("Entre 20 y 400, hasta un decimal. Vacío elimina el objetivo.")
             }
-            Text("Los números se guardan al salir del campo o tocar Listo; las opciones, al elegirlas. Los datos son opcionales y se usan en estimaciones.")
+            Text("Los números se guardan al salir del campo o tocar Listo; las opciones, al elegirlas. Los datos son opcionales.")
                 .font(.fit(.xs)).foregroundStyle(FitColor.muted)
         }
         .padding(20).fitCard(padding: 0)
@@ -549,118 +548,7 @@ struct NativeBodyProfileCard: View {
     }
 }
 
-/// Formula outputs are neutral estimates, never intake prescriptions or health ratings.
-struct NativeEnergyCardView: View {
-    @EnvironmentObject var store: NativeStore
-    private var bodyState: NativeDomainState { store.domainState(.body) }
-    private var trainingState: NativeDomainState { store.domainState(.training) }
-    @Environment(\.fitSelectTab) private var selectTab
-    @Environment(\.dynamicTypeSize) private var typeSize
 
-    var body: some View {
-        let card = NativeEnergyCard(profile: store.profile, weights: store.weights, sessions: store.sessions)
-        if !bodyState.loaded {
-            VStack(alignment: .leading, spacing: 12) {
-                Text("Estimación de calorías").font(.fit(.base, .semibold))
-                if bodyState.loading {
-                    FitSkeleton(height: 100).fitLoadingAccessibility("Cargando datos para la estimación")
-                } else {
-                    NativeBodyLoadNote(title: "No se pudo cargar la estimación")
-                    if bodyState.error == nil {
-                        Text("Primero necesitamos cargar tus datos.").font(.fit(.sm)).foregroundStyle(FitColor.muted)
-                        Button("Cargar datos") { Task { await store.refresh() } }.fitLink()
-                    }
-                }
-            }.padding(20).fitCard(padding: 0)
-        } else if !trainingState.loaded {
-            VStack(alignment: .leading, spacing: 12) {
-                Text("Estimación de calorías").font(.fit(.base, .semibold))
-                Text(trainingState.loading ? "Cargando los entrenamientos registrados para estimar el gasto." : "Falta cargar la actividad registrada. No interpretamos un error de carga como cero entrenamientos.")
-                    .font(.fit(.sm)).foregroundStyle(FitColor.muted)
-                if let error = trainingState.error { FitErrorNote(title: "No se pudo cargar la actividad", message: error) }
-                Button("Actualizar actividad") { Task { await store.refresh() } }.fitLink(.sm).disabled(store.refreshing)
-            }.fitCard()
-        } else if let report = card.report {
-            VStack(alignment: .leading, spacing: 0) {
-                Text("Estimación de calorías").font(.fit(.base, .semibold))
-                Text("Referencia diaria calculada").font(.fit(.xs)).foregroundStyle(FitColor.muted).padding(.top, 12)
-                ViewThatFits(in: .horizontal) {
-                    HStack(alignment: .firstTextBaseline, spacing: 6) { targetNumber(report); targetUnit }
-                    VStack(alignment: .leading, spacing: 2) { targetNumber(report); targetUnit }
-                }.padding(.top, 4).accessibilityElement(children: .combine)
-                Text("\(NativeEnergyCard.goalLabels[card.goal] ?? "Mantener") · \(adjustment(card.adjustment)) · redondeado a 50 kcal")
-                    .font(.fit(.xs)).foregroundStyle(FitColor.muted).padding(.top, 4)
-                if card.clamped {
-                    Text("La fórmula limita esta referencia al gasto en reposo estimado. Ese límite no determina cuánto necesitás comer.")
-                        .font(.fit(.xs)).foregroundStyle(FitColor.muted).padding(.top, 8)
-                }
-                if let source = card.sourceWeight {
-                    Text("Calculado con \(FitFormat.kg(source.weight_kg)) kg del \(FitFormat.fieldDay(NativeDate.parse(source.measured_on) ?? Date())).")
-                        .font(.fit(.sm)).foregroundStyle(FitColor.muted).padding(.top, 12)
-                    Button("Actualizar peso") { NativeProgressRoute.requestWeight(); selectTab(.progress) }.fitLink(.sm)
-                }
-                DisclosureGroup {
-                let layout = typeSize >= .xxxLarge ? AnyLayout(VStackLayout(spacing: 8)) : AnyLayout(HStackLayout(alignment: .top, spacing: 8))
-                layout {
-                    figure(FitFormat.decimal(report.bmi), unit: "kg/m²", label: "IMC (peso / altura²)")
-                    figure(FitFormat.number(report.bmr), unit: "kcal/día", label: "Reposo estimado")
-                    figure(FitFormat.number(report.tdee), unit: "kcal/día", label: "Gasto diario estimado")
-                }.padding(.top, 16)
-                let perWeek = (report.activityDays * 10).rounded() / 10
-                Text("\(FitFormat.decimal(perWeek)) días con series por semana en los últimos 28 días · factor de actividad \(card.activityLabel)")
-                    .font(.fit(.xs)).foregroundStyle(FitColor.muted).padding(.top, 12)
-                Text("El factor usa solo los días con entrenamientos registrados; no mide tu actividad cotidiana. El IMC no describe la composición corporal.")
-                    .font(.fit(.xs)).foregroundStyle(FitColor.muted).padding(.top, 8)
-                } label: {
-                    Text("Cómo se calcula · IMC y gasto estimado").font(.fit(.sm)).fitMinimumHitArea()
-                }.padding(.top, 12)
-                if bodyState.usingCachedData || bodyState.error != nil || trainingState.usingCachedData || trainingState.error != nil {
-                    Text("Calculado con la última copia disponible, que puede estar desactualizada.")
-                        .font(.fit(.xs)).foregroundStyle(FitColor.muted).padding(.top, 8)
-                }
-                Text("Valores orientativos calculados con tus datos guardados; no son una recomendación de alimentación ni reemplazan asesoramiento profesional.")
-                    .font(.fit(.xs)).foregroundStyle(FitColor.muted).padding(.top, 8)
-            }.padding(20).fitCard(padding: 0)
-        } else {
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Estimación de calorías").font(.fit(.base, .semibold)).foregroundStyle(FitColor.ink)
-                if bodyState.usingCachedData || bodyState.error != nil || trainingState.usingCachedData || trainingState.error != nil {
-                    Text("No hay datos suficientes en la copia disponible para estimar el gasto. Actualizá antes de completar los campos que faltan.")
-                        .font(.fit(.sm))
-                } else {
-                    Text(card.missing.isEmpty ? "Revisá tus datos corporales para obtener una estimación." : "Para obtener una estimación falta \(FitFormat.list(card.missing)).")
-                        .font(.fit(.sm))
-                }
-                if card.missing.contains("un peso") {
-                    Button("Anotar un peso") { NativeProgressRoute.requestWeight(); selectTab(.progress) }.fitLink()
-                }
-                if let bmi = card.bmi {
-                    Text("IMC estimado: \(FitFormat.decimal(bmi)) kg/m² (peso / altura²)").font(.fit(.sm)).monospacedDigit()
-                }
-                Text("Se usan los datos guardados. Los cambios sin guardar todavía no afectan la estimación.").font(.fit(.xs))
-            }
-            .foregroundStyle(FitColor.muted).padding(20).frame(maxWidth: .infinity, alignment: .leading)
-            .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(FitColor.line, style: StrokeStyle(lineWidth: 1, dash: [4, 3])))
-        }
-    }
-    private func targetNumber(_ report: NativeEnergyReport) -> some View {
-        Text(FitFormat.number(report.target)).font(.fit(.xl3, .bold)).monospacedDigit()
-    }
-    private var targetUnit: some View { Text("kcal/día").font(.fit(.base)).foregroundStyle(FitColor.muted) }
-    private func adjustment(_ kcal: Double) -> String {
-        kcal == 0 ? "sin ajuste de fórmula" : "ajuste de fórmula: \(kcal > 0 ? "+" : "−")\(FitFormat.number(abs(kcal))) kcal"
-    }
-    private func figure(_ value: String, unit: String, label: String) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(value).font(.fit(.base, .bold)).monospacedDigit()
-            Text(unit).font(.fit(.xs)).foregroundStyle(FitColor.muted)
-            Text(label).font(.fit(.xs)).foregroundStyle(FitColor.muted).fixedSize(horizontal: false, vertical: true)
-        }
-        .padding(12).frame(maxWidth: .infinity, alignment: .leading)
-        .background(FitColor.surface2, in: RoundedRectangle(cornerRadius: 12))
-        .accessibilityElement(children: .combine)
-    }
-}
 
 // MARK: - Peso
 

@@ -27,7 +27,7 @@ continúa pendiente; no hubo publicación, cambios remotos ni instalación iPhon
 - [ ] Verificar sustitución local sin alterar la rutina, rechazo de sustituciones
   con series/borradores existentes y conservación del progreso al relanzar.
 - [ ] Verificar drafts de reps/kg, errores inline, restauración y edición de
-  plan durante entrenamiento, accesibilidad/Dynamic Type y diario de comidas.
+  plan durante entrenamiento, accesibilidad/Dynamic Type y registro de peso.
   VoiceOver/retención interactiva de tabs requieren automatización UI o dispositivo:
   el árbol AX no se expone en el host de XCTest unitario de este runtime.
   Son los dos skips de `NativeCacheUIRegressionTests`:
@@ -40,7 +40,6 @@ continúa pendiente; no hubo publicación, cambios remotos ni instalación iPhon
 
 - Presentación personalizada para Apple Watch (solo mirroring automático).
 - Revisión/lease cross-device en servidor; no hubo migración remota.
-- Exactly-once para los RPC de alimentos ante pérdida de respuesta.
 
 ---
 
@@ -67,18 +66,13 @@ el resultado: un build genérico sin firma no prueba OAuth, App Groups o UI.
   en **Debug y Release**. Swift Package Manager; no se requiere CocoaPods.
 - [x] `vercel.json` fija Vite, `npm run build` y `dist`; `.vercelignore` excluye
   `.env`, proyecto iOS y snapshots de la subida a Vercel.
-- [x] Build/lint locales, 220 tests Vitest y 4 tests Node pasaron. El
-  importador determinista verifica el catálogo OFF `2026-10-01.1` de 43
-  productos, sin el código retirado `7790895000782` ni kcal inferidas.
 - [x] El proyecto Vercel `f1t` está vinculado; `https://f1t-pied.vercel.app`
   figura **Ready, target production**, pero **no es lanzamiento público**.
   El primer deploy de CLI autoapuntó a producción; `ssoProtection` con
   `deploymentType=all` se activó antes de Ready. Todos los URLs de deployment,
   incluso el alias de producción, exigen Vercel Authentication. GET anónimo a
-  `/`, `/comidas` y `/data/foods-catalog.json` devolvió **302 a SSO**; no hay
-  preview anónima. Tras corregir dependencias, se redesplegó el 2026-10-01:
-  Ready y nuevamente 302 en esos endpoints. Una descarga autenticada del
-  catálogo coincidió exactamente con el JSON local de 43 productos.
+  `/` devolvió **302 a SSO** en la verificación histórica; no hay
+  preview anónima. No se ha desplegado la edición actual.
 - [x] La configuración remota `uri_allow_list` de Supabase se amplió y verificó
   con estas **seis entradas exactas** (sin borrar las anteriores):
   `http://localhost:5173`, `http://127.0.0.1:5173`, `f1t://auth/callback`,
@@ -146,20 +140,11 @@ el resultado: un build genérico sin firma no prueba OAuth, App Groups o UI.
 - [ ] En **iPhone físico**, conceder/denegar Movimiento y condición física,
   comparar «Pasos de hoy» con el dispositivo, refresco al volver a primer
   plano y estado sin sensor/permiso. No inferir pasos del Simulator.
-- [ ] Probar Google OAuth web y CRUD real de `/comidas` con cuenta en el sitio
-  protegido: alta, edición, borrado, fecha local, kcal y snapshot de
-  objetivo/TDEE. Falló la automatización del navegador integrado; no se
-  completó una prueba end-to-end.
+- [ ] Probar Google OAuth web y CRUD de rutinas, entrenamientos y peso
+  con una cuenta en el sitio protegido.
 
 ## Puertas antes de abrir al público
 
-- [ ] Revisar legal/compliance **ODbL/DbCL**, atribución, descarga del recorte
-  derivado abierto y separación del diario privado. El JSON independiente
-  ya incluye URLs de fuente/licencias/atribución, pero el HTTP anónimo está
-  protegido por SSO. Verificar `/data/foods-catalog.json` y
-  `/data/foods-catalog-attribution.json` **tras una apertura autorizada**;
-  no quitar Vercel Authentication hasta cerrar estas puertas. Revalidar
-  etiquetas actuales; `en:argentina` no prueba vigencia comercial.
 - [ ] Revisar icono/splash nativos (aún placeholders), firma, versión y destino
   de publicación; repetir smoke test con build de distribución.
 - [x] Dependencias revisadas: `npm ci` y `npm audit` reportan **0
@@ -169,4 +154,4 @@ el resultado: un build genérico sin firma no prueba OAuth, App Groups o UI.
   de seguridad. Ver [decisión y avisos residuales](dependency-security.md).
 - [ ] Si se regeneran tipos Supabase, **no** ejecutar `npm run db:types` a
   ciegas: redirige sobre `src/lib/database.types.ts`. Generar a temporal y
-  revisar nulabilidad de `p_target_kcal`/`p_tdee_kcal` antes de reemplazar.
+  revisar el contrato de las tablas y RPC activas antes de reemplazar.

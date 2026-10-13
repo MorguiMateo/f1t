@@ -104,6 +104,13 @@ export function ProgressPage() {
 
       {days && days.length ? (
         <>
+          <section className="mt-3 rounded-xl border border-line bg-surface p-4">
+            <h2 className="mb-3 flex justify-between gap-2 text-sm font-semibold">
+              Actividad
+              <span className="font-normal text-muted">{WIDGET_WEEKS} semanas</span>
+            </h2>
+            <Heatmap sessions={days} weeks={WIDGET_WEEKS} />
+          </section>
           <div className="flex gap-2">
             <Stat
               value={String(streak)}
@@ -115,13 +122,6 @@ export function ProgressPage() {
             />
             <Stat value={String(sets)} label="series" />
           </div>
-          <section className="mt-3 rounded-xl border border-line bg-surface p-4">
-            <h2 className="mb-3 flex justify-between gap-2 text-sm font-semibold">
-              Actividad
-              <span className="font-normal text-muted">{WIDGET_WEEKS} semanas</span>
-            </h2>
-            <Heatmap sessions={days} weeks={WIDGET_WEEKS} />
-          </section>
         </>
       ) : null}
 

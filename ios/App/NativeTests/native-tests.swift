@@ -38,7 +38,7 @@ final class NativeTests: XCTestCase {
     }
     @MainActor func testNativeScreensRenderEmptyStatesWithoutWebView() {
         let store = NativeStore()
-        let screens = [AnyView(NativeTodayView()), AnyView(NativeRoutinesView()), AnyView(NativeProgressView()), AnyView(NativeFoodsView()), AnyView(NativeProfileView())]
+        let screens = [AnyView(NativeTodayView()), AnyView(NativeRoutinesView()), AnyView(NativeProgressView()), AnyView(NativeProfileView())]
         for screen in screens {
             let controller = UIHostingController(rootView: screen.environmentObject(store))
             controller.loadViewIfNeeded()
@@ -72,20 +72,7 @@ final class NativeTests: XCTestCase {
         XCTAssertEqual(NativeDate.streak(sessions, date: date), 3)
         XCTAssertEqual(NativeDate.streak(sessions, date: NativeDate.add(1, to: date)), 3)
     }
-    func testEnergyParityAndHistoricalWeightBoundary() {
-        let profile = NativeBodyProfile(user_id: "u", goal: "lose", updated_at: "", height_cm: 180, target_weight_kg: nil, birth_date: "1996-01-01", sex: "male")
-        let weights = [NativeWeight(id: "old", user_id: "u", measured_on: "2026-09-01", weight_kg: 80), NativeWeight(id: "future", user_id: "u", measured_on: "2026-11-01", weight_kg: 100)]
-        let r = NativeEnergy.report(profile: profile, weights: weights, sessions: [], date: NativeDate.parse("2026-10-01")!)!
-        XCTAssertEqual(r.bmi, 24.7); XCTAssertEqual(r.bmr, 1780); XCTAssertEqual(r.tdee, 2136); XCTAssertEqual(r.target, 1800)
-        XCTAssertNil(NativeEnergy.report(profile: profile, weights: weights, sessions: [], date: NativeDate.parse("2026-08-01")!))
-        XCTAssertEqual(NativeEnergy.target(tdee: 1900, bmr: 1780, goal: "lose"), 1800)
-        XCTAssertEqual(NativeEnergy.snapshot(r).target, 1800)
-    }
-    func testFoodQuantityValidation() {
-        XCTAssertEqual(NativeEnergy.quantity(" 12,50 "), 12.5)
-        for text in ["0", "-1", "5000.01", "NaN", "1e2", "1.234", ""] { XCTAssertNil(NativeEnergy.quantity(text), text) }
-        XCTAssertEqual(NativeEnergy.quantity("5000"), 5000)
-    }
+
     @MainActor func testPKCEAndCallbackValidation() throws {
         XCTAssertEqual(NativeAuth.challenge("dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"), "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM")
         XCTAssertEqual(try NativeAuth.callbackCode(URL(string: "f1t://auth/callback?code=abc")!), "abc")
@@ -103,15 +90,16 @@ final class NativeTests: XCTestCase {
         XCTAssertFalse(invalid.isValid)
     }
     func testBackendNullAndConflictEncoding() throws {
-        let body: [String: Any] = ["p_target_kcal": nativeNull(nil as Double?), "p_tdee_kcal": nativeNull(nil as Double?), "p_quantity": 12.5]
+        let body: [String: Any] = ["target_weight_kg": nativeNull(nil as Double?), "height_cm": nativeNull(nil as Double?), "weight_kg": 12.5]
         let json = try XCTUnwrap(JSONSerialization.jsonObject(with: JSONSerialization.data(withJSONObject: body)) as? [String: Any])
-        XCTAssertTrue(json["p_target_kcal"] is NSNull); XCTAssertTrue(json["p_tdee_kcal"] is NSNull)
-        XCTAssertEqual(json["p_quantity"] as? Double, 12.5)
+        XCTAssertTrue(json["target_weight_kg"] is NSNull); XCTAssertTrue(json["height_cm"] is NSNull)
+        XCTAssertEqual(json["weight_kg"] as? Double, 12.5)
         XCTAssertEqual(nativeQuery("id", "some-id").first?.value, "eq.some-id")
     }
     func testBundledCatalogsAndImages() throws {
-        let foods = try nativeResource("foods-catalog.json", as: NativeFoodCatalog.self)
-        XCTAssertEqual(foods.products.count, 43)
+        XCTAssertNil(Bundle.main.url(forResource: "foods-catalog.json", withExtension: nil, subdirectory: "NativeResources"))
+        XCTAssertNil(Bundle.main.url(forResource: "foods-catalog-attribution.json", withExtension: nil, subdirectory: "NativeResources"))
+        XCTAssertEqual(FitTab.allCases.map(\.label), ["Hoy", "Rutinas", "Progreso", "Perfil"])
         let exercises = try nativeResource("exercise-catalog.json", as: [NativeExercise].self)
         XCTAssertEqual(exercises.count, 165)
         for exercise in exercises {
@@ -316,18 +304,14 @@ final class NativeP2Tests: XCTestCase {
         XCTAssertFalse(actual.contains(insertedBefore), "Insertions behind the read cursor are picked up by the next refresh")
     }
     @MainActor func testWeightKeysetHandlesInsertsDeletesAndEqualDatePageBoundary() async throws { try await exercisePaging(table: "weight_entries", descending: true) }
-    @MainActor func testFoodKeysetHandlesInsertsDeletesAndTimestampPrecisionBoundary() async throws { try await exercisePaging(table: "food_entries", descending: false) }
-    func testCursorContractsPreserveExactTimestampAndMergeFilters() throws {
-        let timestamp = "2026-10-01T12:34:56.123456+00:00"
-        let plan = try NativeKeysetPlan(table: "food_entries")
-        let cursor = try plan.cursor(in: JSONSerialization.data(withJSONObject: [["created_at": timestamp, "id": "last"]]))
-        XCTAssertEqual(cursor.values, [timestamp, "last"])
-        let query = try plan.query([URLQueryItem(name: "logged_on", value: "eq.2026-10-01"), URLQueryItem(name: "and", value: "(quantity.gt.0)"), URLQueryItem(name: "or", value: "(brand.eq.a,brand.eq.b)")], cursor: cursor)
-        XCTAssertEqual(query.first { $0.name == "logged_on" }?.value, "eq.2026-10-01")
-        XCTAssertEqual(query.first { $0.name == "or" }?.value, "(brand.eq.a,brand.eq.b)")
-        XCTAssertTrue(query.first { $0.name == "and" }!.value!.hasPrefix("(quantity.gt.0,or(created_at.gt."))
-        XCTAssertEqual(try NativeKeysetPlan(table: "sessions").order, "performed_on.desc,id.desc")
-        XCTAssertEqual(try NativeKeysetPlan(table: "food_days").order, "logged_on.asc")
+    func testCursorContractsPreserveDateAndMergeFilters() throws {
+        let plan = try NativeKeysetPlan(table: "sessions")
+        let cursor = try plan.cursor(in: JSONSerialization.data(withJSONObject: [["performed_on": "2026-10-01", "id": "last"]]))
+        XCTAssertEqual(cursor.values, ["2026-10-01", "last"])
+        let query = try plan.query([URLQueryItem(name: "and", value: "(set_count.gt.0)"), URLQueryItem(name: "or", value: "(notes.eq.a,notes.eq.b)")], cursor: cursor)
+        XCTAssertEqual(query.first { $0.name == "or" }?.value, "(notes.eq.a,notes.eq.b)")
+        XCTAssertTrue(query.first { $0.name == "and" }!.value!.hasPrefix("(set_count.gt.0,or(performed_on.lt."))
+        XCTAssertEqual(plan.order, "performed_on.desc,id.desc")
         XCTAssertEqual(try NativeKeysetPlan(table: "body_profile").order, "user_id.asc")
         XCTAssertThrowsError(try plan.query([URLQueryItem(name: "order", value: "id.desc")], cursor: nil))
     }
@@ -344,7 +328,6 @@ final class NativeP2Tests: XCTestCase {
         XCTAssertEqual(try categories(widgetURL), ["NSPrivacyAccessedAPICategoryFileTimestamp": ["C617.1"]])
     }
 }
-
 
 final class NativeTransportTests: XCTestCase {
     private struct Row: Decodable { let id: String }
@@ -367,10 +350,10 @@ final class NativeTransportTests: XCTestCase {
         defer { try? auth.keychainDelete() }
         try auth.completeSignIn(NativeAuthSession(access_token: "isolated-fixture", refresh_token: "unused", expires_in: 3600,
              expires_at: Date().timeIntervalSince1970 + 3600, user: NativeAuthUser(id: "transport-fixture", email: nil)))
-        let plan = try NativeKeysetPlan(table: "food_entries")
+        let plan = try NativeKeysetPlan(table: "sessions")
         let filter = "eq.literal+%2B%25%20 & = # ? café (x,y)"
-        let query = [URLQueryItem(name: "brand", value: filter), URLQueryItem(name: "or", value: "(brand.eq.a,brand.eq.b)")]
-        let rows = (0..<502).map { ["id": String(format: "00000000-0000-0000-0000-%012x", $0), "created_at": timestamp] }
+        let query = [URLQueryItem(name: "notes", value: filter), URLQueryItem(name: "or", value: "(notes.eq.a,notes.eq.b)")]
+        let rows = (0..<502).map { ["id": String(format: "00000000-0000-0000-0000-%012x", 501 - $0), "performed_on": timestamp] }
         let firstData = try JSONSerialization.data(withJSONObject: Array(rows.prefix(500)))
         let secondData = try JSONSerialization.data(withJSONObject: Array(rows.suffix(2)))
         let expectedQuery = try plan.query(query, cursor: NativePageCursor(values: [timestamp, rows[499]["id"]!]))
@@ -379,21 +362,17 @@ final class NativeTransportTests: XCTestCase {
             do {
                 calls += 1
                 let url = try XCTUnwrap(request.url)
-                XCTAssertEqual(url.path, "/rest/v1/food_entries"); XCTAssertEqual(request.httpMethod, "GET")
+                XCTAssertEqual(url.path, "/rest/v1/sessions"); XCTAssertEqual(request.httpMethod, "GET")
                 let encoded = try XCTUnwrap(URLComponents(url: url, resolvingAgainstBaseURL: false)?.percentEncodedQuery)
                 XCTAssertFalse(encoded.contains("+"), "Final outgoing query must not contain form-decoded plus signs")
                 XCTAssertTrue(encoded.contains("%252B%2525%2520"), "Already-percent literals must remain literal, not be decoded before encoding")
                 let decoded = try Self.formQuery(url)
-                XCTAssertEqual(decoded["brand"], filter)
-                XCTAssertEqual(decoded["or"], "(brand.eq.a,brand.eq.b)")
-                XCTAssertEqual(decoded["order"], "created_at.asc,id.asc"); XCTAssertEqual(decoded["limit"], "500")
+                XCTAssertEqual(decoded["notes"], filter)
+                XCTAssertEqual(decoded["or"], "(notes.eq.a,notes.eq.b)")
+                XCTAssertEqual(decoded["order"], "performed_on.desc,id.desc"); XCTAssertEqual(decoded["limit"], "500")
                 if calls == 2 {
                     XCTAssertEqual(decoded, Dictionary(uniqueKeysWithValues: expectedQuery.map { ($0.name, $0.value!) }))
-                    XCTAssertTrue(decoded["and"]!.contains(timestamp), "Timezone and all six fractional digits survive the actual HTTP serialization")
-                    if timestamp.contains("+") {
-                        XCTAssertTrue(encoded.contains(timestamp.replacingOccurrences(of: "+", with: "%2B")))
-                        XCTAssertFalse(encoded.contains(timestamp.replacingOccurrences(of: "+", with: "%252B")))
-                    }
+                    XCTAssertTrue(decoded["and"]!.contains(timestamp), "Date survives the actual HTTP serialization")
                 } else { XCTAssertEqual(calls, 1); XCTAssertNil(decoded["and"]) }
                 transport.finish(status: 200, data: calls == 1 ? firstData : secondData)
             } catch {
@@ -403,18 +382,12 @@ final class NativeTransportTests: XCTestCase {
         }
         // No pageLoader: exercise NativeAPI.request -> URLSession -> captured final URLRequest.
         let api = NativeAPI(auth: auth, network: network)
-        let result: [Row] = try await api.fetch("food_entries", query: query)
+        let result: [Row] = try await api.fetch("sessions", query: query)
         XCTAssertEqual(calls, 2); XCTAssertEqual(result.count, 502)
         XCTAssertEqual(result.map(\.id), rows.map { $0["id"]! })
     }
-    @MainActor func testActualSecondPageRequestPreservesPositiveUTCOffsetAndPercentLiterals() async throws {
-        try await checkSecondPage(timestamp: "2026-10-01T12:34:56.123456+00:00")
-    }
-    @MainActor func testActualSecondPageRequestPreservesPositiveFractionalTimezone() async throws {
-        try await checkSecondPage(timestamp: "2026-10-01T12:34:56.123456+05:45")
-    }
-    @MainActor func testActualSecondPageRequestPreservesNegativeTimezone() async throws {
-        try await checkSecondPage(timestamp: "2026-10-01T12:34:56.123456-03:30")
+    @MainActor func testActualSecondPageRequestPreservesDateAndPercentLiterals() async throws {
+        try await checkSecondPage(timestamp: "2026-10-01")
     }
 }
 
@@ -1292,9 +1265,7 @@ private final class NativeOfflineRequests: @unchecked Sendable {
             sessions: [NativeWorkoutSession(id: "session", user_id: owner, performed_on: NativeDate.key(), created_at: "", routine_day_id: "day", notes: nil, set_count: 1)],
             sets: [NativeSet(id: "set", user_id: owner, session_id: "session", exercise_id: "press", set_index: 0, reps: 10, weight_kg: 20)],
             weights: [NativeWeight(id: "weight", user_id: owner, measured_on: NativeDate.key(), weight_kg: 80)],
-            profile: NativeBodyProfile(user_id: owner, goal: "maintain", updated_at: "", height_cm: 180, target_weight_kg: nil, birth_date: "1990-01-01", sex: "male"),
-            foodEntries: [NativeFoodEntry(id: "food", user_id: owner, logged_on: NativeDate.key(), created_at: "", catalog_version: "fixture", source: "fixture", source_code: "fixture", source_revision: 1, source_url: "", source_retrieved_at: "", source_response_sha256: "", reviewed_at: "", food_name: "Fixture", brand: "", basis_unit: "g", quantity: 100, energy_kcal_per_100: 100, kcal: 100)],
-            foodDays: [NativeFoodDay(user_id: owner, logged_on: NativeDate.key(), created_at: "", target_kcal: 2000, tdee_kcal: 2200)])
+            profile: NativeBodyProfile(user_id: owner, goal: "maintain", updated_at: "", height_cm: 180, target_weight_kg: nil, birth_date: "1990-01-01", sex: "male"))
     }
     func seed(_ value: NativeDataSnapshot? = nil) async {
         let snapshot = value ?? Self.snapshot()
@@ -1328,6 +1299,21 @@ private final class NativeOfflineRequests: @unchecked Sendable {
 }
 
 final class NativeCacheRegressionTests: XCTestCase {
+    @MainActor func testLegacyAccountSnapshotStillDecodesWithoutTheRemovedDiary() throws {
+        let original = NativeOfflineFixture.snapshot()
+        let data = try JSONEncoder().encode(original)
+        var legacy = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+        legacy["foodEntries"] = [["old": "unused"]]
+        legacy["foodDays"] = [["old": "unused"]]
+        legacy["domainSavedAt"] = ["training": original.savedAt.timeIntervalSinceReferenceDate,
+                                   "body": original.savedAt.timeIntervalSinceReferenceDate,
+                                   "foods": Date.distantPast.timeIntervalSinceReferenceDate]
+        let decoded = try JSONDecoder().decode(NativeDataSnapshot.self, from: JSONSerialization.data(withJSONObject: legacy))
+        XCTAssertTrue(decoded.isValid(for: original.ownerID))
+        XCTAssertEqual(decoded.sessions.map(\.id), original.sessions.map(\.id))
+        XCTAssertEqual(decoded.weights.map(\.id), original.weights.map(\.id))
+    }
+
     @MainActor private func wait(_ condition: () -> Bool, file: StaticString = #filePath, line: UInt = #line) async throws {
         for _ in 0..<300 {
             if condition() { return }
@@ -1336,22 +1322,22 @@ final class NativeCacheRegressionTests: XCTestCase {
         XCTFail("Offline condition timed out", file: file, line: line)
         throw URLError(.timedOut)
     }
-    @MainActor func testCacheHydratesAllNineDomainsBeforeDelayedNetworkAndServerDeletionReplacesDisk() async throws {
+    @MainActor func testCacheHydratesAllSevenTablesBeforeDelayedNetworkAndServerDeletionReplacesDisk() async throws {
         let fixture = NativeOfflineFixture(); defer { fixture.dispose() }
         await fixture.seed()
         let gate = NativeOfflineReadGate(), store = fixture.store(auto: true, loader: { table, _ in await gate.load(table) })
         try fixture.login()
-        try await wait { store.loaded && gate.tables.count == 9 }
+        try await wait { store.loaded && gate.tables.count == 7 }
         XCTAssertFalse(store.loading); XCTAssertTrue(store.refreshing); XCTAssertTrue(store.usingCachedData)
         XCTAssertEqual(store.routines.count, 1); XCTAssertEqual(store.days.count, 1); XCTAssertEqual(store.routineExercises.count, 1)
         XCTAssertEqual(store.sessions.count, 1); XCTAssertEqual(store.sets.count, 1); XCTAssertEqual(store.weights.count, 1)
-        XCTAssertNotNil(store.profile); XCTAssertEqual(store.foodEntries.count, 1); XCTAssertEqual(store.foodDays.count, 1)
+        XCTAssertNotNil(store.profile)
         try gate.release()
         await store.refresh()
         XCTAssertTrue(store.loaded); XCTAssertFalse(store.usingCachedData); XCTAssertFalse(store.refreshing)
         XCTAssertTrue(store.routines.isEmpty); XCTAssertTrue(store.sets.isEmpty); XCTAssertNil(store.profile)
         let disk = await fixture.disk()
-        XCTAssertNotNil(disk); XCTAssertTrue(disk?.routines.isEmpty == true); XCTAssertTrue(disk?.foodEntries.isEmpty == true)
+        XCTAssertNotNil(disk); XCTAssertTrue(disk?.routines.isEmpty == true)
     }
     @MainActor func testCompleteCacheRemainsAvailableAfterOfflineFailure() async throws {
         let fixture = NativeOfflineFixture(); defer { fixture.dispose() }
@@ -1359,10 +1345,10 @@ final class NativeCacheRegressionTests: XCTestCase {
         let store = fixture.store()
         try fixture.login(); await store.refresh()
         XCTAssertTrue(store.loaded); XCTAssertTrue(store.usingCachedData); XCTAssertFalse(store.loading); XCTAssertFalse(store.refreshing)
-        XCTAssertEqual(store.active?.name, "Cached routine"); XCTAssertEqual(store.foodEntries.count, 1); XCTAssertNotNil(store.error)
+        XCTAssertEqual(store.active?.name, "Cached routine"); XCTAssertNotNil(store.error)
         let disk = await fixture.disk(); XCTAssertNotNil(disk)
     }
-    @MainActor func testActualGETsAreNineConcurrentAndCoalesceOnlyWhileInFlight() async throws {
+    @MainActor func testActualGETsAreSevenConcurrentAndCoalesceOnlyWhileInFlight() async throws {
         let fixture = NativeOfflineFixture(); defer { fixture.dispose() }
         let requests = NativeOfflineRequests()
         NativeOfflineURLProtocol.handle { request, transport in
@@ -1372,8 +1358,8 @@ final class NativeCacheRegressionTests: XCTestCase {
         }
         let store = fixture.store(); try fixture.login()
         let first = Task { await store.refresh() }, second = Task { await store.refresh() }
-        try await wait { requests.all.count == 9 }
-        XCTAssertEqual(Set(requests.all.compactMap { $0.request.url?.lastPathComponent }).count, 9)
+        try await wait { requests.all.count == 7 }
+        XCTAssertEqual(Set(requests.all.compactMap { $0.request.url?.lastPathComponent }).count, 7)
         XCTAssertFalse(store.loaded, "Training requires all five related tables")
         let trainingTables = Set(["routines", "routine_days", "routine_exercises", "sessions", "session_sets"])
         let training = requests.all.filter { trainingTables.contains($0.request.url!.lastPathComponent) }
@@ -1382,13 +1368,13 @@ final class NativeCacheRegressionTests: XCTestCase {
         XCTAssertFalse(store.loaded, "A half-loaded training domain is not available")
         try XCTUnwrap(training.last).finish()
         try await wait { store.loaded }
-        XCTAssertFalse(store.bodyLoaded); XCTAssertFalse(store.foodsLoaded)
+        XCTAssertFalse(store.bodyLoaded)
         for transport in requests.all where !trainingTables.contains(transport.request.url!.lastPathComponent) { transport.finish() }
         await first.value; await second.value
-        XCTAssertEqual(requests.all.count, 9); XCTAssertTrue(store.loaded)
+        XCTAssertEqual(requests.all.count, 7); XCTAssertTrue(store.loaded)
         NativeOfflineURLProtocol.handle { _, transport in requests.append(transport); transport.finish() }
         await store.refresh()
-        XCTAssertEqual(requests.all.count, 18, "Lifecycle reads after completion are not TTL-skipped")
+        XCTAssertEqual(requests.all.count, 14, "Lifecycle reads after completion are not TTL-skipped")
     }
     @MainActor func testSuccessfulMutationCancelsPreMutationReadAndForcesNewCohort() async throws {
         let fixture = NativeOfflineFixture(); defer { fixture.dispose() }
@@ -1404,14 +1390,14 @@ final class NativeCacheRegressionTests: XCTestCase {
         }
         try fixture.login()
         let old = Task { await store.refresh() }
-        try await wait { gate.tables.count == 9 }
+        try await wait { gate.tables.count == 7 }
         let succeeded = await store.run {
             try await store.api.write("routines", method: "POST", body: ["name": "Fresh"])
             fresh = true
         }
         try gate.release(routines: NativeOfflineFixture.snapshot(name: "Obsolete").routines)
         await old.value
-        XCTAssertTrue(succeeded); XCTAssertEqual(writes, 1); XCTAssertEqual(calls, 18)
+        XCTAssertTrue(succeeded); XCTAssertEqual(writes, 1); XCTAssertEqual(calls, 14)
         XCTAssertEqual(store.active?.name, "Fresh"); XCTAssertFalse(store.busy)
         let disk = await fixture.disk(); XCTAssertEqual(disk?.routines.first?.name, "Fresh")
     }
@@ -1420,7 +1406,7 @@ final class NativeCacheRegressionTests: XCTestCase {
             let fixture = NativeOfflineFixture(); defer { fixture.dispose() }
             let gate = NativeOfflineReadGate(), store = fixture.store(loader: { table, _ in await gate.load(table) })
             try fixture.login(); let old = Task { await store.refresh() }
-            try await wait { gate.tables.count == 9 }
+            try await wait { gate.tables.count == 7 }
             try fixture.login(owner)
             store.error = "replacement-error"
             try gate.release(routines: NativeOfflineFixture.snapshot(name: "Obsolete").routines)
@@ -1435,7 +1421,7 @@ final class NativeCacheRegressionTests: XCTestCase {
         let gate = NativeOfflineReadGate(), store = fixture.store(loader: { table, _ in await gate.load(table) })
         NativeOfflineURLProtocol.handle { _, transport in transport.finish(204) }
         try fixture.login(); let old = Task { await store.refresh() }
-        try await wait { gate.tables.count == 9 }
+        try await wait { gate.tables.count == 7 }
         XCTAssertTrue(store.loaded)
         await fixture.auth.signOut()
         try fixture.login()
@@ -1452,7 +1438,7 @@ final class NativeCacheRegressionTests: XCTestCase {
         let text = String(decoding: good, as: UTF8.self)
         XCTAssertFalse(text.contains("access_token")); XCTAssertFalse(text.contains("refresh_token"))
         var incompatible = NativeOfflineFixture.snapshot(); incompatible.schemaVersion += 1
-        var incomplete = try XCTUnwrap(JSONSerialization.jsonObject(with: good) as? [String: Any]); incomplete.removeValue(forKey: "foodDays")
+        var incomplete = try XCTUnwrap(JSONSerialization.jsonObject(with: good) as? [String: Any]); incomplete.removeValue(forKey: "weights")
         var foreignRow = try XCTUnwrap(JSONSerialization.jsonObject(with: good) as? [String: Any])
         foreignRow["sets"] = [["id": "s", "user_id": "b", "session_id": "s", "exercise_id": "e", "set_index": 0]]
         let invalid: [(String, Data)] = [
@@ -1620,6 +1606,33 @@ final class NativeAuthCacheRegressionTests: XCTestCase {
 }
 
 final class NativeCacheUIRegressionTests: XCTestCase {
+    @MainActor func testBodyProgressWithOneWeightRemainsResponsive() async throws {
+        let fixture = NativeOfflineFixture(); defer { fixture.dispose() }
+        let store = fixture.store(replay: false)
+        try fixture.login(); await fixture.seed(); await store.refresh()
+        NativeProgressRoute.requestWeight()
+        try await withAsyncHost(AnyView(NativeProgressView()), store: store) { controller, _ in
+            try await self.settleAsync(controller)
+            let fields = self.descendants(controller.view).compactMap { $0 as? UITextField }
+            let weight = try XCTUnwrap(fields.first { $0.keyboardType == .decimalPad })
+            weight.resignFirstResponder()
+            try await self.settleAsync(controller)
+            XCTAssertTrue(weight.becomeFirstResponder(), "Body remains interactive after showing its chart")
+            weight.insertText("81,2")
+            XCTAssertEqual(weight.text, "81,2")
+            weight.resignFirstResponder()
+            let picker = try XCTUnwrap(self.descendants(controller.view).compactMap { $0 as? UISegmentedControl }.first)
+            for _ in 0..<3 {
+                picker.selectedSegmentIndex = 0; picker.sendActions(for: .valueChanged)
+                try await self.settleAsync(controller)
+                picker.selectedSegmentIndex = 1; picker.sendActions(for: .valueChanged)
+                try await self.settleAsync(controller)
+                XCTAssertEqual(weight.text, "81,2", "Switching sections must retain the weight draft")
+                XCTAssertFalse(weight.isHidden)
+            }
+        }
+    }
+
     @MainActor private func descendants(_ view: UIView) -> [UIView] { [view] + view.subviews.flatMap(descendants) }
     @MainActor private func settle(_ controller: UIViewController) {
         controller.view.setNeedsLayout(); controller.view.layoutIfNeeded()
@@ -1978,7 +1991,7 @@ extension NativeCacheRegressionTests {
         try fixture.auth.keychainSave(JSONEncoder().encode(NativeOfflineFixture.session()))
         await store.bootstrap(); await store.refresh()
         XCTAssertTrue(store.loaded); XCTAssertTrue(store.usingCachedData); XCTAssertFalse(store.loading)
-        XCTAssertEqual(store.active?.name, "Cached routine"); XCTAssertEqual(store.foodEntries.count, 1)
+        XCTAssertEqual(store.active?.name, "Cached routine")
         XCTAssertNotNil(store.error, "Mock transport is offline: cached hydration must precede the failed read")
         XCTAssertTrue(FileManager.default.fileExists(atPath: retained.path))
         XCTAssertFalse(FileManager.default.fileExists(atPath: orphan.path))
@@ -1991,7 +2004,6 @@ extension NativeCacheRegressionTests {
         XCTAssertFalse(FileManager.default.fileExists(atPath: retained.path), "Other-owner pruning must still work through an alias")
     }
 }
-
 
 final class NativeWorkoutRoutingTests: XCTestCase {
     @MainActor func testTodayDismissesWorkoutNavigationAndWinsOverEarlierQueuedLinks() throws {
@@ -2298,7 +2310,6 @@ final class NativeActiveWorkoutPersistenceAcceptanceTests: XCTestCase {
     }
 }
 
-
 extension NativeWorkoutRoutingTests {
     @MainActor func testPreviousDateFrozenActiveWorkoutResumesGuidedBeforeCacheLoads() throws {
         let fixture = NativeOfflineFixture(); defer { fixture.dispose() }
@@ -2357,10 +2368,7 @@ extension NativeCacheUIRegressionTests {
 }
 
 extension NativeTests {
-    func testPortionMathAndWorkoutInputsNeverSilentlyTruncate() throws {
-        XCTAssertEqual(NativeFoodQuantity.portionAmount(count: "1,5", size: 30), 45)
-        XCTAssertNil(NativeFoodQuantity.portionAmount(count: "0,33", size: 0.33), "A result with more than two decimals must be rejected, not rounded")
-        for raw in ["NaN", "inf", "1e2", "-1", "0", "5000,01", "1,234"] { XCTAssertNil(NativeFoodQuantity.amount(raw)) }
+    func testWorkoutInputsNeverSilentlyTruncate() throws {
         XCTAssertEqual(NativeWorkoutInput.parse(reps: "12", weight: "17,5")?.weight, 17.5)
         for values in [("12,5", "10"), ("1000", "10"), ("12", "17,555"), ("12", "NaN"), ("12", "-1")] {
             XCTAssertNil(NativeWorkoutInput.parse(reps: values.0, weight: values.1))
@@ -2369,23 +2377,7 @@ extension NativeTests {
         let empty = try XCTUnwrap(NativeWorkoutInput.parse(reps: "", weight: ""))
         XCTAssertNil(empty.reps); XCTAssertNil(empty.weight)
     }
-    @MainActor func testFoodFavoritesAmountsAndPortionsRemainPerOwnerAcrossRestart() throws {
-        let suite = "fit-food-preferences-acceptance-\(UUID())"
-        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
-        defer { defaults.removePersistentDomain(forName: suite) }
-        let food = try XCTUnwrap(nativeResource("foods-catalog.json", as: NativeFoodCatalog.self).products.first)
-        let preferences = NativeFoodPreferences(defaults: defaults)
-        preferences.activate(owner: "a"); preferences.toggleFavorite(food); preferences.setPortion(30, for: food)
-        preferences.record(food, amount: 45, owner: "a")
-        preferences.activate(owner: "b")
-        XCTAssertFalse(preferences.isFavorite(food)); XCTAssertNil(preferences.lastAmount(food)); XCTAssertNil(preferences.portion(food))
-        preferences.record(food, amount: 99, owner: "a")
-        XCTAssertNil(preferences.lastAmount(food), "A delayed A reply cannot update B's amounts")
-        preferences.activate(owner: nil); preferences.toggleFavorite(food)
-        XCTAssertFalse(preferences.isFavorite(food))
-        let restarted = NativeFoodPreferences(defaults: defaults); restarted.activate(owner: "a")
-        XCTAssertTrue(restarted.isFavorite(food)); XCTAssertEqual(restarted.lastAmount(food), 45); XCTAssertEqual(restarted.portion(food), 30)
-    }
+
 }
 
 final class NativeDomainRecoveryTests: XCTestCase {
@@ -2408,8 +2400,6 @@ final class NativeDomainRecoveryTests: XCTestCase {
         case "session_sets": return try encoder.encode(snapshot.sets)
         case "weight_entries": return try encoder.encode(snapshot.weights)
         case "body_profile": return try encoder.encode(snapshot.profile.map { [$0] } ?? [])
-        case "food_entries": return try encoder.encode(snapshot.foodEntries)
-        case "food_days": return try encoder.encode(snapshot.foodDays)
         default: throw NativeFailure.message("Unexpected fixture table")
         }
     }
@@ -2417,52 +2407,49 @@ final class NativeDomainRecoveryTests: XCTestCase {
     @MainActor func testTrainingPublishesAndPersistsBeforeSecondaryDomainsComplete() async throws {
         let fixture = NativeOfflineFixture(); defer { fixture.dispose() }
         let snapshot = NativeOfflineFixture.snapshot(), gate = NativeOfflineReadGate()
-        let secondary = Set(["weight_entries", "body_profile", "food_entries", "food_days"])
+        let secondary = Set(["weight_entries", "body_profile"])
         let store = fixture.store(loader: { table, _ in
             if secondary.contains(table) { return await gate.load(table) }
             return try Self.data(table, snapshot: snapshot)
         }, replay: false)
         try fixture.login()
         let read = Task { await store.refresh() }
-        try await wait { store.loaded && gate.tables.count == 4 }
+        try await wait { store.loaded && gate.tables.count == 2 }
         XCTAssertEqual(store.days.count, 1); XCTAssertEqual(store.sessions.count, 1); XCTAssertEqual(store.sets.count, 1)
         XCTAssertFalse(store.loading); XCTAssertTrue(store.refreshing)
         XCTAssertTrue(store.domainState(.body).loading); XCTAssertFalse(store.bodyLoaded)
-        XCTAssertTrue(store.domainState(.foods).loading); XCTAssertFalse(store.foodsLoaded)
         let partial = try XCTUnwrap(store.workoutRepository.read(owner: "a").snapshot)
-        XCTAssertFalse(partial.isCompleteRefresh); XCTAssertNil(partial.updatedAt(for: .foods))
+        XCTAssertFalse(partial.isCompleteRefresh)
         XCTAssertTrue(try store.workoutRepository.read(owner: "a").snapshotNeedsRevalidation)
         XCTAssertThrowsError(try store.workoutRepository.checkpoint(partial, readRevision: 0), "Partial availability must not acknowledge a complete account GET")
         try gate.release(); await read.value
-        XCTAssertTrue(store.bodyLoaded); XCTAssertTrue(store.foodsLoaded)
+        XCTAssertTrue(store.bodyLoaded)
         XCTAssertTrue(try store.workoutRepository.read(owner: "a").snapshot?.isCompleteRefresh == true)
         XCTAssertFalse(try store.workoutRepository.read(owner: "a").snapshotNeedsRevalidation)
     }
 
-    @MainActor func testBodyAndFoodFailuresDoNotBlockFirstTrainingLoadOrOfflineRelaunch() async throws {
+    @MainActor func testBodyFailuresDoNotBlockFirstTrainingLoadOrOfflineRelaunch() async throws {
         let fixture = NativeOfflineFixture(); defer { fixture.dispose() }
         let snapshot = NativeOfflineFixture.snapshot()
         let store = fixture.store(loader: { table, _ in
-            if table == "body_profile" || table == "food_days" { throw URLError(.notConnectedToInternet) }
+            if table == "body_profile" { throw URLError(.notConnectedToInternet) }
             return try Self.data(table, snapshot: snapshot)
         }, replay: false)
         try fixture.login(); await store.refresh()
         XCTAssertTrue(store.loaded); XCTAssertNil(store.error); XCTAssertFalse(store.usingCachedData)
         XCTAssertEqual(store.active?.id, "routine"); XCTAssertEqual(store.sets.count, 1)
-        XCTAssertFalse(store.bodyLoaded); XCTAssertFalse(store.foodsLoaded)
-        XCTAssertNotNil(store.domainState(.body).error); XCTAssertNotNil(store.domainState(.foods).error)
+        XCTAssertFalse(store.bodyLoaded)
         XCTAssertTrue(store.weights.isEmpty); XCTAssertNil(store.profile)
-        XCTAssertTrue(store.foodEntries.isEmpty); XCTAssertTrue(store.foodDays.isEmpty)
         let partial = try XCTUnwrap(store.workoutRepository.read(owner: "a").snapshot)
-        XCTAssertNil(partial.updatedAt(for: .body)); XCTAssertNil(partial.updatedAt(for: .foods))
+        XCTAssertNil(partial.updatedAt(for: .body))
         XCTAssertFalse(partial.isCompleteRefresh)
         let cold = fixture.store(replay: false); await cold.refresh()
         XCTAssertTrue(cold.loaded); XCTAssertTrue(cold.usingCachedData)
         XCTAssertEqual(cold.days.count, 1); XCTAssertEqual(cold.sets.count, 1)
-        XCTAssertFalse(cold.bodyLoaded); XCTAssertFalse(cold.foodsLoaded)
+        XCTAssertFalse(cold.bodyLoaded)
     }
 
-    @MainActor func testFailedTrainingIsAtomicAndDoesNotBlockBodyOrFoods() async throws {
+    @MainActor func testFailedTrainingIsAtomicAndDoesNotBlockBody() async throws {
         let fixture = NativeOfflineFixture(); defer { fixture.dispose() }
         let snapshot = NativeOfflineFixture.snapshot()
         let store = fixture.store(loader: { table, _ in
@@ -2473,16 +2460,15 @@ final class NativeDomainRecoveryTests: XCTestCase {
         XCTAssertFalse(store.loaded); XCTAssertNotNil(store.error)
         XCTAssertTrue(store.routines.isEmpty); XCTAssertTrue(store.days.isEmpty); XCTAssertTrue(store.sessions.isEmpty)
         XCTAssertTrue(store.bodyLoaded); XCTAssertNotNil(store.profile)
-        XCTAssertTrue(store.foodsLoaded); XCTAssertEqual(store.foodDays.first?.target_kcal, 2000)
         let partial = try XCTUnwrap(store.workoutRepository.read(owner: "a").snapshot)
         XCTAssertNil(partial.updatedAt(for: .training)); XCTAssertFalse(partial.isCompleteRefresh)
     }
 
-    @MainActor func testPartialRefreshPreservesHistoricalFoodSnapshotsDraftsAndPendingWorkoutOverlay() async throws {
+    @MainActor func testPartialRefreshPreservesBodySnapshotsDraftsAndPendingWorkoutOverlay() async throws {
         let fixture = NativeOfflineFixture(); defer { fixture.dispose() }
         let old = NativeOfflineFixture.snapshot(date: Date().addingTimeInterval(-3600))
         let store = fixture.store(loader: { table, _ in
-            if table == "food_days" || table == "body_profile" { throw NativeFailure.http(500, "fixture") }
+            if table == "body_profile" { throw NativeFailure.http(500, "fixture") }
             if table == "session_sets" { return Data("[]".utf8) }
             return try Self.data(table, snapshot: old)
         }, replay: false)
@@ -2493,50 +2479,43 @@ final class NativeDomainRecoveryTests: XCTestCase {
         try store.saveWorkoutDraft(date: NativeDate.key(), dayID: "day", exerciseID: "press", index: 2, repsText: "invalid", weightText: "17,555")
         await store.refresh()
         XCTAssertTrue(store.loaded); XCTAssertNil(store.error)
-        XCTAssertTrue(store.bodyLoaded); XCTAssertTrue(store.foodsLoaded)
-        XCTAssertTrue(store.domainState(.body).usingCachedData); XCTAssertTrue(store.domainState(.foods).usingCachedData)
-        XCTAssertNotNil(store.domainState(.foods).error)
-        XCTAssertEqual(store.foodDays.first?.target_kcal, old.foodDays.first?.target_kcal)
-        XCTAssertEqual(store.foodDays.first?.tdee_kcal, old.foodDays.first?.tdee_kcal)
-        XCTAssertEqual(store.foodEntries.first?.kcal, old.foodEntries.first?.kcal)
+        XCTAssertTrue(store.bodyLoaded); XCTAssertTrue(store.domainState(.body).usingCachedData)
+        XCTAssertEqual(store.weights.first?.weight_kg, old.weights.first?.weight_kg)
         XCTAssertEqual(store.sets.first(where: { $0.set_index == 1 })?.reps, 12)
         let journal = try store.workoutRepository.read(owner: "a")
         XCTAssertTrue(journal.snapshotNeedsRevalidation); XCTAssertFalse(journal.snapshot?.isCompleteRefresh ?? true)
-        XCTAssertEqual(journal.snapshot?.updatedAt(for: .foods), old.savedAt)
         XCTAssertEqual(journal.outbox.count, 1); XCTAssertEqual(journal.drafts.count, 1)
         let cold = fixture.store(replay: false); await cold.refresh()
-        XCTAssertEqual(cold.foodDays.first?.target_kcal, old.foodDays.first?.target_kcal)
         XCTAssertEqual(cold.workoutDraft(date: NativeDate.key(), dayID: "day", exerciseID: "press", index: 2)?.weightText, "17,555")
     }
 
     @MainActor func testDomainRecoveryClearsItsErrorWithoutRegisteringDraftOrRepeatingMutation() async throws {
         let fixture = NativeOfflineFixture(); defer { fixture.dispose() }
         let snapshot = NativeOfflineFixture.snapshot()
-        var foodFailure = true
+        var bodyFailure = true
         let requests = NativeOfflineRequests()
         NativeOfflineURLProtocol.handle { _, transport in requests.append(transport); transport.offline() }
         let store = fixture.store(loader: { table, _ in
-            if table == "food_entries", foodFailure { throw URLError(.notConnectedToInternet) }
+            if table == "body_profile", bodyFailure { throw URLError(.notConnectedToInternet) }
             return try Self.data(table, snapshot: snapshot)
         }, replay: false)
         try fixture.login(); await store.refresh()
-        XCTAssertNotNil(store.domainState(.foods).error)
         try store.saveWorkoutDraft(date: NativeDate.key(), dayID: "day", exerciseID: "press", index: 2, repsText: "9", weightText: "17,5")
-        foodFailure = false; await store.refresh()
-        XCTAssertTrue(store.foodsLoaded); XCTAssertNil(store.domainState(.foods).error)
-        XCTAssertFalse(store.domainState(.foods).usingCachedData)
-        XCTAssertEqual(store.foodDays.first?.target_kcal, 2000)
+        XCTAssertNotNil(store.domainState(.body).error)
+        bodyFailure = false; await store.refresh()
+        XCTAssertTrue(store.bodyLoaded); XCTAssertNil(store.domainState(.body).error)
+        XCTAssertFalse(store.domainState(.body).usingCachedData)
         XCTAssertEqual(store.workoutDraft(date: NativeDate.key(), dayID: "day", exerciseID: "press", index: 2)?.repsText, "9")
         XCTAssertTrue(try store.workoutRepository.read(owner: "a").outbox.isEmpty)
         XCTAssertTrue(requests.all.isEmpty, "Refresh recovery is read-only and a draft is never implicitly registered")
     }
 
-    @MainActor func testConfirmedTrainingDeletionRetiresOlderAcknowledgementEvenWhenFoodFails() async throws {
-        for foodFails in [true, false] {
+    @MainActor func testConfirmedTrainingDeletionRetiresOlderAcknowledgementEvenWhenBodyFails() async throws {
+        for bodyFails in [true, false] {
             let fixture = NativeOfflineFixture(); defer { fixture.dispose() }
             let old = NativeOfflineFixture.snapshot()
             let store = fixture.store(loader: { table, _ in
-                if foodFails, table == "food_days" { throw NativeFailure.http(500, "fixture") }
+                if bodyFails, table == "body_profile" { throw NativeFailure.http(500, "fixture") }
                 if table == "session_sets" { return Data("[]".utf8) }
                 return try Self.data(table, snapshot: old)
             }, replay: false)
@@ -2553,8 +2532,8 @@ final class NativeDomainRecoveryTests: XCTestCase {
             XCTAssertTrue(store.loaded); XCTAssertTrue(store.sets.isEmpty, "A confirmed server deletion must not resurrect an obsolete acknowledged overlay")
             let journal = try store.workoutRepository.read(owner: "a")
             XCTAssertTrue(journal.changes.isEmpty); XCTAssertTrue(journal.snapshot?.sets.isEmpty == true)
-            XCTAssertEqual(journal.snapshot?.isCompleteRefresh, !foodFails)
-            XCTAssertEqual(journal.snapshotNeedsRevalidation, foodFails)
+            XCTAssertEqual(journal.snapshot?.isCompleteRefresh, !bodyFails)
+            XCTAssertEqual(journal.snapshotNeedsRevalidation, bodyFails)
         }
     }
 
@@ -2573,8 +2552,8 @@ final class NativeDomainRecoveryTests: XCTestCase {
         try await wait { store.loaded && gate.tables.count == 1 }
         try store.saveWorkoutDraft(date: NativeDate.key(), dayID: "day", exerciseID: "press", index: 2, repsText: "invalid", weightText: "17,555")
         try gate.release(); await read.value
-        XCTAssertFalse(store.loaded); XCTAssertFalse(store.bodyLoaded); XCTAssertFalse(store.foodsLoaded)
-        XCTAssertTrue(store.routines.isEmpty); XCTAssertTrue(store.foodDays.isEmpty); XCTAssertNotNil(store.error)
+        XCTAssertFalse(store.loaded); XCTAssertFalse(store.bodyLoaded)
+        XCTAssertTrue(store.routines.isEmpty); XCTAssertNotNil(store.error)
         let root = try XCTUnwrap(NativeDataCache(directory: fixture.directory).workoutDirectory).appendingPathComponent(fixture.auth.storageNamespace)
         let cold = try NativeWorkoutRepository(directory: root).read(owner: "a")
         XCTAssertNil(cold.snapshot); XCTAssertEqual(cold.drafts.count, 1)
@@ -2780,37 +2759,7 @@ final class NativeAlarmFailureAcceptanceTests: XCTestCase {
 }
 
 extension NativeCacheRegressionTests {
-    @MainActor func testFoodRPCConfirmationWithFailedGETNeverPublishesOldFoodArraysAsFresh() async throws {
-        let fixture = NativeOfflineFixture(); defer { fixture.dispose() }
-        let snapshot = NativeOfflineFixture.snapshot(date: Date().addingTimeInterval(-3600))
-        await fixture.seed(snapshot)
-        let store = fixture.store(); try fixture.login()
-        store.routines = snapshot.routines; store.days = snapshot.days; store.routineExercises = snapshot.routineExercises
-        store.sessions = snapshot.sessions; store.sets = snapshot.sets; store.weights = snapshot.weights
-        store.profile = snapshot.profile; store.foodEntries = snapshot.foodEntries; store.foodDays = snapshot.foodDays; store.loaded = true
-        try store.workoutRepository.transact(owner: "a") { envelope in
-            envelope.snapshot = snapshot
-            envelope.drafts["unrelated-workout-draft"] = NativeWorkoutDraft(repsText: "12", weightText: "17,5")
-        }
-        let requests = NativeOfflineRequests()
-        NativeOfflineURLProtocol.handle { request, transport in
-            requests.append(transport)
-            if request.url?.path == "/rest/v1/rpc/log_food_entry" { transport.finish(200, Data("{\"id\":\"new-confirmed-entry\"}".utf8)) }
-            else { transport.offline() }
-        }
-        let accepted = await store.run { try await store.api.rpc("log_food_entry", body: ["p_quantity": 100]) }
-        XCTAssertTrue(accepted, "The RPC acknowledgement is not an unsuccessful write merely because its GET failed")
-        XCTAssertTrue(store.usingCachedData); XCTAssertNotNil(store.error)
-        XCTAssertEqual(store.foodEntries.map(\.id), snapshot.foodEntries.map(\.id), "These are still the old arrays, not the unconsumed RPC representation")
-        let journal = try store.workoutRepository.read(owner: "a")
-        XCTAssertTrue(journal.snapshotNeedsRevalidation)
-        XCTAssertEqual(journal.snapshot?.savedAt, snapshot.savedAt, "Do not give an unchanged food snapshot a new freshness timestamp")
-        XCTAssertNotNil(journal.drafts["unrelated-workout-draft"])
-        let relaunched = fixture.store(); await relaunched.refresh()
-        XCTAssertTrue(relaunched.usingCachedData)
-        XCTAssertFalse(relaunched.foodEntries.contains { $0.id == "new-confirmed-entry" })
-        XCTAssertEqual(requests.all.filter { $0.request.httpMethod == "POST" }.count, 1, "Reconciliation/relaunch is GET-only, never automatic RPC resubmission")
-    }
+
 }
 
 @MainActor private final class NativeRoutineInsertionBackend {
@@ -3012,7 +2961,7 @@ extension NativeWorkoutJournalAcceptanceTests {
         XCTAssertTrue(try cold.overlay(owner: "b", sessions: [], sets: []).sets.isEmpty)
         let token = try XCTUnwrap(store.workoutMutationToken(date: date, exerciseID: "press", index: 0))
         let fresh = NativeDataSnapshot(ownerID: "a", savedAt: Date(), routines: [], days: [], routineExercises: [],
-            sessions: [remoteSession], sets: [], weights: [], profile: nil, foodEntries: [], foodDays: [])
+            sessions: [remoteSession], sets: [], weights: [], profile: nil)
         try cold.checkpoint(fresh, readRevision: cold.read(owner: "a").revision)
         XCTAssertTrue(try cold.read(owner: "a").changes.isEmpty)
         let afterCheckpoint = manualStore(fixture, repository: NativeWorkoutRepository(directory: root))

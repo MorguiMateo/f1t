@@ -19,33 +19,16 @@ describe("main navigation destinations", () => {
     ["/ejercicios?rutina=r&dia=d", "/rutinas"],
     ["/ejercicios/press", "/rutinas"],
     ["/rutinas/r/dias/d", "/rutinas"],
-  ])("keeps exactly five destinations and selects the owner at %s", (path, owner) => {
+  ])("keeps exactly four destinations and selects the owner at %s", (path, owner) => {
     const links = linksAt(path);
     const active = links.filter((link) => link.includes('aria-current="page"'));
-    expect(links).toHaveLength(5);
+    expect(links).toHaveLength(4);
     expect(active).toHaveLength(1);
     expect(active[0]).toContain(`href="${owner}"`);
   });
-  it.each(["/comidas", "/comidas/"])(
-    "selects Comidas, not Hoy, when opening %s directly",
-    (path) => {
-      const links = linksAt(path);
-      expect(links).toHaveLength(5);
-      const active = links.filter((link) => link.includes('aria-current="page"'));
-      expect(active).toHaveLength(1);
-      expect(active[0]).toContain('href="/comidas"');
-      expect(active[0]).toContain("Comidas");
-    },
-  );
-
-  it.each(["/", "/rutinas", "/progreso", "/perfil"])(
-    "keeps Comidas accessible without selecting it from %s",
-    (path) => {
-      const links = linksAt(path);
-      const foods = links.find((link) => link.includes('href="/comidas"'));
-      expect(foods).toBeDefined();
-      expect(foods).not.toContain('aria-current="page"');
-      expect(links.filter((link) => link.includes('aria-current="page"'))).toHaveLength(1);
-    },
-  );
+  it("contains only the four supported tabs", () => {
+    const links = linksAt("/progreso");
+    expect(links).toHaveLength(4);
+    expect(links.map(link => link.match(/href="([^"]+)"/)?.[1])).toEqual(["/", "/rutinas", "/progreso", "/perfil"]);
+  });
 });

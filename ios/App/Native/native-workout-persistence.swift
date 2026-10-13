@@ -438,8 +438,7 @@ extension NativeStore {
         // comes from domainStates; no empty secondary arrays become confirmed data.
         if domainStates.isEmpty {
             return NativeDataSnapshot(ownerID: owner, savedAt: lastCompleteSnapshotDate ?? Date(), routines: routines, days: days,
-                routineExercises: routineExercises, sessions: sessions, sets: sets, weights: weights, profile: profile,
-                foodEntries: foodEntries, foodDays: foodDays)
+                routineExercises: routineExercises, sessions: sessions, sets: sets, weights: weights, profile: profile)
         }
         let dates = Dictionary(uniqueKeysWithValues: NativeDataDomain.allCases.compactMap { domain -> (String, Date)? in
             let state = domainState(domain)
@@ -448,7 +447,7 @@ extension NativeStore {
         })
         return NativeDataSnapshot(ownerID: owner, savedAt: dates.values.max() ?? Date(), routines: routines, days: days,
             routineExercises: routineExercises, sessions: sessions, sets: sets, weights: weights, profile: profile,
-            foodEntries: foodEntries, foodDays: foodDays, domainSavedAt: dates, completeRefresh: false)
+            domainSavedAt: dates, completeRefresh: false)
     }
 
     func applyWorkoutOverlay(notify: Bool = true) {

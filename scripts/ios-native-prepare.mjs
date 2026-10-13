@@ -1,4 +1,4 @@
-import { readFile, writeFile, mkdir, cp } from 'node:fs/promises';
+import { readFile, writeFile, mkdir, cp, rm } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { nativeXCConfig } from './ios-native-config.mjs';
@@ -24,8 +24,10 @@ if (!url || !key) throw new Error('Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_
 await writeFile(resolve(root, 'ios/native-config.xcconfig'), nativeXCConfig(url, key), { mode: 0o600 });
 const resources = resolve(root, 'ios/App/NativeResources');
 await mkdir(resources, { recursive: true });
-await cp(resolve(root, 'public/data/foods-catalog.json'), resolve(resources, 'foods-catalog.json'));
-await cp(resolve(root, 'public/data/foods-catalog-attribution.json'), resolve(resources, 'foods-catalog-attribution.json'));
+// Remove obsolete generated diary resources from existing native builds.
+for (const name of ["foods-catalog.json", "foods-catalog-attribution.json"]) {
+  await rm(resolve(resources, name), { force: true });
+}
 await cp(resolve(root, 'public/exercises'), resolve(resources, 'exercises'), { recursive: true });
 const catalog = JSON.parse(await readFile(resolve(root, 'src/features/exercises/catalog.json'), 'utf8'));
 const exercises = catalog.map(e => ({ id: e.id, name: e.name, name_en: e.nameEn, aliases: e.aliases, category: e.category, level: e.level, equipment: e.equipment, force: e.force, mechanic: e.mechanic,

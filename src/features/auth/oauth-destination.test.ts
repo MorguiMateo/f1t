@@ -22,12 +22,12 @@ describe("OAuth return destination", () => {
     expect(takeOAuthDestination(storage, 2000)).toBe("/");
   });
   it("rejects expired, future, malformed and tampered destinations", () => {
-    rememberOAuthDestination("/comidas", storage, 1000);
+    rememberOAuthDestination("/progreso", storage, 1000);
     expect(readOAuthDestination(storage, 1000 + 16 * 60_000)).toBeNull();
     expect(values.size).toBe(0);
-    rememberOAuthDestination("/comidas", storage, 2000);
+    rememberOAuthDestination("/progreso", storage, 2000);
     expect(readOAuthDestination(storage, 1000)).toBeNull();
-    rememberOAuthDestination("/comidas", storage, 1000);
+    rememberOAuthDestination("/progreso", storage, 1000);
     const key = [...values.keys()][0];
     values.set(key, JSON.stringify({ path: "//evil.test", createdAt: 1000 }));
     expect(takeOAuthDestination(storage, 2000)).toBeNull();

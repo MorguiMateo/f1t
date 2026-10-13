@@ -35,7 +35,7 @@ export function SignInScreen({ sessionError, retrySession }: { sessionError?: Er
       <div className="flex flex-1 flex-col items-center justify-center text-center">
         <h1 className="text-5xl font-bold tracking-tight">F1t</h1>
         <p className="mt-3 max-w-[28ch] text-pretty text-muted">
-          Tus entrenamientos, tus comidas y tu progreso, en un solo lugar.
+          Tus entrenamientos y tu progreso, en un solo lugar.
         </p>
 
         {sessionError ? <div className="mt-6 w-full max-w-sm text-left">

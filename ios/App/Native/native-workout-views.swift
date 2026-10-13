@@ -410,13 +410,6 @@ struct NativeWorkoutView: View {
                 Button("Volver sin finalizar") { dismiss() }
                     .buttonStyle(FitButtonStyle(variant: .quietMuted, fullWidth: true))
                     .padding(.top, 16)
-                DisclosureGroup {
-                    Text("Las series registradas quedan guardadas en este iPhone. Los campos sin confirmar son borradores; revisá los avisos de guardado. El descanso y la actividad en vivo siguen hasta finalizar.")
-                        .foregroundStyle(FitColor.muted).padding(.top, 4)
-                } label: {
-                    Text("Al salir del entrenamiento").frame(minHeight: 44, alignment: .leading)
-                }
-                .font(.fit(.sm)).padding(.top, 4)
             }
             if mode == .history, session != nil {
                 Button("Borrar este entrenamiento", role: .destructive) { confirmingDelete = true }
@@ -627,16 +620,6 @@ struct NativeRestPanel: View {
                     }
                 }
             }
-            DisclosureGroup {
-                Stepper(value: $minutes, in: 0.5...10, step: 0.5) {
-                    Text("Próximo descanso: \(FitFormat.decimal(minutes)) min").font(.fit(.sm))
-                }.accessibilityHint("Cambia la duración de los próximos descansos, no el actual.")
-                NativeWorkoutRestPreferences()
-                Text("Empieza al registrar una nueva serie. Podés seguir antes de que termine. La duración elegida se aplica al próximo descanso, no al actual.")
-                    .foregroundStyle(FitColor.muted).padding(.top, 4)
-            } label: {
-                Text("Preferencias de descanso y avisos").fitMinimumHitArea()
-            }.font(.fit(.sm))
         }.fitCard()
     }
     private func countdown(at now: Date) -> some View {

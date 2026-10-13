@@ -511,7 +511,7 @@ private struct FitPickerStyle: ViewModifier {
 
 // MARK: - Icons
 
-enum FitGlyphKind { case today, routines, foods, progress, profile, back }
+enum FitGlyphKind { case today, routines, progress, profile, back }
 
 /// The web's 24×24 stroke icons (nav-icons.tsx), drawn natively.
 struct FitGlyphShape: Shape {
@@ -524,13 +524,6 @@ struct FitGlyphShape: Shape {
             line(7, 6.5, 7, 17.5); line(17, 6.5, 17, 17.5); line(3.75, 9.5, 3.75, 14.5); line(20.25, 9.5, 20.25, 14.5); line(7, 12, 17, 12)
         case .routines:
             for y in [6.5, 12, 17.5] as [CGFloat] { line(4, y, 7, y); line(10.5, y, 20, y) }
-        case .foods:
-            p.move(to: CGPoint(x: 4, y: 3)); p.addLine(to: CGPoint(x: 4, y: 7))
-            p.addArc(center: CGPoint(x: 7, y: 7), radius: 3, startAngle: .degrees(180), endAngle: .degrees(0), clockwise: true)
-            p.addLine(to: CGPoint(x: 10, y: 3)); line(7, 3, 7, 21)
-            p.move(to: CGPoint(x: 17, y: 3))
-            p.addQuadCurve(to: CGPoint(x: 14, y: 11), control: CGPoint(x: 14, y: 7))
-            p.addLine(to: CGPoint(x: 18, y: 11)); line(18, 3, 18, 21)
         case .progress:
             for (x, y) in [(3.5, 4), (10, 4), (16.5, 4), (3.5, 10), (10, 10), (3.5, 16), (10, 16), (16.5, 10)] as [(CGFloat, CGFloat)] {
                 p.addRoundedRect(in: CGRect(x: x, y: y, width: 4, height: 4), cornerSize: CGSize(width: 1, height: 1))
@@ -562,12 +555,12 @@ struct FitGlyph: View {
 // MARK: - Tabs
 
 enum FitTab: Hashable, CaseIterable {
-    case today, routines, foods, progress, profile
+    case today, routines, progress, profile
     var label: String {
-        switch self { case .today: "Hoy"; case .routines: "Rutinas"; case .foods: "Comidas"; case .progress: "Progreso"; case .profile: "Perfil" }
+        switch self { case .today: "Hoy"; case .routines: "Rutinas"; case .progress: "Progreso"; case .profile: "Perfil" }
     }
     var glyph: FitGlyphKind {
-        switch self { case .today: .today; case .routines: .routines; case .foods: .foods; case .progress: .progress; case .profile: .profile }
+        switch self { case .today: .today; case .routines: .routines; case .progress: .progress; case .profile: .profile }
     }
 }
 

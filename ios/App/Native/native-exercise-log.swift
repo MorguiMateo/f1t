@@ -177,6 +177,7 @@ struct NativeSetRow: View {
     }
     private var status: String {
         let value = store.workoutSyncLabel(exerciseID: exerciseID, index: index, date: date)
+        if value == "Sin registrar" { return "" }
         return !isDone && value.hasPrefix("Guardado en este iPhone") ? "Serie quitada · \(value)" : value
     }
     private var registerTitle: String { isDone ? "Guardar corrección" : "Registrar serie \(index + 1)" }
@@ -238,8 +239,6 @@ struct NativeSetRow: View {
                 Label(status, systemImage: "arrow.triangle.2.circlepath")
                     .font(.fit(.sm)).foregroundStyle(FitColor.ink2)
                     .accessibilityElement(children: .combine)
-            } else if !isDone {
-                Text("Sin registrar").font(.fit(.sm)).foregroundStyle(FitColor.muted)
             }
             if isDone {
                 Button("Quitar esta serie", role: .destructive) { confirmingUnlog = true }
@@ -335,9 +334,6 @@ struct NativeSetRow: View {
                 .font(.fit(.sm)).foregroundStyle(FitColor.muted)
         } else if earlier == nil, previous != nil {
             Text("Valores sugeridos de la sesión anterior; revisalos antes de registrar.")
-                .font(.fit(.sm)).foregroundStyle(FitColor.muted)
-        } else if earlier == nil, let targetReps, !targetReps.isEmpty {
-            Text("Repeticiones sugeridas según objetivo \(targetReps); no son un registro realizado.")
                 .font(.fit(.sm)).foregroundStyle(FitColor.muted)
         }
     }

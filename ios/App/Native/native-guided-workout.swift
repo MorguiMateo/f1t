@@ -141,24 +141,7 @@ struct NativeGuidedWorkout: View {
         VStack(alignment: .leading, spacing: 8) {
             Text(store.exercise(id)?.name ?? id.replacingOccurrences(of: "_", with: " "))
                 .font(.fit(.xl2, .bold)).fixedSize(horizontal: false, vertical: true).accessibilityAddTraits(.isHeader)
-            DisclosureGroup {
-                NativeWorkoutExerciseImage(exercise: store.exercise(id)).id(id)
-                if let exercise = store.exercise(id) {
-                    NativeExerciseTechnique(exercise: exercise)
-                    NavigationLink { NativeExerciseDetail(exercise: exercise) } label: {
-                        Label("Ver ficha", systemImage: "info.circle").fitMinimumHitArea()
-                    }.fitLink()
-                }
-            } label: {
-                Text("Imagen y técnica").fitMinimumHitArea()
-            }.font(.fit(.sm)).id(id)
-            if let notes = activePlan.first(where: { $0.exercise_id == id })?.notes, !notes.isEmpty {
-                DisclosureGroup {
-                    Text(notes).foregroundStyle(FitColor.ink2).padding(.top, 4)
-                } label: {
-                    Text("Notas de rutina").fitMinimumHitArea()
-                }.font(.fit(.sm))
-            }
+            NativeWorkoutExerciseImage(exercise: store.exercise(id)).id(id)
         }
     }
 
@@ -195,14 +178,6 @@ struct NativeGuidedWorkout: View {
                 Text("No se puede sustituir con series registradas.")
                     .font(.fit(.sm)).foregroundStyle(FitColor.muted)
             }
-            DisclosureGroup {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Queda pendiente; no se marca como completado.")
-                    Text("Sustituir solo cambia este entrenamiento, no tu rutina. Antes, guardá o descartá los borradores.")
-                }.foregroundStyle(FitColor.muted).padding(.top, 4)
-            } label: {
-                Text("Sobre estos controles").fitMinimumHitArea()
-            }.font(.fit(.sm))
         }
     }
 

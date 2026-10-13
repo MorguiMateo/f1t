@@ -35,29 +35,6 @@ struct NativeBodyProfile: Codable, Identifiable {
     let height_cm, target_weight_kg: Double?
     let birth_date, sex: String?
 }
-struct NativeFoodDay: Codable, Identifiable {
-    var id: String { logged_on }
-    let user_id, logged_on, created_at: String
-    let target_kcal, tdee_kcal: Double?
-}
-struct NativeFoodEntry: Codable, Identifiable {
-    let id, user_id, logged_on, created_at, catalog_version, source, source_code: String
-    let source_revision: Int
-    let source_url, source_retrieved_at, source_response_sha256, reviewed_at, food_name, brand, basis_unit: String
-    let quantity, energy_kcal_per_100, kcal: Double
-}
-struct NativeFoodCatalog: Codable {
-    let catalogVersion: String
-    let products: [NativeFood]
-}
-struct NativeFood: Codable, Identifiable {
-    var id: String { sourceCode }
-    let catalogVersion, source, sourceCode, sourceUrl, sourceRetrievedAt, sourceResponseSha256, reviewedAt: String
-    let sourceRevision: Int
-    let name, brand, basisUnit, group: String
-    let energyKcalPer100: Double
-    let aliases: [String]
-}
 struct NativeAuthUser: Codable {
     let id: String
     let email: String?

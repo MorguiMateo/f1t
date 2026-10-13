@@ -32,10 +32,10 @@ VoiceOver/Dynamic Type. No se desplegó ni se modificaron datos remotos.
 
 ### Navegación y orden de la información
 
-- Se conservan cinco pestañas: **Hoy, Rutinas, Comidas, Progreso y Perfil**
-  (`FitTab` / `NativeTabsView`). Comidas tiene destino propio; Entrenar sigue
+- Se conservan cuatro pestañas: **Hoy, Rutinas, Progreso y Perfil**
+  (`FitTab` / `NativeTabsView`). Entrenar sigue
   siendo una pantalla, no una sexta pestaña.
-- **Hoy** ordena entrenamiento → resumen de comidas → pasos. Un único CTA
+- **Hoy** ordena entrenamiento → pasos. Un único CTA
   principal se adapta a empezar, retomar o revisar. En iOS, la sesión activa
   sustituye la acción principal del plan del día; si corresponde a otra fecha o
   día, ese plan queda secundario. Conserva fecha y plan congelado de la sesión.
@@ -45,14 +45,11 @@ VoiceOver/Dynamic Type. No se desplegó ni se modificaron datos remotos.
   y el enlace incluye `?dia=`. Si el día no está disponible en la rutina activa,
   ofrece revisar Progreso: no lo sustituye silenciosamente por otro entrenamiento.
   La finalización exige los índices previstos registrados, no un total agregado.
-- `TodayFoodSummary` y `NativeTodayFoodSummary` suman las kcal guardadas y leen
-  el objetivo histórico de esa fecha. No recalculan energía ni suman gasto del
-  entrenamiento; un snapshot sin objetivo conserva ese significado.
 - **Progreso** agrupa **Entrenamiento** y **Cuerpo**, sin crear más pestañas.
-  Actividad/historial y evolución por ejercicio están separados de pesos y
+  Actividad de 26 semanas primero y evolución por ejercicio al final; separadas de pesos y
   gráfico corporal. «Anotar peso» conduce a Cuerpo. Web usa `seccion=cuerpo`;
   iOS conserva las secciones montadas y usa `NativeProgressRoute` para accesos
-  contextuales. Perfil reúne datos del objetivo, estimaciones y preferencias.
+  contextuales. Perfil reúne datos corporales, objetivo y preferencias.
 
 ### Disponibilidad por dominio y estado de guardado
 
@@ -63,30 +60,23 @@ VoiceOver/Dynamic Type. No se desplegó ni se modificaron datos remotos.
 | --- | --- |
 | `store.domainState(.training)` | Rutinas, días, ejercicios del plan, sesiones y series |
 | `store.domainState(.body)` | Perfil corporal y pesos |
-| `store.domainState(.foods)` | Entradas y snapshots diarios de comidas |
 
 Las propiedades heredadas `loaded`/`loading`/`usingCachedData` describen
-entrenamiento, no toda la cuenta; `bodyLoaded` y `foodsLoaded` son accesos a sus
-dominios. Un fallo de comidas/cuerpo no convierte entrenamiento disponible en
+entrenamiento, no toda la cuenta; `bodyLoaded` accede a su
+dominio. Un fallo de cuerpo no convierte entrenamiento disponible en
 una pantalla bloqueada, ni una lectura parcial confirma un snapshot completo.
 Frescura de lectura y sincronización de escrituras son estados distintos:
 **borrador sin registrar**, **guardado en este iPhone**, **pendiente de
-sincronizar** y **sincronizado** no son intercambiables. Cuerpo y comidas siguen
+sincronizar** y **sincronizado** no son intercambiables. Cuerpo sigue
 requiriendo confirmación de red; no adquieren la outbox de series.
 
 ### Borradores, salida y contrato de pestañas
 
-- Los borradores nunca registran series/comidas por cambiar de pantalla.
+- Los borradores nunca registran series por cambiar de pantalla.
   Entrenamiento nativo los conserva en `NativeWorkoutRepository`; web usa
   `createWorkoutDraftStore`/`createWorkoutSetRegistry` y `localStorage`, aislados
   por cuenta, fecha, día, ejercicio e índice. Una respuesta tardía no debe borrar
   una edición posterior. Fallar la persistencia no equivale a guardar.
-- Comidas nativo usa `NativeFoodDraft` y `NativeFoodPreferences`, persistidos por
-  propietario. Web usa `FoodLocalState`: preferencias en `localStorage` y
-  borrador en `sessionStorage` por cuenta (sobrevive navegación/recarga de esa
-  sesión de navegador, no garantiza persistencia al cerrar la pestaña).
-  Cantidades, porciones y preferencias distinguen referencias `source:code:unit`;
-  no se reinterpreta una cantidad en g como ml.
 - Perfil nativo aplica `NativeSignOutPolicy` y consulta
   `pendingWorkoutChanges()` antes de salir. La revisión distingue borradores
   de entrenamiento de comandos registrados en outbox, permite revisar fechas,
@@ -94,8 +84,7 @@ requiriendo confirmación de red; no adquieren la outbox de series.
   confirmación. Ediciones pendientes del perfil corporal o sincronización de
   entrenamiento en curso impiden cerrar. `signOut(discardUnsyncedWorkouts:expectedGeneration:)` y
   `NativeWorkoutAction` rechazan confirmaciones de una generación anterior.
-  **Esta revisión no enumera los borradores de comidas ni es una función del
-  cierre de sesión web.** El descarte descrito es de entrenamiento local, no de
+  **Esta revisión no es una función del cierre de sesión web.** El descarte descrito es de entrenamiento local, no de
   registros remotos ya sincronizados.
 - `NativeTabsView` monta pestañas al visitarlas y conserva su identidad; repetir
   la pestaña activa emite `fitTabRootRequest`, sin resetear el árbol ni forzar
@@ -103,11 +92,7 @@ requiriendo confirmación de red; no adquieren la outbox de series.
   `fitTabRoot(isDirty:returnToRoot:)`; los formularios publican
   `fitNavigationDraft(_:)`. `FitTabRootPolicy.canReturn` rechaza borradores
   propios o descendientes: no difiere un pop que se ejecutaría tras guardar.
-  En Comidas, el consumidor está en el wrapper de `NativeTabsView`:
-  `NavigationStack(path: $foodPath)` aplica
-  `.fitTabRoot { foodPath = NavigationPath() }`. `NativeFoodsView` publica
-  `fitNavigationDraft` como descendiente; no necesita duplicar el consumidor.
-  Verificar el comportamiento de las cinco pestañas en QA: conectar el contrato
+  Verificar el comportamiento de las cuatro pestañas en QA: conectar el contrato
   no equivale a aceptación interactiva.
 
 ### Revisión al finalizar y selección de pendientes
@@ -131,8 +116,7 @@ son comandos para ejecutar en QA, **no resultados de esta edición documental**:
 
 ```sh
 npm test -- src/pages/today-selection.test.ts src/pages/today-page.test.tsx \
-  src/features/sessions/workout-drafts.test.ts src/features/sessions/exercise-log-drafts.test.tsx \
-  src/features/foods/local-state.test.ts src/features/foods/food-diary-page.test.tsx
+  src/features/sessions/workout-drafts.test.ts src/features/sessions/exercise-log-drafts.test.tsx
 node --test scripts/native-today-ux.node-test.mjs scripts/native-workout-ux.node-test.mjs \
   scripts/native-ui-contract.node-test.mjs src/features/body/native-signout-policy.node-test.mjs
 npm run ios:test -- -only-testing:NativeTests/NativeDomainRecoveryTests
@@ -192,16 +176,9 @@ Deshacer una eliminación exige su token durable vigente: no puede sobrescribir
 una serie posterior ni resucitar una sesión eliminada. Los borradores pertenecen
 a cuenta/generación, fecha, día, ejercicio e índice, no solo al ejercicio.
 
-El diario dispone de cantidades/porciones validadas y preferencias privadas de
-favoritos/recientes por propietario. Sus RPC necesitan red y **no** incluyen una
-clave de idempotencia nueva: reconciliar entradas visibles después de un retry
-no garantiza exactamente una escritura ante una respuesta perdida. No se cambió
-el esquema remoto. Cuerpo/alimentos no comparten la outbox de series. Cuerpo
-persiste las filas realmente devueltas por el ACK antes de refrescar y solo envía
-el campo editado del perfil. En alimentos el RPC no publica filas confirmadas:
-un ACK seguido de GET fallido conserva la copia anterior como desactualizada,
-sin inventar entradas ni renovar su fecha de frescura. La reconciliación incierta
-solo hace GET; registrar otra vez exige una acción explícita de la persona.
+Cuerpo no comparte la outbox de series. Persiste las filas realmente devueltas
+por el ACK antes de refrescar y solo envía el campo editado del perfil.
+No se cambió el esquema remoto.
 
 La inserción de ejercicios conserva el ID del intento y primero reconcilia por
 cuenta/día/ejercicio/ID. Si el POST se confirmó pero se perdió la respuesta, el
@@ -335,9 +312,8 @@ Builds negativos reales con configuración ausente, URL entrecomillada/truncada
 o clave privada fallan como corresponde. Logs locales:
 `/tmp/fit-config-{debug,release,device,xctest,node-all}.log`.
 
-Los recursos incluyen el catálogo de alimentos y su atribución, 165 ejercicios
-e imágenes locales. Búsqueda y consulta funcionan sin red. Series de entrenamiento
-se registran localmente y se sincronizan después; diario/cuerpo requieren red
+Los recursos incluyen 165 ejercicios, su atribución e imágenes locales. Búsqueda y consulta funcionan sin red. Series de entrenamiento
+se registran localmente y se sincronizan después; cuerpo requiere red
 para confirmar escrituras. La copia de lectura privada vive en archivos del
 sandbox aislados por cuenta y protegidos por el dispositivo; el journal durable
 del entrenamiento no contiene credenciales. Una recarga fallida conserva la
@@ -345,7 +321,7 @@ del entrenamiento no contiene credenciales. Una recarga fallida conserva la
 GET 401/403 definitivo: invalida el snapshot de lectura durable sin borrar la
 outbox ni los borradores privados. Los registros completos se
 paginan en bloques de 500 mediante cursores keyset: sesiones/pesos por fecha+ID,
-comidas por timestamp+ID (con precisión original del servidor), y claves únicas
+y claves únicas
 para el resto. Evita truncación y saltos/duplicados causados por desplazamientos
 OFFSET ante altas/bajas concurrentes. No es aislamiento de snapshot: altas detrás
 del cursor o cambios de la clave de orden requieren otra recarga.
@@ -402,7 +378,7 @@ validarse en el teléfono. Luego probá Google, pasos, recordatorios y widgets.
   tardía no modifica el estado del nuevo acceso. Un access token ya emitido
   puede seguir válido hasta vencer; la revocación no garantiza borrado remoto.
   El login web anterior no se transfiere: volver a iniciar sesión una vez.
-- Hoy: resumen de rutina/día y acceso al entrenamiento guiado, diario y pasos;
+- Hoy: resumen de rutina/día y acceso al entrenamiento guiado y pasos;
   las instrucciones, imágenes y series editables aparecen dentro del entrenamiento.
   Selector de día y «Entrenar igual» conservan la fecha real `performed_on`.
   Una sesión activa conserva su identidad y plan congelado; no se reescribe su
@@ -414,17 +390,11 @@ validarse en el teléfono. Luego probá Google, pasos, recordatorios y widgets.
   notas, quitar y ordenar ejercicios mediante RPC transaccional y posiciones
   esperadas. Cobertura muscular con diagrama corporal y lista textual.
 - Progreso: heatmap de 26 semanas por opacidad, racha, días y series; tocar un
-  día o el historial abre ese entrenamiento para corregir o borrar (con
+  día del calendario abre ese entrenamiento para corregir o borrar (con
   confirmación). Peso fechado/correcciones/borrado y gráfico con promedio
   móvil de siete días.
-- Perfil: campos opcionales guardados al salir de cada campo, objetivos,
-  IMC/BMR/TDEE/objetivo.
-  Mismos coeficientes, rango de actividad de 28 días y piso BMR que la web.
-  No usar estas estimaciones como consejo médico o nutricional.
-- Comidas: búsqueda offline, gramos/ml, agregar/editar/borrar por RPC,
-  procedencia completa y snapshot diario inmutable. Fechas locales y peso
-  histórico (no usa pesajes futuros). Ante error cargando energía permite
-  guardar sin objetivo **solo con elección explícita**.
+- Perfil: campos corporales opcionales guardados al salir de cada campo y
+  objetivos de peso.
 - Pasos: CoreMotion al solicitarlo; permisos opcionales, indisponibilidad en
   Simulator informada. Recordatorios locales únicamente para días activos,
   hora configurable, permiso explícito y limpieza al salir/cambiar cuenta.
@@ -432,22 +402,20 @@ validarse en el teléfono. Luego probá Google, pasos, recordatorios y widgets.
   eventos con identidad entrante evitan leer el estado anterior de `@Published`.
 - Widgets: mismo App Group y extensiones existentes, payload v2 atómico,
   182 niveles/7 días, máximo seis ejercicios, limpieza al salir. No se
-  comparten tokens ni alimentos/perfil con la extensión. Familias: pequeño,
+  comparten tokens ni perfil con la extensión. Familias: pequeño,
   mediano (heatmap), grande y Lock Screen circular/rectangular/inline; ver
   «Live Activity del entrenamiento».
 
 La interfaz conserva el lenguaje visual del cliente web original (la UI que se
 veía cuando la app era Capacitor): colores claro/oscuro de `src/index.css`, tipografía
 Archivo empaquetada en `App/Fonts` (OFL, licencia junto a las fuentes),
-tarjetas, botones, encabezados y barra inferior de cinco pestañas (Hoy,
-Rutinas, Comidas, Progreso, Perfil). Hoy ofrece además acceso contextual a Comidas
-y Entrenar es su propia pantalla, como en la web. El mapa muscular usa los
+tarjetas, botones, encabezados y barra inferior de cuatro pestañas (Hoy,
+Rutinas, Progreso, Perfil). Entrenar es su propia pantalla, como en la web. El mapa muscular usa los
 polígonos de
 `react-body-highlighter` (MIT) en `native-body-map.swift`. Los tokens y
 componentes viven en `native-theme.swift`; etiquetas y formatos en español,
 en `native-format.swift`. Las funciones exclusivas de la app nativa (pasos,
-elegir otro día de rutina, editar días pasados desde el calendario o el
-historial de Progreso) se presentan con el mismo estilo. Se conserva el
+elegir otro día de rutina, editar días pasados desde el calendario de Progreso) se presentan con el mismo estilo. Se conserva el
 escalado de texto, VoiceOver, estados vacíos y errores explícitos. No incluye
 un modo demo ni backend inventado para simular aceptación.
 
@@ -768,3 +736,12 @@ No hace falta ejecutar migraciones ni `db:push`.
   Actividades en vivo en Ajustes; sin permiso, los widgets igual muestran el
   entreno en curso. No hay push remoto: solo se actualiza desde el dispositivo.
 
+
+### Corrección del bloqueo de Cuerpo
+
+El calendario retenido en la sección oculta escribía su ancho en `@State`
+desde `onGeometryChange`. Con altura cero, esa medida cambiaba el tamaño de
+sus filas y generaba un ciclo continuo de layout en el hilo principal.
+`FitHeatmapLayout` calcula y coloca las filas sin escribir estado. Las secciones
+siguen montadas para preservar borradores. La regresión nativa abre Cuerpo con
+un peso guardado y verifica que el campo siga respondiendo.

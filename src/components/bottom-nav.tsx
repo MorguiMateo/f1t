@@ -1,7 +1,6 @@
 import { Link, useLocation } from "react-router";
 import { sectionForDestination } from "./navigation";
 import {
-  FoodsIcon,
   ProfileIcon,
   ProgressIcon,
   RoutinesIcon,
@@ -11,7 +10,6 @@ import {
 const TABS = [
   { to: "/", label: "Hoy", Icon: TodayIcon },
   { to: "/rutinas", label: "Rutinas", Icon: RoutinesIcon },
-  { to: "/comidas", label: "Comidas", Icon: FoodsIcon },
   { to: "/progreso", label: "Progreso", Icon: ProgressIcon },
   { to: "/perfil", label: "Perfil", Icon: ProfileIcon },
 ];

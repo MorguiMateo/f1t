@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { toDateKey } from "../../lib/heatmap";
+import { toDateKey } from "./heatmap";
 
 /** Calendar midnight, not 24 hours: also works on daylight-saving boundaries. */
 export function millisecondsToLocalMidnight(now: Date): number {
